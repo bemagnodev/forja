@@ -1,8 +1,21 @@
 from django.db import models
 
 class Contest(models.Model):
+
+    class Platform(models.TextChoices):
+        CODEFORCES = 'CF', 'Codeforces'
+        CSES = 'CSES', 'CSES'
+        # Futuro: ATCODER = 'AC', 'AtCoder'
+
     external_id = models.IntegerField(unique=True, help_text="ID original do Codeforces")
     name = models.CharField(max_length=255)
+
+    platform = models.CharField(
+        max_length=10,
+        choices=Platform.choices,
+        default=Platform.CODEFORCES  
+    )
+
     start_time = models.DateTimeField(null=True, blank=True)
     is_team = models.BooleanField()
     
@@ -20,6 +33,13 @@ class Problem(models.Model):
     name = models.CharField(max_length=255)
     rating = models.IntegerField(null=True, blank=True)
     tags = models.JSONField(default=list)  
+
+    is_upsolved = models.BooleanField(default=False)
+    # Define se o problema foi resolvido durante o contest pelo time    
+    solved_by_team = models.BooleanField(default=False)
+
+    is_solved = models.BooleanField(default=False)
+    is_favorite = models.BooleanField(default=False)
     
     class Meta:
         #impede dois problemas com mesmo index em um unico contest (Ex: dois A)
@@ -31,10 +51,9 @@ class Problem(models.Model):
 class Submission(models.Model):
     problem = models.ForeignKey(Problem, on_delete=models.CASCADE, related_name='submissions')  
     
-    verdict = models.CharField(max_length=50) #OK, TLE, MLE, WA
     submission_id = models.IntegerField(unique=True)
+    verdict = models.CharField(max_length=50) #OK, TLE, MLE, WA
     creation_time = models.DateTimeField()
-    is_upsolved = models.BooleanField(default=False)  
 
 
     def __str__(self):
