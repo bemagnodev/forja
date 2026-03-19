@@ -192,32 +192,8 @@ class Command(BaseCommand):
                     is_after_contest=is_after
                 )
                 
-                # === LÓGICA DE ESTADOS (Atualização do Problema) === 
-                if new_submission.verdict == 'OK':
-                    if not is_after:
-                        # CASO 1: Sucesso durante o contest (Live/Virtual)
-                        problem.live_performance = Problem.LivePerformance.AC_TEAM if is_team_submission else Problem.LivePerformance.AC_SOLO
-                        problem.resolution_status = Problem.ResolutionStatus.SOLVED_LIVE
-                    else:
-                        # CASO 2: Sucesso fora do tempo oficial
-                        # Se havia uma dívida anterior (Erro, Feito pelo Time ou Nem Aberto), vira UPSOLVED
-                        debitos_anteriores = [
-                            Problem.LivePerformance.FAILED, 
-                            Problem.LivePerformance.AC_TEAM, 
-                            Problem.LivePerformance.UNATTEMPTED
-                        ]
-                        if problem.live_performance in debitos_anteriores:
-                            problem.resolution_status = Problem.ResolutionStatus.UPSOLVED
-                        else:
-                            # Caso contrário, é uma questão de prática livre (não vinculada à performance de um contest)
-                            problem.resolution_status = Problem.ResolutionStatus.SOLVED_PRACTICE
-                else:
-                    # CASO 3: Erro durante a prova gera dívida imediata (PENDING)
-                    if not is_after:
-                        problem.live_performance = Problem.LivePerformance.FAILED
-                        problem.resolution_status = Problem.ResolutionStatus.PENDING
-
-                problem.save()
+                # Ativa máquina de estados
+                problem.update_state_from_submission(is_after, is_team_submission, new_submission.verdict)
                 self.stdout.write(self.style.SUCCESS(f"  [OK] Submissão {sub_id} -> Prob {problem.index} [{problem.resolution_status}]"))
 
             except Exception as e:

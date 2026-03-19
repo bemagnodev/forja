@@ -60,6 +60,11 @@ class Problem(models.Model):
     is_favorite = models.BooleanField(default=False)
     xp_value = models.IntegerField(default=0, help_text="XP calculado via IA/Fórmula")
 
+    solved_by_me_in_team = models.BooleanField(
+        default=False, 
+        help_text="Marque se VOCÊ codou essa questão no contest em time."
+    )
+
     class LivePerformance(models.TextChoices):
         NOT_PARTICIPATED = 'NOT_PARTICIPATED', 'Fora de Contest' # Para questões soltas/Practice
         UNATTEMPTED = 'UNATTEMPTED', 'Não tentada' # Estava no contest, mas você não submeteu nada
@@ -86,6 +91,75 @@ class Problem(models.Model):
         choices=ResolutionStatus.choices, 
         default=ResolutionStatus.PENDING
     )
+
+    def update_state_from_submission(self, is_after, is_team_submission, verdict):
+        """
+        Máquina de Estados Isolada:
+        Recebe os dados de uma submissão e calcula o novo status do problema.
+        """
+        # Se questão ja foi resolvida alguma vez, status não muda
+        already_solved = self.resolution_status in [
+            self.ResolutionStatus.SOLVED_LIVE, 
+            self.ResolutionStatus.UPSOLVED, 
+            self.ResolutionStatus.SOLVED_PRACTICE
+        ]
+
+        if verdict == 'OK':
+            if not is_after:
+                # CASO 1: Sucesso durante o contest (Live/Virtual)
+                if is_team_submission and self.solved_by_me_in_team:
+                    self.live_performance = self.LivePerformance.AC_SOLO
+                    self.resolution_status = self.ResolutionStatus.SOLVED_LIVE
+                elif is_team_submission:
+                    self.live_performance = self.LivePerformance.AC_TEAM
+                    self.resolution_status = self.ResolutionStatus.PENDING
+                else:
+                    self.live_performance = self.LivePerformance.AC_SOLO
+                    self.resolution_status = self.ResolutionStatus.SOLVED_LIVE
+            else:
+                # CASO 2: Sucesso fora do tempo oficial
+                if self.resolution_status != self.ResolutionStatus.SOLVED_LIVE:
+                    
+                    debitos_anteriores = [
+                        self.LivePerformance.FAILED, 
+                        self.LivePerformance.AC_TEAM, 
+                        self.LivePerformance.UNATTEMPTED
+                    ]
+                    if self.live_performance in debitos_anteriores:
+                        self.resolution_status = self.ResolutionStatus.UPSOLVED
+                    else:
+                        if self.resolution_status != self.ResolutionStatus.UPSOLVED:
+                            self.resolution_status = self.ResolutionStatus.SOLVED_PRACTICE
+        else:
+            # CASO 3: Erro durante a prova gera dívida imediata (PENDING)
+            if not is_after:
+                if self.live_performance not in [self.LivePerformance.AC_SOLO, self.LivePerformance.AC_TEAM]:
+                    self.live_performance = self.LivePerformance.FAILED
+            
+            if not already_solved:
+                self.resolution_status = self.ResolutionStatus.PENDING
+
+        self.save()
+
+    def save(self, *args, **kwargs):
+        """
+        Intercepta o salvamento do banco para garantir que mudanças manuais 
+        no Admin (como a flag do time) atualizem a Máquina de Estados.
+        """
+        # seo contest foi em time
+        if self.contest and self.contest.is_team:
+            # Se resolvida por mim e o status estava como Time -> soved_by_me
+            if self.solved_by_me_in_team and self.live_performance == self.LivePerformance.AC_TEAM:
+                self.live_performance = self.LivePerformance.AC_SOLO
+                self.resolution_status = self.ResolutionStatus.SOLVED_LIVE
+                
+            # Se estava como feita por mim e mudou -> Devolve pro Time
+            elif not self.solved_by_me_in_team and self.live_performance == self.LivePerformance.AC_SOLO:
+                self.live_performance = self.LivePerformance.AC_TEAM
+                if self.resolution_status == self.ResolutionStatus.SOLVED_LIVE:
+                    self.resolution_status = self.ResolutionStatus.PENDING
+
+        super().save(*args, **kwargs)
 
     class Meta:
         #impede dois problemas com mesmo index em um unico contest (Ex: dois A)
