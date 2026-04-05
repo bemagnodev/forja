@@ -1,0 +1,131 @@
+import time
+from datetime import datetime
+from django.utils import timezone
+from django.core.management.base import BaseCommand
+from api.models import User, Problem, Submission, UserProblemTracking, PlatformChoices
+from api.services.atcoder_client import AtCoderClient
+
+class Command(BaseCommand):
+    help = 'Sincroniza as submissões do AtCoder buscando na The Kenkoooo API.'
+
+    def add_arguments(self, parser):
+        parser.add_argument(
+            '--handle',
+            type=str,
+            help='Especifica um único atcoder_handle para focar no sync.'
+        )
+        parser.add_argument(
+            '--force-full',
+            action='store_true',
+            help='Ignora a data do último sincronismo e puxa tudo de novo (Full Sync).'
+        )
+
+    def handle(self, *args, **kwargs):
+        handle_arg = kwargs.get('handle')
+        force_full = kwargs.get('force_full')
+
+        if handle_arg:
+            users = User.objects.filter(atcoder_handle=handle_arg)
+        else:
+            users = User.objects.exclude(atcoder_handle__isnull=True).exclude(atcoder_handle__exact='')
+
+        if not users.exists():
+            self.stdout.write(self.style.WARNING("Nenhum usuário apto com atcoder_handle encontrado para a sincronização."))
+            return
+
+        client = AtCoderClient()
+
+        for user in users:
+            self.stdout.write(self.style.MIGRATE_HEADING(f"[{user.username}] Buscando submissões usando a Kenkoooo API para {user.atcoder_handle}..."))
+            
+            # Sincronismo Incremental Sênior
+            from_epoch = 0
+            if not force_full and user.atcoder_last_sync_time:
+                from_epoch = user.atcoder_last_sync_time
+                self.stdout.write(f"  > Incremental ativo: Buscando apenas a partir do Epoch {from_epoch}")
+            else:
+                self.stdout.write("  > Full Sync ativado: Buscando todo o histórico (Epoch 0)")
+
+            submissions = client.get_user_submissions(user.atcoder_handle, from_epoch=from_epoch)
+            
+            self.stdout.write(f"  > Recebido: {len(submissions)} submissões na payload. Persistindo via Dual-State FSM...")
+            
+            inserts = 0
+            max_epoch = from_epoch
+
+            for sub_data in submissions:
+                platform_id = sub_data['problem_id']
+                sub_id = str(sub_data['id'])
+                verdict = sub_data['result']
+                epoch_sec = sub_data['epoch_second']
+                
+                if verdict in ['WJ', 'WR']:
+                    continue
+                
+                
+                # 1. Model: Problem (Failing back to name = id if API lacks data)
+                problem, _ = Problem.objects.get_or_create(
+                    platform=PlatformChoices.ATCODER,
+                    platform_id=platform_id,
+                    defaults={
+                        'title': platform_id,
+                        'contest': None
+                    }
+                )
+
+                # 2. Model: Submission
+                creation_dt = datetime.fromtimestamp(epoch_sec, tz=timezone.UTC)
+                
+                # Analisar Janela do Contest (Live vs Practice)
+                p_type = Submission.ParticipantType.PRACTICE
+                if problem.contest and problem.contest.start_time and problem.contest.duration_seconds:
+                    c_start = problem.contest.start_time
+                    c_end = c_start + timezone.timedelta(seconds=problem.contest.duration_seconds)
+                    if c_start <= creation_dt <= c_end:
+                        p_type = Submission.ParticipantType.CONTESTANT
+
+                submission, _ = Submission.objects.update_or_create(
+                    platform_submission_id=sub_id,
+                    defaults={
+                        'problem': problem,
+                        'user': user,
+                        'participant_type': p_type,
+                        'verdict': verdict,
+                        'creation_time': creation_dt
+                    }
+                )
+
+                # 3. Model: UserProblemTracking (O coração)
+                tracking, _ = UserProblemTracking.objects.get_or_create(
+                    user=user, 
+                    problem=problem
+                )
+                
+                # O status de sistema mapeia condicionalmente pela janela de tempo
+                if verdict == 'AC':
+                    if p_type == Submission.ParticipantType.CONTESTANT:
+                        new_sys_status = UserProblemTracking.SystemStatus.SOLVED_LIVE
+                    else:
+                        new_sys_status = UserProblemTracking.SystemStatus.PRACTICE_AC
+                else:
+                    if p_type == Submission.ParticipantType.CONTESTANT:
+                        new_sys_status = UserProblemTracking.SystemStatus.PENDING_UPSOLVE
+                    else:
+                        new_sys_status = UserProblemTracking.SystemStatus.PRACTICE_WA
+                
+                # É OBRIGATÓRIO SALVAR INDIVIDUALMENTE e não via bulk_update
+                # Porque o nosso override de self._sync_system_to_review(old_instance) roda no momento de save()
+                if tracking.system_status != new_sys_status:
+                    tracking.system_status = new_sys_status
+                    tracking.save()
+                    inserts += 1
+                
+                if epoch_sec > max_epoch:
+                    max_epoch = epoch_sec
+
+            # Garantia de Integridade (Atomicidade Manual)
+            if max_epoch > 0:
+                user.atcoder_last_sync_time = max_epoch
+                user.save()
+
+            self.stdout.write(self.style.SUCCESS(f"Finalizado para {user.username}! Status modificados: {inserts}"))
