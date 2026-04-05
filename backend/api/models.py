@@ -1,181 +1,174 @@
 from django.db import models
+from django.contrib.auth.models import AbstractUser
 
-class Contest(models.Model):
+class User(AbstractUser):
+    cf_handle = models.CharField(max_length=255, null=True, blank=True, help_text="Handle do Codeforces")
+    atcoder_handle = models.CharField(max_length=255, null=True, blank=True, help_text="Handle do AtCoder")
+    cses_token = models.CharField(max_length=255, null=True, blank=True, help_text="Token de sessão para raspagem do CSES")
+    
+    # Controle de Sincronização Incremental:
+    atcoder_last_sync_time = models.BigIntegerField(null=True, blank=True, help_text="Último Epoch Sincronizado do AtCoder")
+    cf_last_sync_time = models.BigIntegerField(null=True, blank=True, help_text="Último Epoch Sincronizado do Codeforces")
+    
+    # Métricas dinâmicas sem colunas físicas:
+    @property
+    def total_acs(self):
+        # TODO: Retornará dinamicamente count() das questões resolvidas.
+        # return self.userproblemtracking_set.filter(review_status='DONE').count()
+        pass
 
-    class Platform(models.TextChoices):
-        CODEFORCES = 'CF', 'Codeforces'
-        CSES = 'CSES', 'CSES'
-        # Futuro: ATCODER = 'AC', 'AtCoder'
-
-    class ContestType(models.TextChoices):
-        OFFICIAL = 'LIVE', 'Oficial'
-        VIRTUAL = 'VIRTUAL', 'Virtual'
-        PRACTICE = 'PRACTICE', 'Prática'
-
-    external_id = models.IntegerField(unique=True, help_text="ID original do Codeforces")
+class Team(models.Model):
     name = models.CharField(max_length=255)
-
-    platform = models.CharField(
-        max_length=10,
-        choices=Platform.choices,
-        default=Platform.CODEFORCES  
-    )
-
-    contest_type = models.CharField(max_length=10, choices=ContestType.choices, default=ContestType.PRACTICE)
-    
-    is_team = models.BooleanField(
-        default=False, 
-        help_text="True se feito em equipe. Habilita a verificação de 'Resolvido pelo Time' nas questões."
-    )
-
-    # Campos exclusivos para LIVE e VIRTUAL
-    start_time = models.DateTimeField(
-        null=True, blank=True, 
-        help_text="Obrigatório para LIVE/VIRTUAL. Define o Marco Zero para saber se a submissão foi dentro do tempo."
-    )
-    
-    duration_minutes = models.IntegerField(
-        null=True, blank=True, 
-        help_text="Obrigatório para LIVE/VIRTUAL. Ex: 120. Somado ao start_time, define a 'Janela da Prova'."
-    )
-    
-    rank_achieved = models.IntegerField(
-        null=True, blank=True, 
-        help_text="Opcional. Posição final apenas para provas oficiais/virtuais."
-    )
-    has_full_problem_set = models.BooleanField(
-        default=False, 
-        help_text="Indica se todos os problemas deste contest já foram baixados via API de Standings."
-    )
+    members = models.ManyToManyField(User, related_name="teams")
+    created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"{self.name} ({self.external_id})"
-    
-class Problem(models.Model):
-    contest = models.ForeignKey(Contest, on_delete=models.CASCADE, related_name='problems')
-    index = models.CharField(max_length=10)
+        return self.name
+
+class PlatformChoices(models.TextChoices):
+    CF_OFFICIAL = 'CF_OFFICIAL', 'Codeforces Oficial'
+    CF_GYM = 'CF_GYM', 'Codeforces Gym'
+    ATCODER = 'ATCODER', 'AtCoder'
+    CSES = 'CSES', 'CSES'
+
+class Contest(models.Model):
+    platform = models.CharField(max_length=20, choices=PlatformChoices.choices)
+    platform_id = models.CharField(max_length=50)
     name = models.CharField(max_length=255)
-    rating = models.IntegerField(null=True, blank=True)
-    tags = models.JSONField(default=list)  
-    is_favorite = models.BooleanField(default=False)
-    xp_value = models.IntegerField(default=0, help_text="XP calculado via IA/Fórmula")
+    start_time = models.DateTimeField(null=True, blank=True)
+    duration_seconds = models.IntegerField(null=True, blank=True)
 
-    solved_by_me_in_team = models.BooleanField(
-        default=False, 
-        help_text="Marque se VOCÊ codou essa questão no contest em time."
-    )
+    def __str__(self):
+        return f"[{self.get_platform_display()}] {self.name}"
 
-    class LivePerformance(models.TextChoices):
-        NOT_PARTICIPATED = 'NOT_PARTICIPATED', 'Fora de Contest' # Para questões soltas/Practice
-        UNATTEMPTED = 'UNATTEMPTED', 'Não tentada' # Estava no contest, mas você não submeteu nada
-        FAILED = 'FAILED', 'Erro (WA/TLE)'
-        AC_SOLO = 'AC_SOLO', 'Eu resolvi (AC)'
-        AC_TEAM = 'AC_TEAM', 'Time resolveu' # Só faz sentido se contest.is_team == True
+class Problem(models.Model):
+    platform = models.CharField(max_length=20, choices=PlatformChoices.choices)
+    platform_id = models.CharField(max_length=50) # Ex: 1234A, abc300_a
+    title = models.CharField(max_length=255)
+    contest = models.ForeignKey(Contest, on_delete=models.CASCADE, null=True, blank=True, related_name='problems')
+    platform_metadata = models.JSONField(default=dict, blank=True)
 
-    live_performance = models.CharField(
-        max_length=25, 
-        choices=LivePerformance.choices, 
-        default=LivePerformance.NOT_PARTICIPATED,
-        help_text="O que aconteceu DURANTE a janela de tempo do contest."
-    )
+    class Meta:
+        unique_together = ['platform', 'platform_id']
 
-    class ResolutionStatus(models.TextChoices):
-        PENDING = 'PENDING', 'Pendente'
-        UPSOLVED = 'UPSOLVED', 'Upsolvado'
-        SOLVED_LIVE = 'SOLVED_LIVE', 'AC Contest'
-        SOLVED_PRACTICE = 'SOLVED_PRACTICE', 'AC Prática' 
-        NOT_REQUIRED = 'NOT_REQUIRED', 'Futuro'
+    def __str__(self):
+        return self.title
 
-    resolution_status = models.CharField(
-        max_length=20, 
-        choices=ResolutionStatus.choices, 
-        default=ResolutionStatus.PENDING
-    )
+class ContestParticipation(models.Model):
+    contest = models.ForeignKey(Contest, on_delete=models.CASCADE, related_name='participations')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True, related_name='contest_participations')
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, null=True, blank=True, related_name='contest_participations')
+    is_virtual = models.BooleanField(default=False)
 
-    def update_state_from_submission(self, is_after, is_team_submission, verdict):
+    def __str__(self):
+        participant = self.team.name if self.team else self.user.username
+        return f"{participant} in {self.contest.name}"
+
+class Submission(models.Model): 
+    class ParticipantType(models.TextChoices):
+        CONTESTANT = 'CONTESTANT', 'Competidor'
+        VIRTUAL = 'VIRTUAL', 'Virtual'
+        PRACTICE = 'PRACTICE', 'Prática Livre'
+
+    platform_submission_id = models.CharField(max_length=50, unique=True)
+    problem = models.ForeignKey(Problem, on_delete=models.CASCADE, related_name='submissions')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='submissions')
+    co_authors = models.ManyToManyField(User, related_name='co_authored_submissions', blank=True)
+    participant_type = models.CharField(max_length=20, choices=ParticipantType.choices)
+    verdict = models.CharField(max_length=50)
+    creation_time = models.DateTimeField()
+
+    def __str__(self):
+        return f"{self.platform_submission_id} - {self.verdict} by {self.user.username}"
+
+class UserProblemTracking(models.Model):
+    # system_status: Realidade técnica extraída das APIs
+    class SystemStatus(models.TextChoices):
+        UNATTEMPTED = 'UNATTEMPTED', 'Não tentada'
+        SOLVED_LIVE = 'SOLVED_LIVE', 'AC no Contest'
+        PENDING_UPSOLVE = 'PENDING_UPSOLVE', 'Dívida de Upsolving'
+        UPSOLVED = 'UPSOLVED', 'Resolvido depois (Upsolving)'
+        PRACTICE_WA = 'PRACTICE_WA', 'Erro em Treino Livre'
+        PRACTICE_AC = 'PRACTICE_AC', 'AC em Treino Livre'
+
+    # review_status: Ponto de vista do usuário
+    class ReviewStatus(models.TextChoices):
+        PENDING_TRIAGE = 'PENDING_TRIAGE', 'Pendente de Triagem'
+        DOABLE = 'DOABLE', 'Dá pra fazer'
+        FUTURE = 'FUTURE', 'Muito avançada (Futuro)'
+        DONE = 'DONE', 'Concluído'
+        TEAM_DONE = 'TEAM_DONE', 'Feito pelo Time'
+        IGNORED = 'IGNORED', 'Ignorada/Lixo'
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='problem_trackings')
+    problem = models.ForeignKey(Problem, on_delete=models.CASCADE, related_name='user_trackings')
+    system_status = models.CharField(max_length=20, choices=SystemStatus.choices, default=SystemStatus.UNATTEMPTED)
+    review_status = models.CharField(max_length=20, choices=ReviewStatus.choices, default=ReviewStatus.PENDING_TRIAGE)
+
+    class Meta:
+        unique_together = ['user', 'problem']
+
+    def _sync_system_to_review(self, old_instance=None):
         """
-        Máquina de Estados Isolada:
-        Recebe os dados de uma submissão e calcula o novo status do problema.
+        Sincronizar estados de sistema e de revisão manual.
+        Aplicar reatividade bidirecional e proteger estados de sucesso contra o sistema.
         """
-        # Se questão ja foi resolvida alguma vez, status não muda
-        already_solved = self.resolution_status in [
-            self.ResolutionStatus.SOLVED_LIVE, 
-            self.ResolutionStatus.UPSOLVED, 
-            self.ResolutionStatus.SOLVED_PRACTICE
-        ]
-
-        if verdict == 'OK':
-            if not is_after:
-                # CASO 1: Sucesso durante o contest (Live/Virtual)
-                if is_team_submission and self.solved_by_me_in_team:
-                    self.live_performance = self.LivePerformance.AC_SOLO
-                    self.resolution_status = self.ResolutionStatus.SOLVED_LIVE
-                elif is_team_submission:
-                    self.live_performance = self.LivePerformance.AC_TEAM
-                    self.resolution_status = self.ResolutionStatus.PENDING
-                else:
-                    self.live_performance = self.LivePerformance.AC_SOLO
-                    self.resolution_status = self.ResolutionStatus.SOLVED_LIVE
-            else:
-                # CASO 2: Sucesso fora do tempo oficial
-                if self.resolution_status != self.ResolutionStatus.SOLVED_LIVE:
-                    
-                    debitos_anteriores = [
-                        self.LivePerformance.FAILED, 
-                        self.LivePerformance.AC_TEAM, 
-                        self.LivePerformance.UNATTEMPTED
-                    ]
-                    if self.live_performance in debitos_anteriores:
-                        self.resolution_status = self.ResolutionStatus.UPSOLVED
-                    else:
-                        if self.resolution_status != self.ResolutionStatus.UPSOLVED:
-                            self.resolution_status = self.ResolutionStatus.SOLVED_PRACTICE
-        else:
-            # CASO 3: Erro durante a prova gera dívida imediata (PENDING)
-            if not is_after:
-                if self.live_performance not in [self.LivePerformance.AC_SOLO, self.LivePerformance.AC_TEAM]:
-                    self.live_performance = self.LivePerformance.FAILED
+        is_new = old_instance is None
+        
+        def _val(x):
+            return x.value if hasattr(x, 'value') else str(x)
             
-            if not already_solved:
-                self.resolution_status = self.ResolutionStatus.PENDING
+        system_status_changed = is_new or _val(old_instance.system_status) != _val(self.system_status)
+        if is_new:
+            review_status_changed = _val(self.review_status) != _val(self.ReviewStatus.PENDING_TRIAGE)
+        else:
+            review_status_changed = _val(old_instance.review_status) != _val(self.review_status)
 
-        self.save()
+        # Sincronizar reatividade humana (Review afeta System)
+        if review_status_changed:
+            #Review = DOABLE  && System = UNATTEMPTED => System = PENDING_UPSOLVE
+            if self.review_status == self.ReviewStatus.DOABLE and self.system_status == self.SystemStatus.UNATTEMPTED:
+                self.system_status = self.SystemStatus.PENDING_UPSOLVE
+            #Review = DONE && System = UNATTEMPTED => System = UPSOLVED
+            elif self.review_status == self.ReviewStatus.DONE and self.system_status not in [self.SystemStatus.SOLVED_LIVE, self.SystemStatus.PRACTICE_AC, self.SystemStatus.UPSOLVED]:
+                self.system_status = self.SystemStatus.UPSOLVED
+
+        # Sincronizar reatividade técnica (System afeta Review)
+        if system_status_changed:
+            protected_states = [_val(self.ReviewStatus.DONE), _val(self.ReviewStatus.TEAM_DONE), _val(self.ReviewStatus.IGNORED)]
+            
+            # Definir proteção contra rebaixamento do sucesso (ou lixo) anterior
+            is_protected = not is_new and _val(old_instance.review_status) in protected_states
+            
+            # Ignorar proteção se houver mudança manual simultânea (correção de misclick)
+            if review_status_changed:
+                is_protected = False
+            
+            # Promover para sucesso caso o sistema detecte Acerto
+            if self.system_status in [self.SystemStatus.SOLVED_LIVE, self.SystemStatus.PRACTICE_AC, self.SystemStatus.UPSOLVED]:
+                self.review_status = self.ReviewStatus.DONE
+                
+            # Aplicar estados inferiores caso não haja proteção ou intervenção manual impedindo
+            elif not is_protected:
+                if self.system_status in [self.SystemStatus.PENDING_UPSOLVE, self.SystemStatus.PRACTICE_WA]:
+                    self.review_status = self.ReviewStatus.DOABLE
+                elif self.system_status == self.SystemStatus.UNATTEMPTED:
+                    if not review_status_changed:
+                        self.review_status = self.ReviewStatus.PENDING_TRIAGE
 
     def save(self, *args, **kwargs):
         """
-        Intercepta o salvamento do banco para garantir que mudanças manuais 
-        no Admin (como a flag do time) atualizem a Máquina de Estados.
+        Extrair estado antigo do banco e delegar sincronização de estados da Máquina.
         """
-        # seo contest foi em time
-        if self.contest and self.contest.is_team:
-            # Se resolvida por mim e o status estava como Time -> soved_by_me
-            if self.solved_by_me_in_team and self.live_performance == self.LivePerformance.AC_TEAM:
-                self.live_performance = self.LivePerformance.AC_SOLO
-                self.resolution_status = self.ResolutionStatus.SOLVED_LIVE
-                
-            # Se estava como feita por mim e mudou -> Devolve pro Time
-            elif not self.solved_by_me_in_team and self.live_performance == self.LivePerformance.AC_SOLO:
-                self.live_performance = self.LivePerformance.AC_TEAM
-                if self.resolution_status == self.ResolutionStatus.SOLVED_LIVE:
-                    self.resolution_status = self.ResolutionStatus.PENDING
+        old_instance = None
+        if self.pk is not None:
+            try:
+                old_instance = UserProblemTracking.objects.get(pk=self.pk)
+            except UserProblemTracking.DoesNotExist:
+                pass
 
+        self._sync_system_to_review(old_instance)
         super().save(*args, **kwargs)
 
-    class Meta:
-        #impede dois problemas com mesmo index em um unico contest (Ex: dois A)
-        unique_together = ('contest', 'index')
-        
     def __str__(self):
-        return f"{self.index} - {self.name}"
-    
-class Submission(models.Model):
-    problem = models.ForeignKey(Problem, on_delete=models.CASCADE, related_name='submissions')  
-    
-    submission_id = models.IntegerField(unique=True)
-    verdict = models.CharField(max_length=50) #OK, TLE, MLE, WA
-    creation_time = models.DateTimeField()
-    is_after_contest = models.BooleanField(default=False)
-
-
-    def __str__(self):
-        return f"{self.submission_id} - {self.verdict}"
+        return f"{self.user.username} - {self.problem.platform_id} ({self.system_status})"

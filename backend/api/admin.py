@@ -1,74 +1,90 @@
 from django.contrib import admin
 from django.utils.html import format_html
-from .models import Contest, Problem, Submission
+from .models import User, Team, Contest, Problem, ContestParticipation, Submission, UserProblemTracking
+
+@admin.register(User)
+class UserAdmin(admin.ModelAdmin):
+    list_display = ('username', 'email', 'cf_handle', 'atcoder_handle')
+    search_fields = ('username', 'atcoder_handle', 'cf_handle')
+
+@admin.register(Team)
+class TeamAdmin(admin.ModelAdmin):
+    list_display = ('name', 'created_at')
 
 @admin.register(Contest)
 class ContestAdmin(admin.ModelAdmin):
-    list_display = ('external_id', 'name', 'contest_type', 'platform', 'is_team', 'has_full_problem_set')
-    list_display_links = ('external_id', 'name')
-    search_fields = ('name', 'external_id')
-    list_filter = ('contest_type', 'platform', 'is_team', 'has_full_problem_set')
-    ordering = ('-external_id',)
+    list_display = ('platform', 'platform_id', 'name')
+    list_filter = ('platform',)
 
 @admin.register(Problem)
 class ProblemAdmin(admin.ModelAdmin):
-    list_display = ('index', 'name', 'colored_status', 'live_performance', 'rating', 'contest__name', )
-    list_display_links = ('index', 'name')
-    search_fields = ('name', 'contest__name') # __name busca no nome do contest relacionado
-    list_filter = ('resolution_status', 'live_performance', 'contest__contest_type', 'contest__platform', 'rating')
-    ordering = ('contest__external_id', 'index')
-    # Função auxiliar para mostrar a coluna "Platform" na tabela de Problemas
-    @admin.display(description='Platform', ordering='contest__platform')
-    def get_platform(self, obj):
-        return obj.contest.platform
-    
-    # Lógica de cores paraSTATUS
-    @admin.display(description='Status Atual', ordering='resolution_status')
-    def colored_status(self, obj):
-        if obj.resolution_status in ['SOLVED_LIVE', 'UPSOLVED', 'SOLVED_PRACTICE']:
-            color = '#28a745' 
-            weight = 'bold'
-        elif obj.resolution_status == 'PENDING':
-            color = '#dc3545' 
-            weight = 'bold'
-        else:
-            color = '#6c757d' 
-            weight = 'normal'
+    list_display = ('platform_id', 'get_platform_badge', 'title', 'get_rating', 'get_tags')
+    list_filter = ('platform',)
+    search_fields = ('platform_id', 'title')
 
-        return format_html(
-            '<span style="color: {}; font-weight: {};">{}</span>',
-            color,
-            weight,
-            obj.get_resolution_status_display()
-        )
+    def get_platform_badge(self, obj):
+        color = "#1f77b4" if obj.platform == 'CF' else "#e67e22"
+        return format_html('<span style="background: {}; color: white; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 10px;">{}</span>', 
+                           color, obj.get_platform_display())
+    get_platform_badge.short_description = 'Plataforma'
+
+    def get_rating(self, obj):
+        rating = obj.platform_metadata.get('rating')
+        if rating:
+            color = "green" if int(rating) < 1200 else ("orange" if int(rating) < 1900 else "red")
+            return format_html('<b style="color: {};">{}</b>', color, rating)
+        return "-"
+    get_rating.short_description = 'Rating'
+
+    def get_tags(self, obj):
+        tags = obj.platform_metadata.get('tags', [])
+        return ", ".join(tags) if tags else "-"
+    get_tags.short_description = 'Tags'
+
+@admin.register(ContestParticipation)
+class ContestParticipationAdmin(admin.ModelAdmin):
+    list_display = ('contest', 'user', 'team', 'is_virtual')
 
 @admin.register(Submission)
 class SubmissionAdmin(admin.ModelAdmin):
-    list_display = ('submission_id', 'problem', 'colored_verdict', 'is_after_contest', 'creation_time', 'get_platform')
-    list_display_links = ('submission_id', 'problem')
-    search_fields = ('submission_id','problem__name', 'problem__contest__name')
-    list_filter = ('problem__contest__platform', 'verdict', 'creation_time')
-
-    @admin.display(description='Platform', ordering='problem__contest__platform')
-    def get_platform(self, obj):
-        return obj.problem.contest.platform
+    list_display = ('platform_submission_id', 'get_platform', 'problem', 'user', 'participant_type', 'verdict', 'creation_time')
+    list_filter = ('problem__platform', 'participant_type', 'verdict')
+    search_fields = ('platform_submission_id', 'user__username', 'problem__platform_id')
     
-    # Lógica de cores
-    @admin.display(description='Verdict', ordering='verdict')
-    def colored_verdict(self, obj):
-        if obj.verdict == 'OK':
-            color = '#28a745' # Verde Sucesso
-            icon = '✔'
-        elif obj.verdict == 'TESTING':
-            color = '#ffc107' # Amarelo
-            icon = '⏳'
-        else:
-            color = '#dc3545' # Vermelho Erro
-            icon = '✖'
+    def get_platform(self, obj):
+        return obj.problem.get_platform_display()
+    get_platform.short_description = 'Plataforma'
 
-        return format_html(
-            '<span style="color: {}; font-weight: bold;">{} {}</span>',
-            color,
-            icon,
-            obj.verdict
-        )
+@admin.register(UserProblemTracking)
+class UserProblemTrackingAdmin(admin.ModelAdmin):
+    list_display = ('user', 'problem', 'get_system_status_badge', 'get_review_status_badge')
+    list_filter = ('problem__platform', 'system_status', 'review_status')
+    search_fields = ('user__username', 'problem__platform_id')
+    raw_id_fields = ('problem', 'user')
+
+    def get_system_status_badge(self, obj):
+        colors = {
+            'SOLVED_LIVE': '#2ecc71', # Green
+            'UPSOLVED': '#27ae60',   # Darker Green
+            'PRACTICE_AC': '#2ecc71',# Green
+            'PENDING_UPSOLVE': '#e74c3c', # Red
+            'PRACTICE_WA': '#e67e22', # Orange
+            'UNATTEMPTED': '#95a5a6', # Gray
+        }
+        color = colors.get(obj.system_status, "#000")
+        return format_html('<span style="color: {}; font-weight: bold;">● {}</span>', 
+                           color, obj.get_system_status_display())
+    get_system_status_badge.short_description = 'Status Técnico'
+
+    def get_review_status_badge(self, obj):
+        colors = {
+            'DONE': '#1abc9c',
+            'TEAM_DONE': '#3498db',
+            'DOABLE': '#f1c40f',
+            'IGNORED': '#34495e',
+            'PENDING_TRIAGE': '#9b59b6',
+        }
+        color = colors.get(obj.review_status, "#000")
+        return format_html('<span style="background: {}; color: white; padding: 3px 8px; border-radius: 12px; font-size: 11px;">{}</span>', 
+                           color, obj.get_review_status_display())
+    get_review_status_badge.short_description = 'Sua Revisão'
