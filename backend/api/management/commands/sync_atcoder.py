@@ -2,7 +2,7 @@ import time
 from datetime import datetime
 from django.utils import timezone
 from django.core.management.base import BaseCommand
-from api.models import User, Problem, Submission, UserProblemTracking, PlatformChoices
+from api.models import User, Problem, Submission, UserProblemTracking, PlatformChoices, ContestParticipation
 from api.services.atcoder_client import AtCoderClient
 
 class Command(BaseCommand):
@@ -62,6 +62,9 @@ class Command(BaseCommand):
                 if verdict in ['WJ', 'WR']:
                     continue
                 
+                if not force_full and user.atcoder_last_sync_time and epoch_sec <= user.atcoder_last_sync_time:
+                    continue
+                
                 
                 # 1. Model: Problem (Failing back to name = id if API lacks data)
                 problem, _ = Problem.objects.get_or_create(
@@ -102,13 +105,38 @@ class Command(BaseCommand):
                 )
                 
                 # O status de sistema mapeia condicionalmente pela janela de tempo
+                is_contest_effort = p_type in [Submission.ParticipantType.CONTESTANT, Submission.ParticipantType.VIRTUAL]
+                
+                # Efeito Propagação de Contest
+                if is_contest_effort and problem.contest:
+                    participation, created = ContestParticipation.objects.get_or_create(
+                        user=user, 
+                        contest=problem.contest,
+                        defaults={'participation_date': creation_dt}
+                    )
+                    if created:
+                        # Espalha Unattempted para todas as outras questões do Contest
+                        all_problems_in_contest = Problem.objects.filter(contest=problem.contest)
+                        for p_in_contest in all_problems_in_contest:
+                            UserProblemTracking.objects.get_or_create(
+                                user=user, 
+                                problem=p_in_contest,
+                                defaults={'system_status': UserProblemTracking.SystemStatus.UNATTEMPTED, 'review_status': UserProblemTracking.ReviewStatus.PENDING_TRIAGE}
+                            )
+
+                has_participation = problem.contest and ContestParticipation.objects.filter(user=user, contest=problem.contest).exists()
+
                 if verdict == 'AC':
-                    if p_type == Submission.ParticipantType.CONTESTANT:
+                    if is_contest_effort:
                         new_sys_status = UserProblemTracking.SystemStatus.SOLVED_LIVE
+                    elif has_participation:
+                        new_sys_status = UserProblemTracking.SystemStatus.UPSOLVED
                     else:
                         new_sys_status = UserProblemTracking.SystemStatus.PRACTICE_AC
                 else:
-                    if p_type == Submission.ParticipantType.CONTESTANT:
+                    if is_contest_effort:
+                        new_sys_status = UserProblemTracking.SystemStatus.PENDING_UPSOLVE
+                    elif has_participation:
                         new_sys_status = UserProblemTracking.SystemStatus.PENDING_UPSOLVE
                     else:
                         new_sys_status = UserProblemTracking.SystemStatus.PRACTICE_WA

@@ -2,7 +2,7 @@ import time
 from datetime import datetime
 from django.utils import timezone
 from django.core.management.base import BaseCommand
-from api.models import User, Problem, Submission, UserProblemTracking, PlatformChoices
+from api.models import User, Problem, Submission, UserProblemTracking, PlatformChoices, ContestParticipation
 from api.services.codeforces_client import CodeforcesClient
 
 class Command(BaseCommand):
@@ -40,6 +40,8 @@ class Command(BaseCommand):
             count = 500
             is_synced = False
             
+            all_sub_data = []
+
             while not is_synced:
                 submissions = client.get_user_submissions(user.cf_handle, from_idx=from_idx, count=count)
                 if not submissions:
@@ -48,22 +50,33 @@ class Command(BaseCommand):
                 self.stdout.write(f"  > Lendo {len(submissions)} submissões (a partir do índice {from_idx})...")
                 
                 for sub_data in submissions:
-                    sub_id = str(sub_data['id'])
-                    verdict = sub_data.get('verdict', 'UNKNOWN')
                     epoch_sec = sub_data.get('creationTimeSeconds')
                     if not epoch_sec: continue
-                    
-                    if verdict == 'TESTING':
-                        continue
                     
                     if not force_full and user.cf_last_sync_time and epoch_sec <= user.cf_last_sync_time:
                         self.stdout.write("  > Sincronismo Incremental concluído! Submissões antigas ignoradas.")
                         is_synced = True
                         break
                         
-                    if epoch_sec > max_epoch:
-                        max_epoch = epoch_sec
+                    all_sub_data.append(sub_data)
                 
+                if is_synced:
+                    break
+                from_idx += count
+
+            self.stdout.write(f"  > Processando {len(all_sub_data)} submissões em Ordem Cronológica (Memória Reversa)...")
+            
+            for sub_data in reversed(all_sub_data):
+                sub_id = str(sub_data['id'])
+                verdict = sub_data.get('verdict', 'UNKNOWN')
+                epoch_sec = sub_data.get('creationTimeSeconds')
+                
+                if verdict == 'TESTING':
+                    continue
+                    
+                if epoch_sec > max_epoch:
+                    max_epoch = epoch_sec
+            
                 prob_data = sub_data.get('problem', {})
                 contest_id_num = prob_data.get('contestId')
                 index = prob_data.get('index', '')
@@ -97,13 +110,11 @@ class Command(BaseCommand):
                 p_type = Submission.ParticipantType.PRACTICE
                 cf_participant = sub_data.get('author', {}).get('participantType')
                 
-                # Codeforces devolve exatamente quem era Contestant ou Virtual no ato!
                 if cf_participant == 'CONTESTANT':
                     p_type = Submission.ParticipantType.CONTESTANT
                 elif cf_participant == 'VIRTUAL':
                     p_type = Submission.ParticipantType.VIRTUAL
                 elif problem.contest and problem.contest.start_time and problem.contest.duration_seconds:
-                    # Trava secundária caso o CF falhe, cruzamos temporalmente igual no AtCoder
                     c_start = problem.contest.start_time
                     c_end = c_start + timezone.timedelta(seconds=problem.contest.duration_seconds)
                     if c_start <= creation_dt <= c_end:
@@ -120,33 +131,56 @@ class Command(BaseCommand):
                     }
                 )
 
-                # 3. UserProblemTracking (Máquina de Estado)
+                # Efeito Propagação: Criar Participation Shield e engatilhar Tracking Unattempted no Contest inteiro!
+                is_contest_effort = p_type in [Submission.ParticipantType.CONTESTANT, Submission.ParticipantType.VIRTUAL]
+                
+                if is_contest_effort and problem.contest:
+                    is_virtual_participation = p_type == Submission.ParticipantType.VIRTUAL
+                    participation, created = ContestParticipation.objects.get_or_create(
+                        user=user, 
+                        contest=problem.contest,
+                        defaults={
+                            'participation_date': creation_dt,
+                            'is_virtual': is_virtual_participation
+                        }
+                    )
+                    if created:
+                        # Espalha Unattempted para todas as outras questões do Contest
+                        all_problems_in_contest = Problem.objects.filter(contest=problem.contest)
+                        for p_in_contest in all_problems_in_contest:
+                            UserProblemTracking.objects.get_or_create(
+                                user=user, 
+                                problem=p_in_contest,
+                                defaults={'system_status': UserProblemTracking.SystemStatus.UNATTEMPTED, 'review_status': UserProblemTracking.ReviewStatus.PENDING_TRIAGE}
+                            )
+
+                # 3. UserProblemTracking (Máquina de Estado com Defesa Upsolve)
                 tracking, _ = UserProblemTracking.objects.get_or_create(
                     user=user, 
                     problem=problem
                 )
                 
-                # Rotear Sucesso ou Falha para Status de Sistema
+                has_participation = problem.contest and ContestParticipation.objects.filter(user=user, contest=problem.contest).exists()
+                
                 if verdict == 'OK':
-                    if p_type == Submission.ParticipantType.CONTESTANT:
+                    if is_contest_effort:
                         new_sys_status = UserProblemTracking.SystemStatus.SOLVED_LIVE
+                    elif has_participation:
+                        new_sys_status = UserProblemTracking.SystemStatus.UPSOLVED
                     else:
                         new_sys_status = UserProblemTracking.SystemStatus.PRACTICE_AC
-                else: # Inclui WRONG_ANSWER, TIME_LIMIT_EXCEEDED, MEMORY_LIMIT_EXCEEDED...
-                    if p_type == Submission.ParticipantType.CONTESTANT:
+                else: 
+                    if is_contest_effort:
+                        new_sys_status = UserProblemTracking.SystemStatus.PENDING_UPSOLVE
+                    elif has_participation:
                         new_sys_status = UserProblemTracking.SystemStatus.PENDING_UPSOLVE
                     else:
                         new_sys_status = UserProblemTracking.SystemStatus.PRACTICE_WA
                 
-                # Engatilhar salvamento 1-a-1 permitindo o self._sync_system_to_review rodar e blindar a FSM
                 if tracking.system_status != new_sys_status:
                     tracking.system_status = new_sys_status
                     tracking.save()
                     inserts += 1
-                
-                if is_synced:
-                    break
-                from_idx += count
 
             # Garantia Atômica Manual do Watermark 
             if max_epoch > 0:

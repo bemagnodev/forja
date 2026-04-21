@@ -1,11 +1,18 @@
 import pytest
 import responses
 from django.core.management import call_command
-from api.models import User, Problem, PlatformChoices
+from api.models import User, Problem, Submission, UserProblemTracking, PlatformChoices
 
 @pytest.mark.django_db
 @responses.activate
 def test_sync_cf_bypass_testing(capsys):
+    """
+    Cenário: Uma submissão do Codeforces (CF) cai com veredito 'TESTING' (ainda rodando) e existem submissões antigas na frente que estão atrás da "parede" (incremental wall).
+    Resultado Esperado: 
+    1. O script não pode avançar o 'last_sync_time' com a submissão TESTING (ela precisa ser reavaliada depois).
+    2. O script DEVE salvar a submissão válida (id 99).
+    3. O script NÃO DEVE salvar a submissão velha (id 98), pois o seu epoch time (900) é menor que o last_sync_time do usuário (1000).
+    """
     user = User.objects.create(username="test_user", cf_handle="toro", cf_last_sync_time=1000)
     
     responses.add(
@@ -28,14 +35,25 @@ def test_sync_cf_bypass_testing(capsys):
     # O epoch deve parar no 1200. O 1500 (TESTING) não pode ser o max_epoch
     assert user.cf_last_sync_time == 1200
     
-    # Garante que a wall defendeu e ignorou inserts antigos
-    # Ou seja: não salvou o tracking ID 98
-    # Testar que salvou o Problem pra 1B (id 99) mas não salvou tracking nulo
-    pass
+    # Garante que a wall defendeu e ignorou inserts antigos 
+    # id 99 (valido) deve estar no banco
+    assert Submission.objects.filter(platform_submission_id="99").exists()
+    assert UserProblemTracking.objects.filter(problem__platform_id="1B").exists()
+    
+    # id 98 (antigo, epoch 900) não deve estar gravado no banco pois a wall estava em 1000
+    assert not Submission.objects.filter(platform_submission_id="98").exists()
+    assert not UserProblemTracking.objects.filter(problem__platform_id="1C").exists()
 
 @pytest.mark.django_db
 @responses.activate
 def test_sync_atcoder_bypass_wj(capsys):
+    """
+    Cenário: O usuário tem três submissões no AtCoder: uma antiga, uma válida nova, e uma 'WJ' (Waiting Judge) mais recente.
+    Resultado Esperado:
+    1. A submissão 'WJ' é ignorada, e o 'last_sync_time' avança apenas até o epoch da submissão válida mais recente (1200).
+    2. A submissão id 99 (nova, válida) salva no banco e gera tracking.
+    3. A submissão antiga (id 98) é barrada pela proteção incremental.
+    """
     user = User.objects.create(username="test_user", atcoder_handle="toro", atcoder_last_sync_time=1000)
     
     responses.add(
@@ -55,3 +73,64 @@ def test_sync_atcoder_bypass_wj(capsys):
     
     # O epoch do WJ (1500) não deve ter atualizado o atcoder_last_sync_time
     assert user.atcoder_last_sync_time == 1200
+
+    # Verifica o processamento da fila
+    # id 99 foi aceito porque epoch 1200 > base 1000
+    assert Submission.objects.filter(platform_submission_id="99").exists()
+    
+    # id 98 descartado porque epoch 900 <= base 1000 (Incremental wall proteged!)
+    assert not Submission.objects.filter(platform_submission_id="98").exists()
+
+@pytest.mark.django_db
+@responses.activate
+def test_sync_cf_contest_participation_shield():
+    """
+    Cenário: (Modo force_full) Um usuário submete VIRTUAL_WA numa questão do Gym 123. Dias depois, tenta Practice_AC na outra questão do mesmo Gym.
+    Resultado Esperado:
+    1. A submissão VIRTUAL (antiga na cronologia) gera um ContestParticipation para o Gym 123.
+    2. Isso propaga UserProblemTracking Unattempted/PendingTriage para TODAS as outras questões do Gym 123.
+    3. Quando o script processa a submissão nova de Practice, ele enxerga o ContestParticipation ligado à prova, blindando-a contra o rebaixamento para PRACTICE_AC e marcando-a como UPSOLVED.
+    """
+    from api.models import Contest
+    
+    user = User.objects.create(username="upsolver", cf_handle="upsvr")
+    contest = Contest.objects.create(platform=PlatformChoices.CF_GYM, platform_id="100123", name="Gym 123")
+    
+    # Criamos os problemas manualmente pois eles estariam na base caso o metadados já tivesse rodado
+    prob_a = Problem.objects.create(platform=PlatformChoices.CF_GYM, platform_id="100123A", title="Problema A", contest=contest)
+    prob_b = Problem.objects.create(platform=PlatformChoices.CF_GYM, platform_id="100123B", title="Problema B", contest=contest)
+
+    # API Request simula fila de respostas: 
+    # Chamada 1 (from=1) -> Retorna a pagina de resultados
+    # Chamada 2 (from=501) -> Retorna array vazio encerrando o loop
+    responses.add(
+        responses.GET,
+        'https://codeforces.com/api/user.status',
+        json={
+            'status': 'OK', 
+            'result': [
+                {'id': 200, 'verdict': 'OK', 'creationTimeSeconds': 2000, 'problem': {'contestId': 100123, 'index': 'A'}, 'author': {'participantType': 'PRACTICE'}},
+                {'id': 100, 'verdict': 'WRONG_ANSWER', 'creationTimeSeconds': 1000, 'problem': {'contestId': 100123, 'index': 'B'}, 'author': {'participantType': 'VIRTUAL'}} 
+            ]
+        },
+        status=200
+    )
+    responses.add(
+        responses.GET,
+        'https://codeforces.com/api/user.status',
+        json={'status': 'OK', 'result': []},
+        status=200
+    )
+    
+    call_command('sync_cf', force_full=True)
+    
+    # 1. Assegurar que 'VIRTUAL' detectou e criou Participation Shield para o contest
+    assert user.contest_participations.filter(contest=contest).exists(), "Participation não foi criada!"
+    
+    # 2. Prova A (Nova Submissão AC): Deve ter lido a participação no passado e processado como UPSOLVED!
+    track_a = UserProblemTracking.objects.get(user=user, problem=prob_a)
+    assert track_a.system_status == UserProblemTracking.SystemStatus.UPSOLVED, f"Regra quebrada: O Upsolving AC virou {track_a.system_status}"
+    
+    # 3. Prova B (Antiga Submissão WA): A participação forçou para Pending Upsolve
+    track_b = UserProblemTracking.objects.get(user=user, problem=prob_b) 
+    assert track_b.system_status == UserProblemTracking.SystemStatus.PENDING_UPSOLVE
