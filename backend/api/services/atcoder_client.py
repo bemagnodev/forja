@@ -78,3 +78,45 @@ class AtCoderClient:
         url = f"{self.RESOURCES_URL}/problems.json"
         result = self._make_request(url)
         return result if result is not None else []
+
+    def get_problem_difficulties(self) -> Dict[str, int]:
+        """
+        Recupera as dificuldades formatadas O(1) do the Kenkoooo API.
+        Aplica a fórmula do display oficial e normaliza a estatística 
+        para a escala competitiva do Codeforces.
+        """
+        import math
+        
+        url = f"{self.RESOURCES_URL}/problem-models.json"
+        try:
+            data = self._make_request(url)
+            # data formato: { "problem_id": {"difficulty": 344, ...}, ... }
+            
+            def normalize_atcoder_to_cf(rating: int) -> int:
+                # 1. Cura Kenkoooo (Negativos/Baixos recebem boost exponencial atcoder)
+                if rating < 400:
+                    rating = int(400 / math.exp((400 - rating) / 400))
+                
+                # 2. Conversão Atcoder -> CF Baseado em faixas
+                if rating < 400:
+                    return int(800 + (rating * (300 / 400))) 
+                elif rating < 1200:
+                    return int(1100 + ((rating - 400) * (500 / 800)))
+                elif rating < 2000:
+                    return int(1600 + ((rating - 1200) * (500 / 800)))
+                else:
+                    return rating + 100
+
+            difficulties = {}
+            if data:
+                for k, v in data.items():
+                    diff = v.get('difficulty')
+                    if diff is not None:
+                        try:
+                            difficulties[k] = normalize_atcoder_to_cf(int(diff))
+                        except ValueError:
+                            pass
+            return difficulties
+        except Exception as e:
+            print(f"[AtCoderClient] Erro acessando difficulties: {e}")
+            return {}

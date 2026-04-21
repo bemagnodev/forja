@@ -57,12 +57,17 @@ class Command(BaseCommand):
             self.stdout.write(self.style.ERROR("Nenhum problema retornado da API."))
             return
             
-        self.stdout.write(f"  > Recebidos {len(problems_data)} problemas. Linkando aos Contests...")
+        difficulties = client.get_problem_difficulties()
+            
+        self.stdout.write(f"  > Recebidos {len(problems_data)} problemas. Linkando aos Contests e populando Rating...")
         problems_created = 0
+        problems_updated = 0
         
-        existing_problems = set(Problem.objects.filter(
-            platform=PlatformChoices.ATCODER
-        ).values_list('platform_id', flat=True))
+        # Otimização Incremental O(1): Pegamos o rating atual do banco
+        existing_problems = {
+            p.platform_id: p.platform_metadata.get('rating') if p.platform_metadata else None
+            for p in Problem.objects.filter(platform=PlatformChoices.ATCODER)
+        }
         
         contest_map = {
             c.platform_id: c for c in Contest.objects.filter(platform=PlatformChoices.ATCODER)
@@ -72,9 +77,12 @@ class Command(BaseCommand):
             problem_id = p.get('id')
             if not problem_id: continue
                 
-            if problem_id in existing_problems:
-                continue
+            new_rating = difficulties.get(problem_id)
                 
+            if problem_id in existing_problems:
+                old_rating = existing_problems[problem_id]
+                if old_rating == new_rating:
+                    continue # Já existe e não mudou a dificuldade
                 
             contest_id = p.get('contest_id')
             title = p.get('title', p.get('name', problem_id))
@@ -93,14 +101,22 @@ class Command(BaseCommand):
                     
             contest = contest_map.get(contest_id)
             
+            metadata = {}
+            if new_rating is not None:
+                metadata['rating'] = new_rating
+            
             _, created = Problem.objects.update_or_create(
                 platform=PlatformChoices.ATCODER,
                 platform_id=problem_id,
                 defaults={
                     'title': title,
-                    'contest': contest
+                    'contest': contest,
+                    'platform_metadata': metadata
                 }
             )
-            if created: problems_created += 1
+            if created: 
+                problems_created += 1
+            elif problem_id in existing_problems:
+                problems_updated += 1
 
-        self.stdout.write(self.style.SUCCESS(f"Problemas sincronizados! ({problems_created} novos)"))
+        self.stdout.write(self.style.SUCCESS(f"Problemas sincronizados! ({problems_created} novos, {problems_updated} hidratados com rating)"))
