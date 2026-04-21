@@ -2,7 +2,7 @@ from ninja import NinjaAPI, Schema
 from typing import List, Optional
 from datetime import datetime
 from django.db.models import Count
-from .models import Submission, Problem, Contest
+from .models import Submission, Problem, Contest, QueueItem, User
 
 api = NinjaAPI(
     title="A Forja API",
@@ -35,6 +35,28 @@ class StatsSchema(Schema):
     total_submissions: int
     total_contests: int
     platform_breakdown: dict  
+
+class QueueSchema(Schema):
+    id: int
+    title: str
+    description: Optional[str] = None
+    priority: str
+    status: str
+    linked_problem_id: Optional[int] = None
+    created_at: datetime
+    resolved_at: Optional[datetime] = None
+
+class QueueCreateSchema(Schema):
+    title: str
+    description: Optional[str] = None
+    priority: str = 'P2'
+    linked_problem_id: Optional[int] = None
+
+class QueueUpdatePrioritySchema(Schema):
+    priority: str
+
+class QueueUpdateStatusSchema(Schema):
+    status: str
 
 @api.get("/submissions", response=List[SubmissionSchema])
 def list_submissions(request, limit: int = 20, offset: int = 0, platform: Optional[str] = None):
@@ -73,3 +95,40 @@ def get_stats(request):
             "cses_solved": Problem.objects.filter(contest__platform='CSES', is_solved=True).count()
         }
     }
+
+# === QUEUE / TRACKING ===
+
+@api.get("/queue", response=List[QueueSchema])
+def list_queue(request):
+    """Retorna Fila Priorizada de problemas e sessões de estudo pendentes"""
+    return QueueItem.objects.exclude(status='DONE').order_by('priority', '-created_at')
+
+@api.post("/queue", response=QueueSchema)
+def create_queue_item(request, payload: QueueCreateSchema):
+    """Cria uma nova tarefa ou linka uma questão na fila de prioridade"""
+    user = User.objects.first() # Setup mono-usuário temporário para MVP
+    item = QueueItem.objects.create(
+        user=user,
+        title=payload.title,
+        description=payload.description,
+        priority=payload.priority,
+        linked_problem_id=payload.linked_problem_id
+    )
+    return item
+
+@api.post("/queue/{item_id}/priority", response=QueueSchema)
+def update_queue_priority(request, item_id: int, payload: QueueUpdatePrioritySchema):
+    item = QueueItem.objects.get(id=item_id)
+    item.priority = payload.priority
+    item.save()
+    return item
+
+@api.post("/queue/{item_id}/status", response=QueueSchema)
+def update_queue_status(request, item_id: int, payload: QueueUpdateStatusSchema):
+    item = QueueItem.objects.get(id=item_id)
+    item.status = payload.status
+    if payload.status == 'DONE':
+        from django.utils import timezone
+        item.resolved_at = timezone.now()
+    item.save()
+    return item

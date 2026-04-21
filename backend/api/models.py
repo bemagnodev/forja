@@ -175,3 +175,30 @@ class UserProblemTracking(models.Model):
 
     def __str__(self):
         return f"{self.user.username} - {self.problem.platform_id} ({self.system_status})"
+
+class QueueItem(models.Model):
+    class Priority(models.TextChoices):
+        UPSOLVING = 'UPSOLVING', 'Upsolving (Obrigatório)'
+        P0 = 'P0', 'P0 (Crítico)'
+        P1 = 'P1', 'P1 (Alto)'
+        P2 = 'P2', 'P2 (Normal)'
+
+    class Status(models.TextChoices):
+        TODO = 'TODO', 'Pendente'
+        IN_PROGRESS = 'IN_PROGRESS', 'Em Andamento'
+        DONE = 'DONE', 'Concluído'
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='queue_items')
+    title = models.CharField(max_length=255, help_text="Ex: Estudar DP ou o nome da questão lincada")
+    description = models.TextField(null=True, blank=True)
+    priority = models.CharField(max_length=15, choices=Priority.choices, default=Priority.P2)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.TODO)
+    
+    # Se for não-nulo, a lógica da UI exibirá o logotipo da plataforma e cores específicas.
+    linked_problem = models.ForeignKey(Problem, on_delete=models.SET_NULL, null=True, blank=True, related_name='queue_links')
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self):
+        return f"[{self.get_priority_display()}] {self.title} - {self.get_status_display()}"
