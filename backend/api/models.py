@@ -59,7 +59,8 @@ class ContestParticipation(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True, related_name='contest_participations')
     team = models.ForeignKey(Team, on_delete=models.CASCADE, null=True, blank=True, related_name='contest_participations')
     is_virtual = models.BooleanField(default=False)
-
+    participation_date = models.DateTimeField(null=True, blank=True)
+    
     def __str__(self):
         participant = self.team.name if self.team else self.user.username
         return f"{participant} in {self.contest.name}"
@@ -115,16 +116,18 @@ class UserProblemTracking(models.Model):
         """
         is_new = old_instance is None
         
+        # Helper para garantir que estamos comparando strings (evita erro de comparação de enum)
         def _val(x):
             return x.value if hasattr(x, 'value') else str(x)
-            
+        
+        # Detectar mudanças
         system_status_changed = is_new or _val(old_instance.system_status) != _val(self.system_status)
         if is_new:
             review_status_changed = _val(self.review_status) != _val(self.ReviewStatus.PENDING_TRIAGE)
         else:
             review_status_changed = _val(old_instance.review_status) != _val(self.review_status)
 
-        # Sincronizar reatividade humana (Review afeta System)
+        # Sincronizar reatividade humana
         if review_status_changed:
             #Review = DOABLE  && System = UNATTEMPTED => System = PENDING_UPSOLVE
             if self.review_status == self.ReviewStatus.DOABLE and self.system_status == self.SystemStatus.UNATTEMPTED:
@@ -133,7 +136,7 @@ class UserProblemTracking(models.Model):
             elif self.review_status == self.ReviewStatus.DONE and self.system_status not in [self.SystemStatus.SOLVED_LIVE, self.SystemStatus.PRACTICE_AC, self.SystemStatus.UPSOLVED]:
                 self.system_status = self.SystemStatus.UPSOLVED
 
-        # Sincronizar reatividade técnica (System afeta Review)
+        # Sincronizar reatividade técnica
         if system_status_changed:
             protected_states = [_val(self.ReviewStatus.DONE), _val(self.ReviewStatus.TEAM_DONE), _val(self.ReviewStatus.IGNORED)]
             

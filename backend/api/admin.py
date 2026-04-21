@@ -57,7 +57,7 @@ class SubmissionAdmin(admin.ModelAdmin):
 
 @admin.register(UserProblemTracking)
 class UserProblemTrackingAdmin(admin.ModelAdmin):
-    list_display = ('user', 'problem', 'get_system_status_badge', 'get_review_status_badge')
+    list_display = ('user','problem', 'get_system_status_badge', 'get_review_status_badge')
     list_filter = ('problem__platform', 'system_status', 'review_status')
     search_fields = ('user__username', 'problem__platform_id')
     raw_id_fields = ('problem', 'user')
@@ -87,4 +87,4 @@ class UserProblemTrackingAdmin(admin.ModelAdmin):
         color = colors.get(obj.review_status, "#000")
         return format_html('<span style="background: {}; color: white; padding: 3px 8px; border-radius: 12px; font-size: 11px;">{}</span>', 
                            color, obj.get_review_status_display())
-    get_review_status_badge.short_description = 'Sua Revisão'
+    get_review_status_badge.short_description = 'Sua Revisão'
