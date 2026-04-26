@@ -2,12 +2,13 @@ from ninja import NinjaAPI, Schema
 from typing import List, Optional
 from datetime import datetime
 from django.db.models import Count
-from .models import Submission, Problem, Contest, QueueItem, User
+from .models import Submission, Problem, Contest, QueueItem, User, UserProblemTracking
 
 api = NinjaAPI(
     title="A Forja API",
-    description="Backend de dados para análise de performance competitiva (CF + CSES)",
-    version="1.0.0"
+    description="Backend de dados para análise de performance competitiva+",
+    version="1.0.0",
+    urls_namespace="api",
 )
 
 # === SCHEMAS  ===
@@ -16,19 +17,49 @@ class ContestSchema(Schema):
     name: str
     platform: str  # 'CF' ou 'CSES'
 
+class ProblemTrackingSchema(Schema):
+    system_status: str
+    review_status: str
+
 class ProblemSchema(Schema):
-    name: str
+    id: int
+    name: str 
     index: str      
     rating: Optional[int] = None  
-    tags: List[str]
-    is_solved: bool  
-    contest: ContestSchema # Aninhamento: traz os dados do contest junto
+    tags: List[str] = []
+    tracking: Optional[ProblemTrackingSchema] = None
+    contest: ContestSchema
+
+    @staticmethod
+    def resolve_name(obj):
+        return obj.title
+
+    @staticmethod
+    def resolve_index(obj):
+        return obj.platform_id
+
+    @staticmethod
+    def resolve_rating(obj):
+        return obj.platform_metadata.get('rating')
+
+    @staticmethod
+    def resolve_tags(obj):
+        return obj.platform_metadata.get('tags', [])
+
+    @staticmethod
+    def resolve_tracking(obj):
+        user = User.objects.first()
+        return obj.user_trackings.filter(user=user).first()
 
 class SubmissionSchema(Schema):
-    submission_id: int
+    id: int
     verdict: str
     creation_time: datetime 
     problem: ProblemSchema
+
+    @staticmethod
+    def resolve_id(obj):
+        return obj.id
 
 class StatsSchema(Schema):
     total_solved: int
@@ -38,25 +69,34 @@ class StatsSchema(Schema):
 
 class QueueSchema(Schema):
     id: int
+    item_type: str
     title: str
     description: Optional[str] = None
     priority: str
-    status: str
+    is_completed: bool
+    tags: List[str] = []
+    source_platform: Optional[str] = None
     linked_problem_id: Optional[int] = None
+    order: int
     created_at: datetime
     resolved_at: Optional[datetime] = None
 
 class QueueCreateSchema(Schema):
     title: str
     description: Optional[str] = None
+    item_type: str = 'PROBLEM'
     priority: str = 'P2'
+    source_platform: Optional[str] = None
     linked_problem_id: Optional[int] = None
 
 class QueueUpdatePrioritySchema(Schema):
     priority: str
 
 class QueueUpdateStatusSchema(Schema):
-    status: str
+    is_completed: bool
+
+class QueueReorderSchema(Schema):
+    ordered_ids: List[int]  # Lista de IDs na nova ordem desejada
 
 @api.get("/submissions", response=List[SubmissionSchema])
 def list_submissions(request, limit: int = 20, offset: int = 0, platform: Optional[str] = None):
@@ -77,22 +117,39 @@ def list_submissions(request, limit: int = 20, offset: int = 0, platform: Option
 
 @api.get("/problems/solved", response=List[ProblemSchema])
 def list_solved_problems(request, platform: Optional[str] = None):
-    qs = Problem.objects.filter(is_solved=True).select_related('contest')
+    user = User.objects.first()
+    # Filtra problemas que o usuário marcou como DONE na triagem
+    problem_ids = UserProblemTracking.objects.filter(
+        user=user, 
+        review_status='DONE'
+    ).values_list('problem_id', flat=True)
+    
+    qs = Problem.objects.filter(id__in=problem_ids).select_related('contest')
     
     if platform:
-        qs = qs.filter(contest__platform=platform)
+        qs = qs.filter(platform=platform)
         
     return qs
 
 @api.get("/stats", response=StatsSchema)
 def get_stats(request):
+    user = User.objects.first()
+    solved_count = UserProblemTracking.objects.filter(user=user, review_status='DONE').count()
     return {
-        "total_solved": Problem.objects.filter(is_solved=True).count(),
+        "total_solved": solved_count,
         "total_submissions": Submission.objects.count(),
         "total_contests": Contest.objects.count(),
         "platform_breakdown": {
-            "cf_solved": Problem.objects.filter(contest__platform='CF', is_solved=True).count(),
-            "cses_solved": Problem.objects.filter(contest__platform='CSES', is_solved=True).count()
+            "cf_solved": UserProblemTracking.objects.filter(
+                user=user, 
+                review_status='DONE', 
+                problem__platform__in=['CF_OFFICIAL', 'CF_GYM']
+            ).count(),
+            "cses_solved": UserProblemTracking.objects.filter(
+                user=user, 
+                review_status='DONE', 
+                problem__platform='CSES'
+            ).count()
         }
     }
 
@@ -100,20 +157,39 @@ def get_stats(request):
 
 @api.get("/queue", response=List[QueueSchema])
 def list_queue(request):
-    """Retorna Fila Priorizada de problemas e sessões de estudo pendentes"""
-    return QueueItem.objects.exclude(status='DONE').order_by('priority', '-created_at')
+    """Retorna a fila completa, ordenada pela posição manual."""
+    return QueueItem.objects.all().order_by('order', '-created_at')
 
 @api.post("/queue", response=QueueSchema)
 def create_queue_item(request, payload: QueueCreateSchema):
-    """Cria uma nova tarefa ou linka uma questão na fila de prioridade"""
-    user = User.objects.first() # Setup mono-usuário temporário para MVP
+    """Cria um novo item na fila. Posição = final da fila."""
+    user = User.objects.first()  # MVP mono-usuário
+    max_order = QueueItem.objects.count()
     item = QueueItem.objects.create(
         user=user,
         title=payload.title,
         description=payload.description,
+        item_type=payload.item_type,
         priority=payload.priority,
-        linked_problem_id=payload.linked_problem_id
+        source_platform=payload.source_platform,
+        linked_problem_id=payload.linked_problem_id,
+        order=max_order,
     )
+    return item
+
+@api.post("/queue/{item_id}/toggle", response=QueueSchema)
+def toggle_queue_done(request, item_id: int):
+    """Alterna o estado boolean is_completed de um item da fila."""
+    item = QueueItem.objects.get(id=item_id)
+    item.is_completed = not item.is_completed
+    
+    if item.is_completed:
+        from django.utils import timezone
+        item.resolved_at = timezone.now()
+    else:
+        item.resolved_at = None
+        
+    item.save()
     return item
 
 @api.post("/queue/{item_id}/priority", response=QueueSchema)
@@ -123,12 +199,62 @@ def update_queue_priority(request, item_id: int, payload: QueueUpdatePrioritySch
     item.save()
     return item
 
+@api.post("/queue/reorder")
+def reorder_queue(request, payload: QueueReorderSchema):
+    """Recebe a lista de IDs na nova ordem e atualiza o campo order."""
+    for index, item_id in enumerate(payload.ordered_ids):
+        QueueItem.objects.filter(id=item_id).update(order=index)
+    return {"ok": True}
+
 @api.post("/queue/{item_id}/status", response=QueueSchema)
 def update_queue_status(request, item_id: int, payload: QueueUpdateStatusSchema):
     item = QueueItem.objects.get(id=item_id)
-    item.status = payload.status
-    if payload.status == 'DONE':
+    item.is_completed = payload.is_completed
+    
+    if item.is_completed:
         from django.utils import timezone
         item.resolved_at = timezone.now()
+    else:
+        item.resolved_at = None
+        
     item.save()
     return item
+
+# --- Edição inline: atualiza campos parciais de um item ---
+
+class QueuePatchSchema(Schema):
+    priority: Optional[str] = None
+    description: Optional[str] = None
+
+@api.patch("/queue/{item_id}", response=QueueSchema)
+def patch_queue_item(request, item_id: int, payload: QueuePatchSchema):
+    """Edição parcial de um item da fila (prioridade, descrição)."""
+    item = QueueItem.objects.get(id=item_id)
+    if payload.priority is not None:
+        item.priority = payload.priority
+    if payload.description is not None:
+        item.description = payload.description
+    item.save()
+    return item
+
+# --- Busca de problemas no banco para o modal de criação ---
+
+class ProblemSearchSchema(Schema):
+    id: int
+    platform_id: str
+    title: str
+    platform: str
+
+@api.get("/problems/search", response=List[ProblemSearchSchema])
+def search_problems(request, q: str = "", platform: Optional[str] = None, limit: int = 10):
+    """Busca problemas por ID ou título. Usado pelo modal de criação."""
+    from django.db.models import Q
+    qs = Problem.objects.all()
+    if platform:
+        if platform == "CODEFORCES":
+            qs = qs.filter(platform__in=["CF_OFFICIAL", "CF_GYM"])
+        else:
+            qs = qs.filter(platform=platform)
+    if q:
+        qs = qs.filter(Q(platform_id__icontains=q) | Q(title__icontains=q))
+    return qs[:limit]

@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.utils.html import format_html
-from .models import User, Team, Contest, Problem, ContestParticipation, Submission, UserProblemTracking
+from .models import User, Team, Contest, Problem, ContestParticipation, Submission, UserProblemTracking, QueueItem
 
 @admin.register(User)
 class UserAdmin(admin.ModelAdmin):
@@ -88,3 +88,44 @@ class UserProblemTrackingAdmin(admin.ModelAdmin):
         return format_html('<span style="background: {}; color: white; padding: 3px 8px; border-radius: 12px; font-size: 11px;">{}</span>', 
                            color, obj.get_review_status_display())
     get_review_status_badge.short_description = 'Sua Revisão'
+
+@admin.register(QueueItem)
+class QueueItemAdmin(admin.ModelAdmin):
+    # Colunas exibidas na listagem da fila
+    list_display = (
+        'title', 'item_type', 'get_priority_badge',
+        'get_status_badge', 'source_platform', 'created_at'
+    )
+    list_filter = ('priority', 'status', 'item_type', 'source_platform')
+    search_fields = ('title', 'description')
+    # Campos disponíveis ao criar/editar um item
+    fields = ('user', 'item_type', 'title', 'description', 'priority', 'status', 'source_platform', 'linked_problem')
+
+    def get_priority_badge(self, obj):
+        """Exibe a prioridade com cor que reflete urgência."""
+        cores = {
+            'P0': ('#dc143c', '#fff'),  # Carmesim — crítico
+            'P1': ('#ff8c00', '#fff'),  # Laranja — importante
+            'P2': ('#555', '#ccc'),     # Cinza — baixa prioridade
+            'UPSOLVING': ('#6a0dad', '#fff'),  # Roxo — upsolve especial
+        }
+        bg, fg = cores.get(obj.priority, ('#555', '#ccc'))
+        return format_html(
+            '<span style="background:{};color:{};padding:2px 8px;border-radius:10px;font-size:11px;font-weight:bold;">{}</span>',
+            bg, fg, obj.priority
+        )
+    get_priority_badge.short_description = 'Prioridade'
+
+    def get_status_badge(self, obj):
+        """Exibe o status com cor semântica."""
+        cores = {
+            'TODO': ('#555', '#ccc'),
+            'IN_PROGRESS': ('#1a6fb5', '#fff'),
+            'DONE': ('#27ae60', '#fff'),
+        }
+        bg, fg = cores.get(obj.status, ('#555', '#ccc'))
+        return format_html(
+            '<span style="background:{};color:{};padding:2px 8px;border-radius:10px;font-size:11px;font-weight:bold;">{}</span>',
+            bg, fg, obj.get_status_display()
+        )
+    get_status_badge.short_description = 'Status'

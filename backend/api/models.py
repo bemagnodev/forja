@@ -47,6 +47,8 @@ class Problem(models.Model):
     title = models.CharField(max_length=255)
     contest = models.ForeignKey(Contest, on_delete=models.CASCADE, null=True, blank=True, related_name='problems')
     platform_metadata = models.JSONField(default=dict, blank=True)
+    #TODO criar campo de link do problema e pegar pela api
+
 
     class Meta:
         unique_together = ['platform', 'platform_id']
@@ -60,6 +62,14 @@ class ContestParticipation(models.Model):
     team = models.ForeignKey(Team, on_delete=models.CASCADE, null=True, blank=True, related_name='contest_participations')
     is_virtual = models.BooleanField(default=False)
     participation_date = models.DateTimeField(null=True, blank=True)
+
+    # Métricas salvas durante o sync para evitar cálculos pesados na UI
+    solve_count = models.IntegerField(default=0, help_text="ACs feitos DURANTE o contest oficial")
+    upsolve_count = models.IntegerField(default=0, help_text="ACs feitos DEPOIS (Upsolving)")
+    total_problems = models.IntegerField(default=0, help_text="Total de questões da prova")
+    rank = models.IntegerField(null=True, blank=True, help_text="Ranking final do usuário/equipe")
+    #TODO futuro pós mvp: add possibilidade de usuario adicionar novos contest (ex; atcoder)  a contest participation
+
     
     def __str__(self):
         participant = self.team.name if self.team else self.user.username
@@ -183,22 +193,56 @@ class QueueItem(models.Model):
         P1 = 'P1', 'P1 (Alto)'
         P2 = 'P2', 'P2 (Normal)'
 
-    class Status(models.TextChoices):
-        TODO = 'TODO', 'Pendente'
-        IN_PROGRESS = 'IN_PROGRESS', 'Em Andamento'
-        DONE = 'DONE', 'Concluído'
+    class ItemType(models.TextChoices):
+        # Questão de plataforma (CF, CSES, AtCoder)
+        PROBLEM = 'PROBLEM', 'Questão'
+        # Sessão teórica (ex: "Estudar Segment Tree")
+        STUDY_SESSION = 'STUDY_SESSION', 'Sessão de Estudo'
+
+    class Platform(models.TextChoices):
+        CODEFORCES = 'CODEFORCES', 'Codeforces'
+        ATCODER    = 'ATCODER',    'AtCoder'
+        CSES       = 'CSES',       'CSES'
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='queue_items')
+    # Tipo do item: questão de plataforma ou sessão teórica pessoal
+    item_type = models.CharField(
+        max_length=20,
+        choices=ItemType.choices,
+        default=ItemType.PROBLEM,
+        help_text="Questão de platforma ou sessão de estudo teórico"
+    )
+
     title = models.CharField(max_length=255, help_text="Ex: Estudar DP ou o nome da questão lincada")
     description = models.TextField(null=True, blank=True)
     priority = models.CharField(max_length=15, choices=Priority.choices, default=Priority.P2)
-    status = models.CharField(max_length=20, choices=Status.choices, default=Status.TODO)
     
+    is_completed = models.BooleanField(default=False, help_text="Marcado manualmente pelo usuário")
+    tags = models.JSONField(default=list, blank=True, help_text="Ex: ['DP', 'Math'] para sessões de estudo")
+    
+    # Plataforma de origem — não nulo quando item_type == PROBLEM
+    source_platform = models.CharField(
+        max_length=20,
+        choices=Platform.choices,
+        null=True,
+        blank=True,
+        help_text="Deixe em branco para sessões de estudo pessoais"
+    )
+
     # Se for não-nulo, a lógica da UI exibirá o logotipo da plataforma e cores específicas.
-    linked_problem = models.ForeignKey(Problem, on_delete=models.SET_NULL, null=True, blank=True, related_name='queue_links')
-    
+    linked_problem = models.ForeignKey(
+        Problem, on_delete=models.SET_NULL, null=True, blank=True, related_name='queue_links'
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     resolved_at = models.DateTimeField(null=True, blank=True)
 
+    # Posição manual na fila — permite drag-and-drop no front
+    order = models.IntegerField(default=0, help_text="Posição manual na fila (menor = topo)")
+
+    class Meta:
+        ordering = ['order', '-created_at']
+
     def __str__(self):
-        return f"[{self.get_priority_display()}] {self.title} - {self.get_status_display()}"
+        status = "Feito" if self.is_completed else "Pendente"
+        return f"[{self.get_priority_display()}] {self.title} - {status}"
