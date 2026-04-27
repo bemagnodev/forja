@@ -37,6 +37,15 @@
 
     --radius: 0.625rem;
 
+    /* Cores de Rating Competitivo - Padrão CF (Editáveis) */
+    --rating-gray: #808080;
+    --rating-green: #008000;
+    --rating-cyan: #03a8aa;
+    --rating-blue: #0000ff;
+    --rating-violet: #aa00aa;
+    --rating-orange: #ff8c00;
+    --rating-red: #ff0000;
+
     --chart-1: oklch(0.87 0 0);
 
     --chart-2: oklch(0.556 0 0);
@@ -99,6 +108,8 @@
     --sidebar-accent-foreground: #dc143c;
     --sidebar-border: oklch(1 0 0 / 10%);
     --sidebar-ring: #dc143c;
+
+
   }
   * {
     @apply border-border outline-ring/50;
@@ -115,7 +126,23 @@
   * {
     @apply border-border;
   }
-  body, #root {
-    @apply bg-background text-foreground min-h-screen;
+  html, body, #root {
+    @apply bg-background text-foreground h-screen overflow-hidden;
   }
+}
+
+/* ── Custom Scrollbar ── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.15);
 }
