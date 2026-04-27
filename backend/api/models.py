@@ -53,6 +53,31 @@ class Problem(models.Model):
     class Meta:
         unique_together = ['platform', 'platform_id']
 
+    @property
+    def url(self):
+        pid = self.platform_id
+        if self.platform == 'CSES':
+            return f"https://cses.fi/problemset/task/{pid}"
+        elif self.platform in ['CF_OFFICIAL', 'CF_GYM']:
+            import re
+            # Codeforces IDs geralmente são como 1234A, onde os números representam o id do contest e as letras representam o id do problema
+            match = re.match(r'^(\d+)(.*)$', pid)
+            if match:
+                contest_id, index = match.groups()
+                if self.platform == 'CF_OFFICIAL':
+                    return f"https://codeforces.com/contest/{contest_id}/problem/{index}"
+                else: # CF_GYM
+                    return f"https://codeforces.com/gym/{contest_id}/problem/{index}"
+            return f"https://codeforces.com/problemset/problem/{pid}" # Fallback
+        elif self.platform == 'ATCODER':
+            # AtCoder tasks são tipicamente contest_id_index (ex: abc300_a). Separamos pelo primeiro _ ou apenas inferimos o contest.
+            # Se tiver underscore usa o q ta antes dele, senao assume que não tem padrão forte
+            if '_' in pid:
+                contest_id = pid.split('_')[0]
+                return f"https://atcoder.jp/contests/{contest_id}/tasks/{pid}"
+            return f"https://atcoder.jp/contests/{pid}/tasks/{pid}" # fallback genérico
+        return None
+
     def __str__(self):
         return self.title
 
