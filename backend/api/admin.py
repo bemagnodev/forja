@@ -96,10 +96,10 @@ class QueueItemAdmin(admin.ModelAdmin):
         'title', 'item_type', 'get_priority_badge',
         'get_status_badge', 'source_platform', 'created_at'
     )
-    list_filter = ('priority', 'status', 'item_type', 'source_platform')
+    list_filter = ('priority', 'item_type', 'source_platform')
     search_fields = ('title', 'description')
     # Campos disponíveis ao criar/editar um item
-    fields = ('user', 'item_type', 'title', 'description', 'priority', 'status', 'source_platform', 'linked_problem')
+    fields = ('user', 'item_type', 'title', 'description', 'priority', 'is_completed', 'source_platform', 'linked_problem')
 
     def get_priority_badge(self, obj):
         """Exibe a prioridade com cor que reflete urgência."""
@@ -118,14 +118,15 @@ class QueueItemAdmin(admin.ModelAdmin):
 
     def get_status_badge(self, obj):
         """Exibe o status com cor semântica."""
-        cores = {
-            'TODO': ('#555', '#ccc'),
-            'IN_PROGRESS': ('#1a6fb5', '#fff'),
-            'DONE': ('#27ae60', '#fff'),
-        }
-        bg, fg = cores.get(obj.status, ('#555', '#ccc'))
+        if obj.is_completed:
+            bg, fg = ('#27ae60', '#fff')
+            status_text = "Concluído"
+        else:
+            bg, fg = ('#555', '#ccc')
+            status_text = "Pendente"
+            
         return format_html(
             '<span style="background:{};color:{};padding:2px 8px;border-radius:10px;font-size:11px;font-weight:bold;">{}</span>',
-            bg, fg, obj.get_status_display()
+            bg, fg, status_text
         )
     get_status_badge.short_description = 'Status'

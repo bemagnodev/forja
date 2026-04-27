@@ -80,6 +80,45 @@ class QueueSchema(Schema):
     order: int
     created_at: datetime
     resolved_at: Optional[datetime] = None
+    rating: Optional[int] = None
+    url: Optional[str] = None
+    already_solved: bool = False
+
+    @staticmethod
+    def resolve_rating(obj):
+        if obj.linked_problem and obj.linked_problem.platform_metadata:
+            return obj.linked_problem.platform_metadata.get('rating')
+        return None
+
+    @staticmethod
+    def resolve_url(obj):
+        if obj.linked_problem:
+            return obj.linked_problem.url
+        return None
+
+    @staticmethod
+    def resolve_tags(obj):
+        # Mergear tags do problema (se houver) e as tags manuais
+        ptags = []
+        if obj.linked_problem and obj.linked_problem.platform_metadata:
+            ptags = obj.linked_problem.platform_metadata.get('tags', [])
+        
+        all_tags = list(ptags) + list(obj.tags)
+        # return unique preserving order
+        seen = set()
+        return [x for x in all_tags if not (x in seen or seen.add(x))]
+
+    @staticmethod
+    def resolve_already_solved(obj):
+        if obj.linked_problem:
+            # Puxamos o tracking vinculado. Para evitar o bug do MVP onde o UserID do QueueItem difere 
+            # do UserID gerado pelo ETL (ex: Queue user=8, Tracking user=9), pegamos o first() global da questão.
+            tracking = obj.linked_problem.user_trackings.first()
+            if tracking:
+                success_system = tracking.system_status in ['SOLVED_LIVE', 'UPSOLVED', 'PRACTICE_AC']
+                success_review = tracking.review_status in ['DONE', 'TEAM_DONE']
+                return success_system or success_review
+        return False
 
 class QueueCreateSchema(Schema):
     title: str
