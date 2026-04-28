@@ -1,7 +1,10 @@
+import re
+from io import StringIO
 from ninja import NinjaAPI, Schema
 from typing import List, Optional
 from datetime import datetime
 from django.db.models import Count
+from django.core.management import call_command
 from .models import Submission, Problem, Contest, QueueItem, User, UserProblemTracking
 
 api = NinjaAPI(
@@ -83,6 +86,8 @@ class QueueSchema(Schema):
     rating: Optional[int] = None
     url: Optional[str] = None
     already_solved: bool = False
+    platform_id: Optional[str] = None
+
 
     @staticmethod
     def resolve_rating(obj):
@@ -119,6 +124,13 @@ class QueueSchema(Schema):
                 success_review = tracking.review_status in ['DONE', 'TEAM_DONE']
                 return success_system or success_review
         return False
+
+    @staticmethod
+    def resolve_platform_id(obj):
+        if obj.linked_problem:
+            return obj.linked_problem.platform_id
+        return None
+
 
 class QueueCreateSchema(Schema):
     title: str
@@ -297,3 +309,36 @@ def search_problems(request, q: str = "", platform: Optional[str] = None, limit:
     if q:
         qs = qs.filter(Q(platform_id__icontains=q) | Q(title__icontains=q))
     return qs[:limit]
+
+
+# === SYNC ===
+
+class SyncResultSchema(Schema):
+    success: bool
+    message: str
+    handle: str
+    changes: int
+
+@api.post("/sync/cf", response=SyncResultSchema)
+def sync_codeforces(request):
+    """Dispara o sync incremental do Codeforces para o usuário configurado."""
+    # Pega o primeiro usuário com handle configurado
+    user = User.objects.filter(cf_handle__isnull=False).exclude(cf_handle='').first()
+    if not user:
+        return {"success": False, "message": "Nenhum usuário com cf_handle configurado.", "handle": "", "changes": 0}
+
+    # Captura o stdout do management command em memória
+    out = StringIO()
+    call_command('sync_cf', handle=user.cf_handle, stdout=out)
+    output = out.getvalue()
+
+    # Extrai a contagem de alterações da linha final do comando
+    match = re.search(r'\((\d+) altera', output)
+    changes = int(match.group(1)) if match else 0
+
+    return {
+        "success": True,
+        "message": f"{changes} alterações sincronizadas.",
+        "handle": user.cf_handle,
+        "changes": changes,
+    }
