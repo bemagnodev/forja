@@ -44,7 +44,7 @@ export function AddItemDialog({ onCreate }: { onCreate: (data: any) => void }) {
 
   const handleSubmit = () => {
     const finalTitle = selectedProblem
-      ? `${selectedProblem.platform_id} - ${selectedProblem.title}`
+      ? selectedProblem.title
       : title.trim();
     if (!finalTitle) return;
 

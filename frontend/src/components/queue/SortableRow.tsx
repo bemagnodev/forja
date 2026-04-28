@@ -86,7 +86,7 @@ export function SortableRow({
       </TableCell>
 
       {/* ── QUESTÃO / ESTUDO ── */}
-      <TableCell className="py-3.5 px-3 align-middle max-w-[280px]">
+      <TableCell className="py-3.5 px-3 align-middle">
         <div className="flex items-center gap-2.5">
           <PlatformIcon platform={item.source_platform} type={item.item_type} />
           
@@ -98,11 +98,15 @@ export function SortableRow({
                 rel="noopener noreferrer"
                 className="text-[13px] font-medium text-white/80 hover:text-sky-400 hover:underline transition-colors truncate leading-snug"
               >
-                {item.title}
+                {item.platform_id && item.title.startsWith(`${item.platform_id} - `) 
+                  ? item.title.replace(`${item.platform_id} - `, "") 
+                  : item.title}
               </a>
             ) : (
               <span className="text-[13px] font-medium text-white/80 group-hover:text-white transition-colors truncate leading-snug">
-                {item.title}
+                {item.platform_id && item.title.startsWith(`${item.platform_id} - `) 
+                  ? item.title.replace(`${item.platform_id} - `, "") 
+                  : item.title}
               </span>
             )}
 
@@ -122,7 +126,7 @@ export function SortableRow({
       <TableCell className="py-3.5 px-3 align-middle text-center">
         {item.rating ? (
           <span 
-            className="text-[12px] font-mono tracking-tight font-bold"
+            className="text-[16px] font-mono tracking-tighter font-black"
             style={{ color: getRatingColor(item.rating) }}
           >
             {item.rating}
@@ -143,7 +147,7 @@ export function SortableRow({
                 {item.tags.slice(0, 2).map((tag) => (
                   <span
                     key={tag}
-                    className="shrink truncate min-w-0 text-[9px] px-1.5 py-[2px] rounded bg-white/[0.06] text-white/55 uppercase tracking-wider font-semibold border border-white/[0.08]"
+                    className="shrink truncate min-w-0 text-[10px] px-1.5 py-[2.5px] rounded bg-white/[0.06] text-white/55 uppercase tracking-wider font-bold border border-white/[0.08]"
                   >
                     {tag}
                   </span>

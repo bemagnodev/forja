@@ -9,6 +9,9 @@ import {
   BookMarked,
   UserRound,
   ChevronRight,
+  RefreshCw,
+  CheckCircle2,
+  AlertCircle,
 } from "lucide-react";
 
 // ─── Rotas de navegação ──────────────────────────────────
@@ -70,6 +73,36 @@ export function Sidebar() {
   const location = useLocation();
   const [logoError, setLogoError] = useState(false);
 
+  // Estado da sincronização: idle | loading | success | error
+  type SyncState = "idle" | "loading" | "success" | "error";
+  const [syncState, setSyncState] = useState<SyncState>("idle");
+  const [syncMessage, setSyncMessage] = useState("");
+
+  async function handleSync() {
+    if (syncState === "loading") return; // evita duplo clique
+    setSyncState("loading");
+    setSyncMessage("");
+    try {
+      const res = await fetch("http://localhost:8000/api/sync/cf", { method: "POST" });
+      const data = await res.json();
+      if (data.success) {
+        setSyncState("success");
+        setSyncMessage(data.message);
+      } else {
+        setSyncState("error");
+        setSyncMessage(data.message);
+      }
+    } catch {
+      setSyncState("error");
+      setSyncMessage("Erro de conexão");
+    }
+    // Reseta para idle após 4 segundos
+    setTimeout(() => {
+      setSyncState("idle");
+      setSyncMessage("");
+    }, 4000);
+  }
+
   return (
     <aside className="w-56 shrink-0 min-h-screen flex flex-col border-r border-white/[0.07] bg-[#080808]">
 
@@ -89,7 +122,7 @@ export function Sidebar() {
             </div>
           )}
         </div>
-        <div className="flex flex-col gap-0.5">
+        <div className="flex flex-col gap-1.5">
           <span className="text-[14px] font-bold tracking-tight text-white leading-none">Forja</span>
           <span className="text-[9px] text-white/25 tracking-widest uppercase font-medium leading-none">CP Tracker</span>
         </div>
@@ -124,6 +157,44 @@ export function Sidebar() {
             isActive={location.pathname === link.path}
           />
         ))}
+
+        {/* ── Botão de Sync ── */}
+        <button
+          onClick={handleSync}
+          disabled={syncState === "loading"}
+          className={[
+            "group relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-150 w-full border",
+            syncState === "idle"
+              ? "text-white/45 hover:text-white/85 hover:bg-white/[0.04] border-transparent"
+              : syncState === "loading"
+              ? "text-white/60 bg-white/[0.03] border-white/[0.06] cursor-wait"
+              : syncState === "success"
+              ? "text-emerald-400/80 bg-emerald-500/[0.07] border-emerald-500/20"
+              : "text-red-400/80 bg-red-500/[0.07] border-red-500/20",
+          ].join(" ")}
+        >
+          {/* Ícone troca conforme o estado */}
+          {syncState === "idle" && (
+            <RefreshCw className="w-4 h-4 shrink-0 text-white/30 group-hover:text-white/60 transition-colors" strokeWidth={1.75} />
+          )}
+          {syncState === "loading" && (
+            <RefreshCw className="w-4 h-4 shrink-0 text-white/50 animate-spin" strokeWidth={1.75} />
+          )}
+          {syncState === "success" && (
+            <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" strokeWidth={1.75} />
+          )}
+          {syncState === "error" && (
+            <AlertCircle className="w-4 h-4 shrink-0 text-red-400" strokeWidth={1.75} />
+          )}
+
+          {/* Texto muda conforme estado */}
+          <span className="flex-1 truncate text-left">
+            {syncState === "idle" && "Sincronizar CF"}
+            {syncState === "loading" && "Sincronizando..."}
+            {syncState === "success" && (syncMessage || "Concluído!")}
+            {syncState === "error" && (syncMessage || "Erro!")}
+          </span>
+        </button>
       </nav>
 
       {/* Empurra rodapé para baixo */}
@@ -135,7 +206,7 @@ export function Sidebar() {
           <div className="w-7 h-7 rounded-full bg-[#dc143c]/15 border border-[#dc143c]/20 flex items-center justify-center shrink-0">
             <UserRound className="w-3.5 h-3.5 text-[#dc143c]/80" strokeWidth={1.75} />
           </div>
-          <div className="flex flex-col gap-0.5 text-left">
+          <div className="flex flex-col gap-1 text-left">
             <span className="text-[12px] font-semibold text-white/70 group-hover:text-white/90 transition-colors leading-none">
               Bernardo
             </span>

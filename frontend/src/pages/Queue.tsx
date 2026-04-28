@@ -106,8 +106,8 @@ export function Queue() {
   return (
     <PageLayout
       topbarTitle="Fila de Upsolving"
-      title="Dívida Técnica"
-      description="Transforme a frustração em conhecimento. Domine o que te derrotou."
+      title="Pendências"
+      description="Organize seus próximos desafios e sessões de treinamento."
       action={<AddItemDialog onCreate={(data) => createMutation.mutate(data)} />}
     >
       {/* Toast de desfazer */}
@@ -149,9 +149,9 @@ export function Queue() {
             <Table>
               <colgroup>
                 <col style={{ width: "52px" }} />
-                <col style={{ width: "33%" }} />
-                <col style={{ width: "68px" }} />
-                <col style={{ width: "22%" }} />
+                <col style={{ width: "26%" }} />
+                <col style={{ width: "76px" }} />
+                <col style={{ width: "26%" }} />
                 <col />
                 <col style={{ width: "116px" }} />
               </colgroup>
@@ -184,13 +184,13 @@ export function Queue() {
                 {visibleItems.length === 0 && (
                   <TableRow className="hover:bg-transparent border-0">
                     <TableCell colSpan={6} className="py-32 text-center">
-                      <div className="flex flex-col items-center gap-4 text-white/18">
-                        <div className="w-12 h-12 rounded-full bg-white/[0.03] border border-white/[0.06] flex items-center justify-center">
+                      <div className="flex flex-col items-center gap-4">
+                        <div className="w-12 h-12 rounded-full bg-white/[0.03] border border-white/[0.06] flex items-center justify-center text-white/20">
                           <Inbox className="w-6 h-6" strokeWidth={1.5} />
                         </div>
                         <div>
-                          <p className="text-[14px] font-bold text-white/30">A fila está vazia.</p>
-                          <p className="text-[12px] mt-0.5">Sua dívida técnica foi completamente paga! 🎉</p>
+                          <p className="text-[14px] font-bold text-white/70">A fila está vazia.</p>
+                          <p className="text-[12px] text-white/40 mt-0.5">Sua dívida técnica foi completamente paga! 🎉</p>
                         </div>
                       </div>
                     </TableCell>

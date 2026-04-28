@@ -13,6 +13,7 @@ export interface QueueItem {
   rating?: number;
   url?: string;
   already_solved?: boolean;
+  platform_id?: string | null;
 }
 
 export interface ProblemResult {
