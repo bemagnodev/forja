@@ -5,7 +5,8 @@ from typing import List, Optional
 from datetime import datetime
 from django.db.models import Count
 from django.core.management import call_command
-from .models import Submission, Problem, Contest, QueueItem, User, UserProblemTracking
+from .models import Submission, Problem, Contest, QueueItem, User, UserProblemTracking, ContestParticipation
+
 
 api = NinjaAPI(
     title="A Forja API",
@@ -13,6 +14,11 @@ api = NinjaAPI(
     version="1.0.0",
     urls_namespace="api",
 )
+
+def get_active_user():
+    """Retorna o usuário ativo do MVP: aquele com cf_handle configurado.
+    Mais robusto que User.objects.first(), que pode retornar usuários de teste."""
+    return User.objects.filter(cf_handle__isnull=False).exclude(cf_handle='').first()
 
 # === SCHEMAS  ===
 
@@ -51,7 +57,7 @@ class ProblemSchema(Schema):
 
     @staticmethod
     def resolve_tracking(obj):
-        user = User.objects.first()
+        user = get_active_user()
         return obj.user_trackings.filter(user=user).first()
 
 class SubmissionSchema(Schema):
@@ -168,7 +174,7 @@ def list_submissions(request, limit: int = 20, offset: int = 0, platform: Option
 
 @api.get("/problems/solved", response=List[ProblemSchema])
 def list_solved_problems(request, platform: Optional[str] = None):
-    user = User.objects.first()
+    user = get_active_user()
     # Filtra problemas que o usuário marcou como DONE na triagem
     problem_ids = UserProblemTracking.objects.filter(
         user=user, 
@@ -184,7 +190,7 @@ def list_solved_problems(request, platform: Optional[str] = None):
 
 @api.get("/stats", response=StatsSchema)
 def get_stats(request):
-    user = User.objects.first()
+    user = get_active_user()
     solved_count = UserProblemTracking.objects.filter(user=user, review_status='DONE').count()
     return {
         "total_solved": solved_count,
@@ -214,7 +220,7 @@ def list_queue(request):
 @api.post("/queue", response=QueueSchema)
 def create_queue_item(request, payload: QueueCreateSchema):
     """Cria um novo item na fila. Posição = final da fila."""
-    user = User.objects.first()  # MVP mono-usuário
+    user = get_active_user()  # MVP mono-usuário
     max_order = QueueItem.objects.count()
     item = QueueItem.objects.create(
         user=user,
@@ -342,3 +348,216 @@ def sync_codeforces(request):
         "handle": user.cf_handle,
         "changes": changes,
     }
+
+# === UPSOLVING ===
+
+from django.db.models import Case, When, IntegerField, Prefetch
+
+class ContestProgressSchema(Schema):
+    solved_live: int
+    pending_upsolve: int
+    upsolved: int
+    unattempted: int
+    total: int
+
+class ContestParticipationSchema(Schema):
+    id: int
+    contest_id: int
+    contest_name: str
+    contest_platform: str
+    participation_date: Optional[datetime]
+    is_virtual: bool
+    has_debt: bool
+    progress: ContestProgressSchema
+    url: Optional[str] = None
+    rank: Optional[int] = None
+    solve_count: int = 0
+    upsolve_count: int = 0
+    total_problems: int = 0
+
+    @staticmethod
+    def resolve_url(obj):
+        platform = obj.contest.platform
+        pid = obj.contest.platform_id
+        if platform == 'CF_OFFICIAL':
+            return f"https://codeforces.com/contest/{pid}"
+        elif platform == 'CF_GYM':
+            return f"https://codeforces.com/gym/{pid}"
+        elif platform == 'ATCODER':
+            return f"https://atcoder.jp/contests/{pid}"
+        return None
+
+    @staticmethod
+    def resolve_contest_id(obj):
+        return obj.contest.id
+
+    @staticmethod
+    def resolve_contest_name(obj):
+        return obj.contest.name
+
+    @staticmethod
+    def resolve_contest_platform(obj):
+        return obj.contest.platform
+
+    @staticmethod
+    def resolve_has_debt(obj):
+        # Calculado via anotação injetada pela view
+        return getattr(obj, '_pending_count', 0) > 0
+
+    @staticmethod
+    def resolve_progress(obj):
+        return obj._progress if hasattr(obj, '_progress') else {
+            'solved_live': 0, 'pending_upsolve': 0,
+            'upsolved': 0, 'unattempted': 0, 'total': 0
+        }
+
+class ContestProblemSchema(Schema):
+    id: int
+    platform_id: str
+    title: str
+    index: str
+    rating: Optional[int] = None
+    tags: List[str] = []
+    url: Optional[str] = None
+    system_status: str
+    review_status: str
+    tracking_id: Optional[int] = None
+
+    @staticmethod
+    def resolve_index(obj):
+        # Index é a(s) letra(s) no final do platform_id (ex: "100123A" → "A")
+        import re
+        m = re.search(r'([A-Z]+\d*)$', obj.platform_id)
+        return m.group(1) if m else obj.platform_id
+
+    @staticmethod
+    def resolve_rating(obj):
+        return obj.platform_metadata.get('rating') if obj.platform_metadata else None
+
+    @staticmethod
+    def resolve_tags(obj):
+        return obj.platform_metadata.get('tags', []) if obj.platform_metadata else []
+
+    @staticmethod
+    def resolve_url(obj):
+        return obj.url
+
+    @staticmethod
+    def resolve_system_status(obj):
+        tracking = getattr(obj, '_tracking', None)
+        return tracking.system_status if tracking else 'UNATTEMPTED'
+
+    @staticmethod
+    def resolve_review_status(obj):
+        tracking = getattr(obj, '_tracking', None)
+        return tracking.review_status if tracking else 'PENDING_TRIAGE'
+
+    @staticmethod
+    def resolve_tracking_id(obj):
+        tracking = getattr(obj, '_tracking', None)
+        return tracking.id if tracking else None
+
+@api.get("/contests", response=List[ContestParticipationSchema])
+def list_contest_participations(request):
+    """Lista todos os contests que o usuário participou, com progresso dinâmico."""
+    from django.db.models import Count, Q
+
+    user = get_active_user()
+
+    participations = (
+        ContestParticipation.objects
+        .select_related('contest')
+        .filter(user=user)
+    )
+
+    result = []
+    for p in participations:
+        # Calcula contagens por system_status em uma query só com group_by
+        tracking_qs = UserProblemTracking.objects.filter(
+            user=user,
+            problem__contest=p.contest,
+        )
+
+        counts = {
+            'solved_live': 0,
+            'pending_upsolve': 0,
+            'upsolved': 0,
+            'unattempted': 0,
+            'total': 0,
+        }
+
+        for t in tracking_qs.values('system_status'):
+            status = t['system_status']
+            counts['total'] += 1
+            if status == 'SOLVED_LIVE':
+                counts['solved_live'] += 1
+            elif status == 'PENDING_UPSOLVE':
+                counts['pending_upsolve'] += 1
+            elif status == 'UPSOLVED':
+                counts['upsolved'] += 1
+            elif status == 'UNATTEMPTED':
+                counts['unattempted'] += 1
+
+        p._progress = counts
+        p._pending_count = counts['pending_upsolve']
+        result.append(p)
+
+    # Ordena: por data desc
+    result.sort(key=lambda p: -(p.participation_date.timestamp() if p.participation_date else 0))
+
+    return result
+
+@api.get("/contests/{contest_id}/problems", response=List[ContestProblemSchema])
+def list_contest_problems(request, contest_id: int):
+    """Retorna todos os problemas de um contest com status de tracking do usuário."""
+    user = get_active_user()
+
+    problems = list(
+        Problem.objects
+        .filter(contest_id=contest_id)
+        .prefetch_related(
+            Prefetch(
+                'user_trackings',
+                queryset=UserProblemTracking.objects.filter(user=user),
+                to_attr='_trackings_list'
+            )
+        )
+        .order_by('platform_id')
+    )
+
+    # Injeta o tracking como atributo direto para o resolver conseguir acessar
+    for prob in problems:
+        tracking_list = getattr(prob, '_trackings_list', [])
+        prob._tracking = tracking_list[0] if tracking_list else None
+
+    return problems
+
+class TrackingUpdateSchema(Schema):
+    review_status: str
+
+@api.patch("/tracking/{problem_id}", response=ContestProblemSchema)
+def update_tracking(request, problem_id: int, payload: TrackingUpdateSchema):
+    """Atualiza o review_status de um problema. A FSM do modelo executa automaticamente no save()."""
+    user = get_active_user()
+    tracking, _ = UserProblemTracking.objects.get_or_create(
+        user=user,
+        problem_id=problem_id,
+        defaults={
+            'system_status': UserProblemTracking.SystemStatus.UNATTEMPTED,
+            'review_status': UserProblemTracking.ReviewStatus.PENDING_TRIAGE,
+        }
+    )
+    tracking.review_status = payload.review_status
+    tracking.save()  # FSM executa aqui
+
+    # Recarrega o Problem com tracking injetado para serializar a resposta
+    prob = Problem.objects.prefetch_related(
+        Prefetch(
+            'user_trackings',
+            queryset=UserProblemTracking.objects.filter(user=user),
+            to_attr='_trackings_list'
+        )
+    ).get(id=problem_id)
+    tracking_list = getattr(prob, '_trackings_list', [])
+    prob._tracking = tracking_list[0] if tracking_list else None
+    return prob

@@ -12,16 +12,20 @@ import {
   RefreshCw,
   CheckCircle2,
   AlertCircle,
+  Swords,
 } from "lucide-react";
+
 
 // ─── Rotas de navegação ──────────────────────────────────
 // Agrupadas semanticamente: principal e ferramentas
 const mainLinks = [
-  { name: "Fila",        path: "/",        icon: ListChecks  },
-  { name: "Desempenho",  path: "/stats",   icon: TrendingUp  },
-  { name: "Conquistas",  path: "/awards",  icon: Trophy      },
-  { name: "Caderno",     path: "/notes",   icon: BookMarked  },
+  { name: "Fila",       path: "/",         icon: ListChecks },
+  { name: "Contests",   path: "/contests",  icon: Swords     },
+  { name: "Desempenho",path: "/stats",    icon: TrendingUp },
+  { name: "Conquistas",path: "/awards",   icon: Trophy     },
+  { name: "Caderno",   path: "/notes",    icon: BookMarked },
 ];
+
 
 const toolLinks = [
   { name: "Configurações", path: "/settings", icon: SlidersHorizontal },
