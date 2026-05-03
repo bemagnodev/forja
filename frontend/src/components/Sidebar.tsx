@@ -13,21 +13,25 @@ import {
   CheckCircle2,
   AlertCircle,
   Swords,
+  FlaskConical,
+  LayoutDashboard,
+  Users,
 } from "lucide-react";
 
 
 // ─── Rotas de navegação ──────────────────────────────────
 // Agrupadas semanticamente: principal e ferramentas
 const mainLinks = [
-  { name: "Fila",       path: "/",         icon: ListChecks },
+  { name: "Dashboard",  path: "/dashboard", icon: LayoutDashboard },
+  { name: "Fila",       path: "/",          icon: ListChecks },
   { name: "Contests",   path: "/contests",  icon: Swords     },
-  { name: "Desempenho",path: "/stats",    icon: TrendingUp },
-  { name: "Conquistas",path: "/awards",   icon: Trophy     },
-  { name: "Caderno",   path: "/notes",    icon: BookMarked },
+  { name: "Equipes",    path: "/teams",     icon: Users      },
+  { name: "Caderno",    path: "/notes",     icon: BookMarked },
 ];
 
 
 const toolLinks = [
+  { name: "AI Playground", path: "/ai-lab", icon: FlaskConical },
   { name: "Configurações", path: "/settings", icon: SlidersHorizontal },
 ];
 
@@ -206,7 +210,7 @@ export function Sidebar() {
 
       {/* ── Área do Usuário ── */}
       <div className="border-t border-white/[0.07] p-3 shrink-0">
-        <button className="w-full flex items-center gap-2.5 rounded-lg px-2 py-2 hover:bg-white/[0.04] transition-colors group">
+        <Link to="/profile" className="w-full flex items-center gap-2.5 rounded-lg px-2 py-2 hover:bg-white/[0.04] transition-colors group">
           <div className="w-7 h-7 rounded-full bg-[#dc143c]/15 border border-[#dc143c]/20 flex items-center justify-center shrink-0">
             <UserRound className="w-3.5 h-3.5 text-[#dc143c]/80" strokeWidth={1.75} />
           </div>
@@ -216,7 +220,7 @@ export function Sidebar() {
             </span>
             <span className="text-[9px] text-white/25 leading-none">MVP v0.1</span>
           </div>
-        </button>
+        </Link>
       </div>
     </aside>
   );
