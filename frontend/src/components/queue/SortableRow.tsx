@@ -10,23 +10,7 @@ import { priorityConfig, priorityOptions } from "./constants";
 import { PlatformIcon } from "./PlatformIcon";
 import { PriorityBadge } from "./PriorityBadge";
 import { EditableDescription } from "./EditableDescription";
-
-// Lê o valor resolvido da variável CSS do DOM em runtime
-function getCssVar(name: string): string {
-  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-}
-
-function getRatingColor(rating?: number): string {
-  if (!rating) return "";
-  if (rating < 1200) return getCssVar("--rating-gray");
-  if (rating < 1400) return getCssVar("--rating-green");
-  if (rating < 1600) return getCssVar("--rating-cyan");
-  if (rating < 1900) return getCssVar("--rating-blue");
-  if (rating < 2100) return getCssVar("--rating-violet");
-  if (rating < 2300) return getCssVar("--rating-orange");
-  if (rating < 2400) return getCssVar("--rating-orange");
-  return getCssVar("--rating-red");
-}
+import { getRatingColor } from "@/lib/ratings";
 
 export function SortableRow({
   item,
