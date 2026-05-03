@@ -2,7 +2,7 @@ import React from "react";
 
 interface PageLayoutProps {
   topbarTitle?: string;
-  title: string;
+  title: React.ReactNode;
   badge?: React.ReactNode;
   description?: string;
   action?: React.ReactNode;
