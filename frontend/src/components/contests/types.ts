@@ -5,7 +5,9 @@ export interface ContestProblem {
   title: string;
   index: string;
   rating: number | null;
+  ai_rating: number | null;
   tags: string[];
+  ai_tags: string[];
   url: string | null;
   system_status: string;
   review_status: string;

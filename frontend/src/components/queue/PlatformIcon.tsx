@@ -20,15 +20,6 @@ export function PlatformIcon({ platform, type }: PlatformIconProps) {
     );
   }
 
-  // Caso especial CSES: Apenas texto conforme solicitado
-  if (pKey === "CSES") {
-    return (
-      <div className="flex items-center justify-center shrink-0 w-5 h-5 rounded bg-amber-500/15 border border-amber-500/30">
-        <span className="text-[9px] font-bold text-amber-500 leading-none">CS</span>
-      </div>
-    );
-  }
-
   if (!pKey) return <div className="w-5 h-5 shrink-0" />;
 
   const customLogos: Record<string, string> = {
@@ -39,6 +30,7 @@ export function PlatformIcon({ platform, type }: PlatformIconProps) {
     CF_GYM:      "/logos/code-forces.png",
     ATCODER:     "/logos/atCoder.png",
     AC:          "/logos/atCoder.png",
+    CSES:        "/logos/cses.png",
   };
 
   const fallbacks: Record<string, React.ReactNode> = {
@@ -49,6 +41,7 @@ export function PlatformIcon({ platform, type }: PlatformIconProps) {
     CF_GYM:      <Terminal className="w-3 h-3 text-[#dc143c]" strokeWidth={2.5} />,
     ATCODER:     <Code     className="w-3 h-3 text-sky-400"   strokeWidth={2.5} />,
     AC:          <Code     className="w-3 h-3 text-sky-400"   strokeWidth={2.5} />,
+    CSES:        <Code     className="w-3 h-3 text-amber-500" strokeWidth={2.5} />,
   };
 
   // Mapeamento dinâmico para logos
@@ -66,6 +59,13 @@ export function PlatformIcon({ platform, type }: PlatformIconProps) {
     src = "/logos/atCoder.png";
     fallback = <Code className="w-3 h-3 text-sky-400" strokeWidth={2.5} />;
   }
+
+  // Lógica de detecção inteligente para CSES
+  if (!src && pKey.includes("CSES")) {
+    src = "/logos/cses.png";
+    fallback = <Code className="w-3 h-3 text-amber-500" strokeWidth={2.5} />;
+  }
+
 
   // AtCoder: Preencher o quadrado todo se possível
   if ((pKey === "ATCODER" || pKey === "AC" || (src === "/logos/atCoder.png")) && !imgError) {

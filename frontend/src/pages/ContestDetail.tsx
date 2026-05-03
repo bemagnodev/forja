@@ -6,29 +6,26 @@ import { PageLayout } from "@/components/layouts/PageLayout";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ProblemStatusSelect } from "@/components/contests/ProblemStatusSelect";
 import { ProblemActionsCell } from "@/components/contests/ProblemActionsCell";
-import { AlertCircle, ArrowLeft, ExternalLink, Trophy, CheckCircle } from "lucide-react";
+import { AlertCircle, ArrowLeft, ExternalLink, Trophy, CheckCircle, Sparkles } from "lucide-react";
 import type { ContestProblem } from "@/components/contests/types";
+import { getRatingColor } from "@/lib/ratings";
 
 // Cores de rating do Codeforces (usando as CSS vars do design system)
-function RatingBadge({ rating }: { rating: number | null }) {
+function RatingBadge({ rating, isAi = false }: { rating: number | null; isAi?: boolean }) {
   if (!rating) return <span className="text-white/20 text-[12px]">—</span>;
 
-  const colorStyle =
-    rating >= 2400 ? { color: "var(--rating-red)" }
-    : rating >= 2100 ? { color: "var(--rating-orange)" }
-    : rating >= 1900 ? { color: "var(--rating-violet)" }
-    : rating >= 1600 ? { color: "var(--rating-blue)" }
-    : rating >= 1400 ? { color: "var(--rating-cyan)" }
-    : rating >= 1200 ? { color: "var(--rating-green)" }
-    : { color: "var(--rating-gray)" };
+  const colorStyle = { color: getRatingColor(rating) };
 
   return (
-    <span 
-      className="text-[12px] font-bold tabular-nums"
-      style={colorStyle}
-    >
-      {rating}
-    </span>
+    <div className="flex items-center justify-center gap-1.5" title={isAi ? "Rating estimado por IA" : undefined}>
+      {isAi && <Sparkles className="w-3 h-3 text-fuchsia-400 opacity-80" />}
+      <span 
+        className="text-[12px] font-bold tabular-nums"
+        style={colorStyle}
+      >
+        {rating}
+      </span>
+    </div>
   );
 }
 
@@ -228,36 +225,58 @@ export function ContestDetail() {
 
                     {/* Título */}
                     <TableCell className="px-3 py-4">
-                      {prob.url ? (
-                        <a 
-                          href={prob.url} 
-                          target="_blank" 
-                          rel="noopener noreferrer" 
-                          className="text-[14px] font-semibold text-white/80 hover:text-[#dc143c] transition-colors inline-flex items-center gap-2 group/link"
-                        >
-                          <span className="line-clamp-1">{prob.title}</span>
-                          <ExternalLink className="w-3.5 h-3.5 opacity-0 -translate-x-1 group-hover/link:opacity-100 group-hover/link:translate-x-0 transition-all text-[#dc143c]" />
-                        </a>
-                      ) : (
-                        <span className="text-[14px] font-semibold text-white/80 line-clamp-1">{prob.title}</span>
-                      )}
+                      <div className="flex items-center gap-2.5">
+                        {prob.url ? (
+                          <a 
+                            href={prob.url} 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            className="text-[14px] font-semibold text-white/80 hover:text-[#dc143c] transition-colors inline-flex items-center gap-2 group/link"
+                          >
+                            <span className="line-clamp-1">{prob.title}</span>
+                            <ExternalLink className="w-3.5 h-3.5 opacity-0 -translate-x-1 group-hover/link:opacity-100 group-hover/link:translate-x-0 transition-all text-[#dc143c]" />
+                          </a>
+                        ) : (
+                          <span className="text-[14px] font-semibold text-white/80 line-clamp-1">{prob.title}</span>
+                        )}
+                        {["SOLVED_LIVE", "UPSOLVED", "PRACTICE_AC"].includes(prob.system_status) && (
+                          <div 
+                            className="shrink-0 flex items-center justify-center px-1.5 py-0.5 rounded-sm bg-emerald-500/10 border border-emerald-500/20 shadow-[0_0_8px_rgba(16,185,129,0.15)]"
+                            title="Resolvido"
+                          >
+                            <span className="text-emerald-500 text-[9px] font-black tracking-widest leading-none mt-[1px]">AC</span>
+                          </div>
+                        )}
+                      </div>
                     </TableCell>
 
                     {/* Rating */}
                     <TableCell className="px-3 py-4 text-center">
-                      <RatingBadge rating={prob.rating} />
+                      <RatingBadge 
+                        rating={prob.rating || prob.ai_rating} 
+                        isAi={!prob.rating && !!prob.ai_rating} 
+                      />
                     </TableCell>
 
                     {/* Tags */}
                     <TableCell className="px-3 py-4">
-                      <div className="flex flex-wrap gap-1.5">
-                        {prob.tags.slice(0, 3).map((tag) => (
-                          <span key={tag} className="text-[10px] font-bold px-2.5 py-0.5 rounded-md bg-white/[0.03] border border-white/[0.08] text-white/40 group-hover/row:border-white/15 group-hover/row:text-white/60 transition-all">
+                      <div className="flex flex-wrap gap-1.5 items-center">
+                        {!prob.rating && prob.ai_tags?.length > 0 && (
+                          <Sparkles className="w-3 h-3 text-fuchsia-400 mr-0.5 opacity-80" title="Tags estimadas por IA" />
+                        )}
+                        {(prob.tags?.length > 0 ? prob.tags : prob.ai_tags || [])?.slice(0, 3).map((tag) => (
+                          <span key={tag} className={`text-[10px] font-bold px-2.5 py-0.5 rounded-md border transition-all ${
+                            !prob.tags?.length && prob.ai_tags?.length > 0 
+                            ? "bg-fuchsia-500/10 border-fuchsia-500/20 text-fuchsia-300"
+                            : "bg-white/[0.03] border-white/[0.08] text-white/40 group-hover/row:border-white/15 group-hover/row:text-white/60"
+                          }`}>
                             {tag}
                           </span>
                         ))}
-                        {prob.tags.length > 3 && (
-                          <span className="text-[10px] font-bold text-white/15 ml-1">+{prob.tags.length - 3}</span>
+                        {(prob.tags?.length > 0 ? prob.tags : prob.ai_tags || [])?.length > 3 && (
+                          <span className="text-[10px] font-bold text-white/15 ml-1">
+                            +{(prob.tags?.length > 0 ? prob.tags : prob.ai_tags || []).length - 3}
+                          </span>
                         )}
                       </div>
                     </TableCell>

@@ -1,8 +1,8 @@
-import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { ListPlus, Sparkles } from "lucide-react";
 import type { ContestProblem } from "./types";
+import { useToast } from "@/components/ui/toast";
 
 interface ProblemActionsCellProps {
   problem: ContestProblem;
@@ -10,7 +10,7 @@ interface ProblemActionsCellProps {
 
 export function ProblemActionsCell({ problem }: ProblemActionsCellProps) {
   const queryClient = useQueryClient();
-  const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const { toast } = useToast();
 
   const addToQueueMutation = useMutation({
     mutationFn: () =>
@@ -22,28 +22,57 @@ export function ProblemActionsCell({ problem }: ProblemActionsCellProps) {
         linked_problem_id: problem.id,
       }),
     onSuccess: () => {
-      // Invalida a fila para refletir o novo item
       queryClient.invalidateQueries({ queryKey: ["queue"] });
-      setToastMsg("Adicionado à fila!");
-      setTimeout(() => setToastMsg(null), 2500);
+      
+      toast({
+        title: "Adicionado à fila!",
+        description: `O problema "${problem.title}" está pronto para upsolving.`,
+        type: "success",
+      });
     },
+  });
+
+  const predictMutation = useMutation({
+    mutationFn: async ({ force }: { force?: boolean } = {}) => {
+      const start = performance.now();
+      const { data } = await api.post(`/problems/${problem.id}/predict`, null, {
+        params: { force: force ? "true" : "false" }
+      });
+      return { data, time: performance.now() - start };
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ["contest-problems"] });
+      
+      toast({
+        title: "Classificação concluída!",
+        description: `Predição gerada para "${problem.title}" em ${(result.time / 1000).toFixed(1)} segundos.`,
+        type: "success",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Erro na predição",
+        description: "A IA não conseguiu classificar este problema. Pode ser um erro no formato do enunciado.",
+        type: "error",
+      });
+    }
   });
 
   return (
     <div className="flex items-center justify-end gap-1 relative opacity-40 group-hover/row:opacity-100 transition-all duration-200">
-      {/* Toast inline discreto */}
-      {toastMsg && (
-        <span className="absolute -top-7 right-0 text-[10px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-md px-2 py-0.5 whitespace-nowrap pointer-events-none z-10">
-          {toastMsg}
-        </span>
-      )}
 
       {/* Botão de IA */}
       <button
-        title="Em breve: Estimar rating e tags com IA"
-        className="w-8 h-8 flex items-center justify-center rounded-lg text-fuchsia-400/70 hover:text-fuchsia-400 hover:bg-fuchsia-400/10 hover:shadow-[0_0_15px_rgba(232,121,249,0.2)] transition-all"
+        onClick={(e) => predictMutation.mutate({ force: e.shiftKey })}
+        disabled={predictMutation.isPending}
+        title="Estimar rating e tags com IA (Shift+Click para forçar recálculo)"
+        className="w-8 h-8 flex items-center justify-center rounded-lg text-fuchsia-400/70 hover:text-fuchsia-400 hover:bg-fuchsia-400/10 hover:shadow-[0_0_15px_rgba(232,121,249,0.2)] transition-all disabled:opacity-40"
       >
-        <Sparkles className="w-4 h-4" />
+        {predictMutation.isPending ? (
+          <div className="w-4 h-4 border-2 border-fuchsia-400/30 border-t-fuchsia-400 rounded-full animate-spin" />
+        ) : (
+          <Sparkles className="w-4 h-4" />
+        )}
       </button>
 
       {/* Adicionar à fila */}
