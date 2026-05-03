@@ -134,3 +134,71 @@ def test_sync_cf_contest_participation_shield():
     # 3. Prova B (Antiga Submissão WA): A participação forçou para Pending Upsolve
     track_b = UserProblemTracking.objects.get(user=user, problem=prob_b) 
     assert track_b.system_status == UserProblemTracking.SystemStatus.PENDING_UPSOLVE
+
+@pytest.mark.django_db
+@responses.activate
+def test_sync_cf_gym_dynamically_fetches_all_problems():
+    """
+    Cenário: O usuário faz uma submissão num contest Gym que ainda não existe no nosso banco (contestId >= 100000).
+    Esperado:
+    1. Ao identificar a submissão, o código dinamicamente baterá em 'contest.standings'.
+    2. Importará todas as questões originais (A, B, C) desse Gym.
+    3. Criará o "ContestParticipation" e a Máquina de Estados blindará a prova inteira para "UNATTEMPTED", mesmo as questões que o usuário nunca submeteu.
+    """
+    from api.models import Contest, Problem
+    user = User.objects.create(username="gym_user", cf_handle="gymmer")
+
+    # MOCK 1: A Submissão do Usuário
+    responses.add(
+        responses.GET,
+        'https://codeforces.com/api/user.status',
+        json={
+            'status': 'OK',
+            'result': [
+                {
+                    'id': 300, 
+                    'verdict': 'WRONG_ANSWER', 
+                    'creationTimeSeconds': 3000, 
+                    'problem': {'contestId': 100124, 'index': 'A', 'name': 'First'}, 
+                    'author': {'participantType': 'CONTESTANT'}
+                }
+            ]
+        },
+        status=200
+    )
+    # Loop terminator for user.status
+    responses.add(
+        responses.GET,
+        'https://codeforces.com/api/user.status',
+        json={'status': 'OK', 'result': []},
+        status=200
+    )
+    
+    # MOCK 2: O fetch dinâmico do Gym Standings
+    responses.add(
+        responses.GET,
+        'https://codeforces.com/api/contest.standings',
+        json={
+            'status': 'OK',
+            'result': {
+                'contest': {'id': 100124, 'name': 'Gym 100124', 'startTimeSeconds': 2000, 'durationSeconds': 7200},
+                'problems': [
+                    {'contestId': 100124, 'index': 'A', 'name': 'First A', 'rating': 1000},
+                    {'contestId': 100124, 'index': 'B', 'name': 'Second B', 'rating': 1200},
+                    {'contestId': 100124, 'index': 'C', 'name': 'Third C'}
+                ],
+                'rows': []
+            }
+        },
+        status=200
+    )
+
+    call_command('sync_cf', force_full=True)
+
+    # Verificaçōes:
+    # 1. O Gym inteiro existiu e teve suas 3 questões mapeadas (e não apenas a questão A da submissão).
+    assert Contest.objects.filter(platform_id="100124").exists(), "Gym não foi criado."
+    assert Problem.objects.filter(contest__platform_id="100124").count() == 3, "As 3 questões do Gym não foram sincronizadas!"
+    
+    # 2. Como a submissão foi CONTESTANT, o Participation espalhou tracking pra geral
+    assert UserProblemTracking.objects.filter(user=user, problem__contest__platform_id="100124").count() == 3, "Máquina de estados não englobou todas as questões do Gym!"

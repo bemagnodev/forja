@@ -2,7 +2,7 @@ import time
 from datetime import datetime
 from django.utils import timezone
 from django.core.management.base import BaseCommand
-from api.models import User, Problem, Submission, UserProblemTracking, PlatformChoices, ContestParticipation
+from api.models import User, Problem, Submission, UserProblemTracking, PlatformChoices, ContestParticipation, Contest
 from api.services.codeforces_client import CodeforcesClient
 
 class Command(BaseCommand):
@@ -90,13 +90,55 @@ class Command(BaseCommand):
                 is_gym = int(contest_id) >= 100000
                 platform_type = PlatformChoices.CF_GYM if is_gym else PlatformChoices.CF_OFFICIAL
 
+                # Fetch DINÂMICO de Gyms e suas Questões
+                if is_gym:
+                    c_exists = Contest.objects.filter(platform_id=contest_id).exists()
+                    if not c_exists:
+                        self.stdout.write(f"    > Contest Gym {contest_id} não encontrado. Buscando dados completos...")
+                        gym_data = client.get_gym_standings(contest_id)
+                        if gym_data:
+                            c_meta = gym_data.get('contest', {})
+                            c_start = None
+                            if c_meta.get('startTimeSeconds'):
+                                c_start = datetime.fromtimestamp(c_meta.get('startTimeSeconds'), tz=timezone.UTC)
+                                
+                            c_obj, _ = Contest.objects.update_or_create(
+                                platform=PlatformChoices.CF_GYM,
+                                platform_id=contest_id,
+                                defaults={
+                                    'name': c_meta.get('name', f"Gym {contest_id}"),
+                                    'start_time': c_start,
+                                    'duration_seconds': c_meta.get('durationSeconds', 0)
+                                }
+                            )
+                            
+                            for p_meta in gym_data.get('problems', []):
+                                p_id = f"{contest_id}{p_meta.get('index', '')}"
+                                p_name = p_meta.get('name', '')
+                                p_title = f"{p_meta.get('index', '')}. {p_name}" if p_name else p_id
+                                
+                                Problem.objects.update_or_create(
+                                    platform=PlatformChoices.CF_GYM,
+                                    platform_id=p_id,
+                                    defaults={
+                                        'title': p_title,
+                                        'contest': c_obj,
+                                        'platform_metadata': {
+                                            'rating': p_meta.get('rating'),
+                                            'tags': p_meta.get('tags', [])
+                                        }
+                                    }
+                                )
+
+                cont_obj = Contest.objects.filter(platform_id=contest_id).first()
+
                 # 1. Problem 
                 problem, _ = Problem.objects.get_or_create(
                     platform=platform_type,
                     platform_id=platform_id,
                     defaults={
                         'title': title,
-                        'contest': None,
+                        'contest': cont_obj,
                         'platform_metadata': {
                             'rating': prob_data.get('rating'),
                             'tags': prob_data.get('tags', [])
@@ -177,7 +219,20 @@ class Command(BaseCommand):
                     else:
                         new_sys_status = UserProblemTracking.SystemStatus.PRACTICE_WA
                 
-                if tracking.system_status != new_sys_status:
+                # Hierarquia de estados para evitar downgrade (ex: UPSOLVED não pode sobrescrever SOLVED_LIVE)
+                status_priority = {
+                    UserProblemTracking.SystemStatus.SOLVED_LIVE: 60,
+                    UserProblemTracking.SystemStatus.UPSOLVED: 50,
+                    UserProblemTracking.SystemStatus.PRACTICE_AC: 40,
+                    UserProblemTracking.SystemStatus.PENDING_UPSOLVE: 30,
+                    UserProblemTracking.SystemStatus.PRACTICE_WA: 20,
+                    UserProblemTracking.SystemStatus.UNATTEMPTED: 10,
+                }
+                
+                current_prio = status_priority.get(tracking.system_status, 0)
+                new_prio = status_priority.get(new_sys_status, 0)
+
+                if new_prio > current_prio:
                     tracking.system_status = new_sys_status
                     tracking.save()
                     inserts += 1
