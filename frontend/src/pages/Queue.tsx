@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 
@@ -10,10 +10,10 @@ import {
 import { SortableContext, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Inbox, AlertCircle } from "lucide-react";
+import { Inbox, AlertCircle, RefreshCw } from "lucide-react";
 
 import { PageLayout } from "@/components/layouts/PageLayout";
-import { UndoToast } from "@/components/ui/undo-toast";
+import { useToast } from "@/components/ui/toast";
 
 // Feature Components e configs
 import type { QueueItem } from "@/components/queue/types";
@@ -22,6 +22,7 @@ import { AddItemDialog } from "@/components/queue/AddItemDialog";
 
 export function Queue() {
   const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   const { data: items = [], isLoading, isError } = useQuery<QueueItem[]>({
     queryKey: ["queue"],
@@ -30,9 +31,6 @@ export function Queue() {
       return data;
     },
   });
-
-  const [undoToast, setUndoToast] = useState<{ id: number; title: string } | null>(null);
-  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const toggleMutation = useMutation({
     mutationFn: ({ id, is_completed }: { id: number; is_completed: boolean }) =>
@@ -53,21 +51,20 @@ export function Queue() {
       toggleMutation.mutate({ id, is_completed: currentStatus });
 
       if (!currentStatus) {
-        if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-        setUndoToast({ id, title });
-        toastTimerRef.current = setTimeout(() => setUndoToast(null), 5500);
-      } else {
-        if (undoToast?.id === id) setUndoToast(null);
+        toast({
+          title: "Item finalizado",
+          description: title,
+          type: "success",
+          action: {
+            label: "Desfazer",
+            icon: <RefreshCw className="w-3 h-3" />,
+            onClick: () => handleToggle(id, true, title),
+          },
+        });
       }
     },
-    [toggleMutation, undoToast, queryClient]
+    [toggleMutation, queryClient, toast]
   );
-
-  const handleUndo = () => {
-    if (!undoToast) return;
-    handleToggle(undoToast.id, true, undoToast.title);
-    setUndoToast(null);
-  };
 
   const patchMutation = useMutation({
     mutationFn: ({ id, data }: { id: number; data: Record<string, unknown> }) =>
@@ -110,14 +107,6 @@ export function Queue() {
       description="Organize seus próximos desafios e sessões de treinamento."
       action={<AddItemDialog onCreate={(data) => createMutation.mutate(data)} />}
     >
-      {/* Toast de desfazer */}
-      {undoToast && (
-        <UndoToast
-          title={undoToast.title}
-          onUndo={handleUndo}
-          onDismiss={() => setUndoToast(null)}
-        />
-      )}
 
       {/* Loading */}
       {isLoading && (
