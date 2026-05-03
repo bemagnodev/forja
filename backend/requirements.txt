@@ -19,3 +19,5 @@ urllib3==2.6.3
 pytest
 pytest-django
 responses
+google-genai
+tenacity==9.0.0

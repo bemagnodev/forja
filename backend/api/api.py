@@ -6,7 +6,9 @@ from datetime import datetime
 from django.db.models import Count
 from django.core.management import call_command
 from .models import Submission, Problem, Contest, QueueItem, User, UserProblemTracking, ContestParticipation
-
+from .services.scrapers.codeforces import CodeforcesScraper
+from .services.scrapers.exceptions import UnparseableProblemException
+from .services.ai_classifier import classify_problem
 
 api = NinjaAPI(
     title="A Forja API",
@@ -187,6 +189,67 @@ def list_solved_problems(request, platform: Optional[str] = None):
         qs = qs.filter(platform=platform)
         
     return qs
+
+class AIPredictionSchema(Schema):
+    rating: Optional[int]
+    tags: List[str]
+    reasoning: str
+    raw_data: Optional[dict] = None
+    real_rating: Optional[int] = None
+    real_tags: List[str] = []
+
+@api.post("/problems/{problem_id}/predict", response=AIPredictionSchema)
+def predict_problem(request, problem_id: int, model_name: Optional[str] = None, force: bool = False):
+    problem = Problem.objects.get(id=problem_id)
+    metadata = problem.platform_metadata or {}
+    
+    # Cache hit
+    if not force and "ai_rating" in metadata and "ai_tags" in metadata and "ai_reasoning" in metadata:
+        return {
+            "rating": metadata.get("ai_rating"),
+            "tags": metadata.get("ai_tags"),
+            "reasoning": metadata.get("ai_reasoning"),
+            "raw_data": None,
+            "real_rating": metadata.get("rating"),
+            "real_tags": metadata.get("tags", [])
+        }
+    
+    # Scraper selection
+    from .services.scrapers import CodeforcesScraper, AtCoderScraper, CSESScraper
+    
+    if problem.platform in ["CF_OFFICIAL", "CF_GYM"]:
+        scraper = CodeforcesScraper()
+    elif problem.platform == "ATCODER":
+        scraper = AtCoderScraper()
+    elif problem.platform == "CSES":
+        scraper = CSESScraper()
+    else:
+        return 400, {"message": f"Platform {problem.platform} not supported for prediction"}
+
+    try:
+        problem_data = scraper.scrape(problem.url)
+    except UnparseableProblemException as e:
+        return 400, {"message": str(e)}
+        
+    # AI Classifier
+    ai_result = classify_problem(problem_data, model_name=model_name)
+    
+    # Update DB
+    metadata["ai_rating"] = ai_result.get("predicted_rating")
+    metadata["ai_tags"] = ai_result.get("predicted_tags", [])
+    metadata["ai_reasoning"] = ai_result.get("reasoning", "")
+    problem.platform_metadata = metadata
+    problem.save()
+    
+    return {
+        "rating": metadata["ai_rating"],
+        "tags": metadata["ai_tags"],
+        "reasoning": metadata["ai_reasoning"],
+        "raw_data": problem_data,
+        "real_rating": metadata.get("rating"),
+        "real_tags": metadata.get("tags", [])
+    }
+
 
 @api.get("/stats", response=StatsSchema)
 def get_stats(request):
@@ -417,7 +480,9 @@ class ContestProblemSchema(Schema):
     title: str
     index: str
     rating: Optional[int] = None
+    ai_rating: Optional[int] = None
     tags: List[str] = []
+    ai_tags: List[str] = []
     url: Optional[str] = None
     system_status: str
     review_status: str
@@ -435,8 +500,16 @@ class ContestProblemSchema(Schema):
         return obj.platform_metadata.get('rating') if obj.platform_metadata else None
 
     @staticmethod
+    def resolve_ai_rating(obj):
+        return obj.platform_metadata.get('ai_rating') if obj.platform_metadata else None
+
+    @staticmethod
     def resolve_tags(obj):
         return obj.platform_metadata.get('tags', []) if obj.platform_metadata else []
+
+    @staticmethod
+    def resolve_ai_tags(obj):
+        return obj.platform_metadata.get('ai_tags', []) if obj.platform_metadata else []
 
     @staticmethod
     def resolve_url(obj):
