@@ -6,9 +6,9 @@ class Command(BaseCommand):
 
     def handle(self, *args, **kwargs):
         users_data = [
-            {'username': 'membro1', 'password': 'password123', 'cf_handle': 'tourist'},
-            {'username': 'membro2', 'password': 'password123', 'cf_handle': 'Benq'},
-            {'username': 'membro3', 'password': 'password123', 'cf_handle': 'jiangly'},
+            {'username': 'bemagno', 'password': 'bccufrj1234', 'cf_handle': 'bemagno'},
+            {'username': 'bernardomaia', 'password': 'bccufrj1234', 'cf_handle': 'bernardomaia'},
+            {'username': 'ryanbloureiro', 'password': 'bccufrj1234', 'cf_handle': 'ryanbloureiro'},
         ]
         
         created = 0
