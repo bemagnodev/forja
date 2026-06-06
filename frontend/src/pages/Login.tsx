@@ -33,7 +33,7 @@ export function Login() {
     }
   };
 
-  const embers = Array.from({ length: 40 }).map((_, i) => {
+  const embers = Array.from({ length: 50 }).map((_, i) => {
     const size = Math.random() * 5 + 2;
     const left = Math.random() * 100;
     const duration = Math.random() * 4 + 4;
@@ -46,7 +46,7 @@ export function Login() {
           width: `${size}px`,
           height: `${size}px`,
           left: `${left}%`,
-          background: `radial-gradient(circle, #ff6b00 0%, #ff2a00 50%, transparent 100%)`,
+          background: `radial-gradient(circle, #dc143c 0%, rgba(220, 20, 60, 0.4) 50%, transparent 100%)`,
           animation: `floatUp ${duration}s linear ${delay}s infinite`,
         }}
       />
@@ -66,23 +66,18 @@ export function Login() {
       
       {/* Efeito de Fogo/Brasas (Background) */}
       <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
-        <div className="absolute bottom-0 w-full h-[50vh] bg-gradient-to-t from-red-950/40 to-transparent" />
-        <div className="absolute bottom-0 w-full h-[30vh] bg-gradient-to-t from-orange-950/40 to-transparent" />
+        <div className="absolute bottom-0 w-full h-[50vh] bg-gradient-to-t from-black via-[#dc143c]/10 to-transparent" />
         {embers}
       </div>
       
       <div className="z-10 w-full max-w-sm px-4 relative">
         <div className="flex flex-col items-center mb-10">
-          <div className="w-20 h-20 bg-black/50 rounded-2xl border border-red-500/20 flex items-center justify-center mb-6 shadow-[0_0_50px_rgba(220,38,38,0.3)] relative backdrop-blur-sm overflow-hidden p-2">
-            <div className="absolute inset-0 bg-gradient-to-br from-red-500/10 to-transparent" />
-            <img src="/logos/sword.png" alt="A Forja Logo" className="w-full h-full object-contain relative z-10 drop-shadow-[0_0_10px_rgba(220,38,38,0.8)]" />
-          </div>
-          <h1 className="text-4xl font-black tracking-tight text-white mb-2 drop-shadow-[0_0_15px_rgba(220,38,38,0.5)]">A FORJA</h1>
-          <p className="text-red-400/80 text-sm font-medium tracking-widest uppercase">Área de Membros</p>
+          <img src="/logos/sword.png" alt="A Forja Logo" className="w-16 h-16 object-contain mb-4 relative z-10" />
+          <h1 className="text-4xl font-black tracking-tight text-white mb-2">A FORJA</h1>
+          <p className="text-zinc-400 text-xs text-center font-medium tracking-widest uppercase">Sistema de Treinamento<br/>em Programação Competitiva</p>
         </div>
 
-        <div className="bg-zinc-950/80 backdrop-blur-xl border border-red-900/30 rounded-2xl p-6 shadow-[0_0_40px_rgba(0,0,0,0.8)] relative">
-          <div className="absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-red-600/50 to-transparent" />
+        <div className="bg-zinc-950/80 backdrop-blur-xl border border-zinc-800/80 rounded-2xl p-6 shadow-2xl relative">
           <form onSubmit={handleLogin} className="space-y-5">
             <div className="space-y-2">
               <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Usuário</label>
