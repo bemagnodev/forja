@@ -35,20 +35,26 @@ class Command(BaseCommand):
 
         client = AtCoderClient()
 
+        # Carrega mapa de títulos uma vez antes do loop (O(1) lookup por problema)
+        self.stdout.write("  > Carregando mapa de títulos da API Kenkoooo...")
+        problems_data = client.get_problems()
+        title_map = {p['id']: p['title'] for p in problems_data if 'id' in p and 'title' in p}
+        self.stdout.write(f"  > {len(title_map)} títulos carregados.")
+
         for user in users:
-            self.stdout.write(self.style.MIGRATE_HEADING(f"[{user.username}] Buscando submissões usando a Kenkoooo API para {user.atcoder_handle}..."))
+            self.stdout.write(self.style.MIGRATE_HEADING(f"[{user.username}] Buscando submissoes usando a Kenkoooo API para {user.atcoder_handle}..."))
             
-            # Sincronismo Incremental Sênior
+            # Sincronismo Incremental Senior
             from_epoch = 0
             if not force_full and user.atcoder_last_sync_time:
                 from_epoch = user.atcoder_last_sync_time
                 self.stdout.write(f"  > Incremental ativo: Buscando apenas a partir do Epoch {from_epoch}")
             else:
-                self.stdout.write("  > Full Sync ativado: Buscando todo o histórico (Epoch 0)")
+                self.stdout.write("  > Full Sync ativado: Buscando todo o historico (Epoch 0)")
 
             submissions = client.get_user_submissions(user.atcoder_handle, from_epoch=from_epoch)
             
-            self.stdout.write(f"  > Recebido: {len(submissions)} submissões na payload. Persistindo via Dual-State FSM...")
+            self.stdout.write(f"  > Recebido: {len(submissions)} submissoes na payload. Persistindo via Dual-State FSM...")
             
             inserts = 0
             max_epoch = from_epoch
@@ -66,15 +72,20 @@ class Command(BaseCommand):
                     continue
                 
                 
-                # 1. Model: Problem (Failing back to name = id if API lacks data)
+                # 1. Model: Problem — usa título real da API se disponível
+                real_title = title_map.get(platform_id, platform_id)
                 problem, _ = Problem.objects.get_or_create(
                     platform=PlatformChoices.ATCODER,
                     platform_id=platform_id,
                     defaults={
-                        'title': platform_id,
+                        'title': real_title,
                         'contest': None
                     }
                 )
+                # Se o título ainda é fallback (title == platform_id), atualiza agora
+                if problem.title == problem.platform_id and real_title != platform_id:
+                    problem.title = real_title
+                    problem.save(update_fields=['title'])
 
                 # 2. Model: Submission
                 creation_dt = datetime.fromtimestamp(epoch_sec, tz=timezone.UTC)

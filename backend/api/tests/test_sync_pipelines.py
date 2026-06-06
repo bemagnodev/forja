@@ -58,6 +58,17 @@ def test_sync_atcoder_bypass_wj(capsys):
     
     responses.add(
         responses.GET,
+        'https://kenkoooo.com/atcoder/resources/problems.json',
+        json=[
+            {'id': 'abc_a', 'title': 'Task A'},
+            {'id': 'abc_b', 'title': 'Task B'},
+            {'id': 'abc_c', 'title': 'Task C'}
+        ],
+        status=200
+    )
+    
+    responses.add(
+        responses.GET,
         'https://kenkoooo.com/atcoder/atcoder-api/v3/user/submissions',
         json=[
             {'id': 98, 'result': 'AC', 'epoch_second': 900, 'problem_id': 'abc_a', 'contest_id': 'abc', 'language': 'C++'},
@@ -80,6 +91,35 @@ def test_sync_atcoder_bypass_wj(capsys):
     
     # id 98 descartado porque epoch 900 <= base 1000 (Incremental wall proteged!)
     assert not Submission.objects.filter(platform_submission_id="98").exists()
+
+@pytest.mark.django_db
+@responses.activate
+def test_sync_atcoder_title_mapping():
+    """Testa se o título real do problema é mapeado corretamente usando problems.json"""
+    user = User.objects.create(username="test_user2", atcoder_handle="tourist", atcoder_last_sync_time=0)
+    
+    responses.add(
+        responses.GET,
+        'https://kenkoooo.com/atcoder/resources/problems.json',
+        json=[
+            {'id': 'dp_a', 'title': 'Frog 1'}
+        ],
+        status=200
+    )
+    
+    responses.add(
+        responses.GET,
+        'https://kenkoooo.com/atcoder/atcoder-api/v3/user/submissions',
+        json=[
+            {'id': 1, 'result': 'AC', 'epoch_second': 1000, 'problem_id': 'dp_a', 'contest_id': 'dp', 'language': 'C++'}
+        ],
+        status=200
+    )
+    
+    call_command('sync_atcoder')
+    
+    problem = Problem.objects.get(platform_id='dp_a')
+    assert problem.title == 'Frog 1'
 
 @pytest.mark.django_db
 @responses.activate
