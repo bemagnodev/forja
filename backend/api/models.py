@@ -217,6 +217,7 @@ class QueueItem(models.Model):
         P0 = 'P0', 'P0 (Crítico)'
         P1 = 'P1', 'P1 (Alto)'
         P2 = 'P2', 'P2 (Normal)'
+        FUTURE = 'FUTURE', 'Futuro'
 
     class ItemType(models.TextChoices):
         # Questão de plataforma (CF, CSES, AtCoder)

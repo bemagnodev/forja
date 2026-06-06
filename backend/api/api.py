@@ -95,6 +95,12 @@ class QueueSchema(Schema):
     url: Optional[str] = None
     already_solved: bool = False
     platform_id: Optional[str] = None
+    # Título real do problema (diferente do title do QueueItem, que pode ser um nome livre)
+    problem_title: Optional[str] = None
+    # Nome do contest ao qual o problema pertence
+    contest_name: Optional[str] = None
+    ai_rating: Optional[int] = None
+    ai_tags: List[str] = []
 
 
     @staticmethod
@@ -124,9 +130,12 @@ class QueueSchema(Schema):
     @staticmethod
     def resolve_already_solved(obj):
         if obj.linked_problem:
-            # Puxamos o tracking vinculado. Para evitar o bug do MVP onde o UserID do QueueItem difere 
-            # do UserID gerado pelo ETL (ex: Queue user=8, Tracking user=9), pegamos o first() global da questão.
-            tracking = obj.linked_problem.user_trackings.first()
+            # Busca o tracking via usuário ativo para garantir consistência entre plataformas
+            user = get_active_user()
+            tracking = obj.linked_problem.user_trackings.filter(user=user).first()
+            # Fallback: qualquer tracking existente (MVP mono-usuário)
+            if not tracking:
+                tracking = obj.linked_problem.user_trackings.first()
             if tracking:
                 success_system = tracking.system_status in ['SOLVED_LIVE', 'UPSOLVED', 'PRACTICE_AC']
                 success_review = tracking.review_status in ['DONE', 'TEAM_DONE']
@@ -138,6 +147,32 @@ class QueueSchema(Schema):
         if obj.linked_problem:
             return obj.linked_problem.platform_id
         return None
+
+    @staticmethod
+    def resolve_problem_title(obj):
+        # Retorna o título real do Problem.title (não o fallback platform_id)
+        if obj.linked_problem:
+            return obj.linked_problem.title
+        return None
+
+    @staticmethod
+    def resolve_contest_name(obj):
+        # Retorna o nome do contest ao qual o problema pertence
+        if obj.linked_problem and obj.linked_problem.contest:
+            return obj.linked_problem.contest.name
+        return None
+
+    @staticmethod
+    def resolve_ai_rating(obj):
+        if obj.linked_problem and obj.linked_problem.platform_metadata:
+            return obj.linked_problem.platform_metadata.get('ai_rating')
+        return None
+
+    @staticmethod
+    def resolve_ai_tags(obj):
+        if obj.linked_problem and obj.linked_problem.platform_metadata:
+            return obj.linked_problem.platform_metadata.get('ai_tags', [])
+        return []
 
 
 class QueueCreateSchema(Schema):
@@ -278,7 +313,12 @@ def get_stats(request):
 @api.get("/queue", response=List[QueueSchema])
 def list_queue(request):
     """Retorna a fila completa, ordenada pela posição manual."""
-    return QueueItem.objects.all().order_by('order', '-created_at')
+    # select_related evita N+1 queries ao acessar linked_problem e seu contest
+    return (
+        QueueItem.objects
+        .select_related('linked_problem', 'linked_problem__contest')
+        .order_by('order', '-created_at')
+    )
 
 @api.post("/queue", response=QueueSchema)
 def create_queue_item(request, payload: QueueCreateSchema):
@@ -409,6 +449,31 @@ def sync_codeforces(request):
         "success": True,
         "message": f"{changes} alterações sincronizadas.",
         "handle": user.cf_handle,
+        "changes": changes,
+    }
+
+@api.post("/sync/atcoder", response=SyncResultSchema)
+def sync_atcoder(request):
+    """Dispara o sync incremental do AtCoder para o usuário configurado."""
+    # Pega o primeiro usuário com atcoder_handle configurado
+    user = User.objects.filter(atcoder_handle__isnull=False).exclude(atcoder_handle='').first()
+    if not user:
+        return {"success": False, "message": "Nenhum usuário com atcoder_handle configurado.", "handle": "", "changes": 0}
+
+    # Captura o stdout do management command em memória
+    out = StringIO()
+    call_command('sync_atcoder', handle=user.atcoder_handle, stdout=out)
+    output = out.getvalue()
+
+    # Extrai o número de status modificados da linha final do comando
+    # Formato da linha: "Finalizado para X! Status modificados: N"
+    match = re.search(r'Status modificados: (\d+)', output)
+    changes = int(match.group(1)) if match else 0
+
+    return {
+        "success": True,
+        "message": f"{changes} status atualizados.",
+        "handle": user.atcoder_handle,
         "changes": changes,
     }
 

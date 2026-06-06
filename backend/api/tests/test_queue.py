@@ -4,7 +4,7 @@ from api.models import User, QueueItem, Problem, Contest
 
 @pytest.fixture
 def base_user():
-    return User.objects.create(username="mentor")
+    return User.objects.create(username="mentor", cf_handle="mentor")
 
 @pytest.fixture
 def sample_problem():
@@ -21,7 +21,7 @@ def test_create_queue_item_standalone(base_user):
     )
     assert item.title == "Estudar Segment Tree"
     assert item.linked_problem is None
-    assert item.status == QueueItem.Status.TODO
+    assert item.is_completed is False
     assert item.priority == 'P0'
 
 @pytest.mark.django_db
@@ -59,8 +59,58 @@ def test_queue_endpoints(client, base_user, sample_problem):
     
     # Marcar como Completa
     resp_done = client.post(f"/api/queue/{item_id}/status", data={
-        "status": "DONE"
+        "is_completed": True
     }, content_type="application/json")
     assert resp_done.status_code == 200
-    assert resp_done.json()["status"] == "DONE"
+    assert resp_done.json()["is_completed"] is True
     assert resp_done.json()["resolved_at"] is not None
+
+@pytest.mark.django_db
+def test_queue_priority_future(base_user):
+    """Testa se a nova prioridade FUTURE foi adicionada corretamente no model e salva."""
+    item = QueueItem.objects.create(
+        user=base_user,
+        title="Problema pro futuro",
+        priority=QueueItem.Priority.FUTURE
+    )
+    assert item.priority == 'FUTURE'
+    item.refresh_from_db()
+    assert item.priority == 'FUTURE'
+
+@pytest.mark.django_db
+def test_queue_schema_fields(client, base_user, sample_problem):
+    """Testa se os novos campos do QueueSchema (problem_title, contest_name, etc) funcionam"""
+    QueueItem.objects.create(
+        user=base_user,
+        title="Estudo",
+        priority=QueueItem.Priority.P1,
+        linked_problem=sample_problem
+    )
+    resp = client.get("/api/queue")
+    assert resp.status_code == 200
+    items = resp.json()
+    assert len(items) == 1
+    item = items[0]
+    
+    assert item["problem_title"] == "Math"
+    assert item["contest_name"] == "Test Contest"
+    assert item["ai_rating"] is None
+    assert item["ai_tags"] == []
+
+@pytest.mark.django_db
+def test_sync_atcoder_api(client, base_user):
+    """Testa o endpoint de disparo de sync do AtCoder"""
+    base_user.atcoder_handle = "tourist"
+    base_user.save()
+    
+    # Fazendo mock do management command
+    from unittest.mock import patch
+    with patch('api.api.call_command') as mock_call:
+        mock_call.side_effect = lambda cmd, handle, stdout: stdout.write("Finalizado para tourist! Status modificados: 3\n")
+        resp = client.post("/api/sync/atcoder")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["success"] is True
+        assert data["changes"] == 3
+        assert data["handle"] == "tourist"
+
