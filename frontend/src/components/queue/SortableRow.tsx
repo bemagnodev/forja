@@ -1,6 +1,6 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical } from "lucide-react";
+import { GripVertical, Sparkles } from "lucide-react";
 import { TableRow, TableCell } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -11,6 +11,55 @@ import { PlatformIcon } from "./PlatformIcon";
 import { PriorityBadge } from "./PriorityBadge";
 import { EditableDescription } from "./EditableDescription";
 import { getRatingColor } from "@/lib/ratings";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { api } from "@/lib/api";
+import { useToast } from "@/components/ui/toast";
+
+function RatingBadge({ rating, isAi = false }: { rating: number | null; isAi?: boolean }) {
+  if (!rating) return <span className="text-[11px] text-white/18 font-mono select-none">—</span>;
+
+  const colorStyle = { color: getRatingColor(rating) };
+
+  return (
+    <div className="flex items-center justify-center gap-1.5" title={isAi ? "Rating estimado por IA" : undefined}>
+      {isAi && <Sparkles className="w-3 h-3 text-fuchsia-400 opacity-80" />}
+      <span 
+        className="text-[16px] font-mono tracking-tighter font-black"
+        style={colorStyle}
+      >
+        {rating}
+      </span>
+    </div>
+  );
+}
+
+/**
+ * Abrevia nomes de contest para no máximo ~8 caracteres.
+ * Estrategia: pega as iniciais das palavras + números relevantes.
+ * Ex: "AtCoder Beginner Contest 457" => "ABC457"
+ *     "CCPC 2024 Final"              => "CCPC24"
+ *     "Codeforces Round 950"         => "CF950"
+ */
+function abbreviateContest(name: string): string {
+  if (!name) return "";
+
+  // Extrai apenas os números do nome (anos, números de rodada, etc.)
+  const digits = name.match(/\d+/g)?.join("") ?? "";
+
+  // Palavras que não contribuem para a sigla (stop words)
+  const stopWords = new Set(["contest", "the", "and", "for", "of", "round", "div", "edition", "final", "beginner", "intermediate"]);
+
+  // Pega a inicial maiúscula de cada palavra relevante
+  const initials = name
+    .split(/\s+/)
+    .filter((w) => !stopWords.has(w.toLowerCase()) && /[a-zA-Z]/.test(w))
+    .map((w) => w[0].toUpperCase())
+    .join("");
+
+  // Concatena sigla + números, limitando ao total de 7 chars
+  const abbr = (initials + digits).slice(0, 7);
+  return abbr || name.slice(0, 7);
+}
 
 export function SortableRow({
   item,
@@ -23,6 +72,35 @@ export function SortableRow({
   onPatchPriority: (id: number, priority: string) => void;
   onPatchDescription: (id: number, description: string) => void;
 }) {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  const predictMutation = useMutation({
+    mutationFn: async ({ force }: { force?: boolean } = {}) => {
+      if (!item.linked_problem_id) throw new Error("Sem problema vinculado");
+      const start = performance.now();
+      const { data } = await api.post(`/problems/${item.linked_problem_id}/predict`, null, {
+        params: { force: force ? "true" : "false" }
+      });
+      return { data, time: performance.now() - start };
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ["queue"] });
+      toast({
+        title: "Classificação concluída!",
+        description: `Predição gerada em ${(result.time / 1000).toFixed(1)} segundos.`,
+        type: "success",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Erro na predição",
+        description: "A IA não conseguiu classificar este problema.",
+        type: "error",
+      });
+    }
+  });
+
   const {
     attributes, listeners, setNodeRef,
     transform, transition, isDragging,
@@ -71,35 +149,60 @@ export function SortableRow({
 
       {/* ── QUESTÃO / ESTUDO ── */}
       <TableCell className="py-3.5 px-3 align-middle">
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2.5 w-full">
           <PlatformIcon platform={item.source_platform} type={item.item_type} />
           
-          <div className="flex items-center gap-2 min-w-0">
-            {item.url ? (
-              <a 
-                href={item.url} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="text-[13px] font-medium text-white/80 hover:text-sky-400 hover:underline transition-colors truncate leading-snug"
-              >
-                {item.platform_id && item.title.startsWith(`${item.platform_id} - `) 
-                  ? item.title.replace(`${item.platform_id} - `, "") 
-                  : item.title}
-              </a>
-            ) : (
-              <span className="text-[13px] font-medium text-white/80 group-hover:text-white transition-colors truncate leading-snug">
-                {item.platform_id && item.title.startsWith(`${item.platform_id} - `) 
-                  ? item.title.replace(`${item.platform_id} - `, "") 
-                  : item.title}
-              </span>
-            )}
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            {/* 
+              Preferência de título:
+              1. problem_title: título real do modelo Problem (ex: "Two Sum" para AtCoder)
+              2. item.title sem o prefixo platform_id (padrão legado para CF/CSES)
+              3. item.title puro como fallback final
+            */}
+            {(() => {
+              const displayTitle = item.problem_title
+                ?? (item.platform_id && item.title.startsWith(`${item.platform_id} - `)
+                    ? item.title.replace(`${item.platform_id} - `, "")
+                    : item.title);
+              return item.url ? (
+                <a
+                  href={item.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[13px] font-medium text-white/80 hover:text-sky-400 hover:underline transition-colors truncate leading-snug"
+                >
+                  {displayTitle}
+                </a>
+              ) : (
+                <span className="text-[13px] font-medium text-white/80 group-hover:text-white transition-colors truncate leading-snug">
+                  {displayTitle}
+                </span>
+              );
+            })()}
 
             {item.already_solved && (
-              <div 
+              <div
                 className="shrink-0 flex items-center justify-center px-1.5 py-0.5 rounded-sm bg-emerald-500/10 border border-emerald-500/20 shadow-[0_0_8px_rgba(16,185,129,0.15)]"
                 title="Já resolvido"
               >
                 <span className="text-emerald-500 text-[9px] font-black tracking-widest leading-none mt-[1px]">AC</span>
+              </div>
+            )}
+            
+            {item.linked_problem_id && (
+              <div className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
+                <button
+                  onClick={(e) => { e.stopPropagation(); predictMutation.mutate({ force: e.shiftKey }); }}
+                  disabled={predictMutation.isPending}
+                  title="Estimar rating e tags com IA (Shift+Click para forçar recálculo)"
+                  className="w-6 h-6 flex items-center justify-center rounded-lg text-fuchsia-400/70 hover:text-fuchsia-400 hover:bg-fuchsia-400/10 transition-all disabled:opacity-40"
+                >
+                  {predictMutation.isPending ? (
+                    <div className="w-3 h-3 border-2 border-fuchsia-400/30 border-t-fuchsia-400 rounded-full animate-spin" />
+                  ) : (
+                    <Sparkles className="w-3.5 h-3.5" />
+                  )}
+                </button>
               </div>
             )}
           </div>
@@ -108,37 +211,33 @@ export function SortableRow({
 
       {/* ── RATING ── */}
       <TableCell className="py-3.5 px-3 align-middle text-center">
-        {item.rating ? (
-          <span 
-            className="text-[16px] font-mono tracking-tighter font-black"
-            style={{ color: getRatingColor(item.rating) }}
-          >
-            {item.rating}
-          </span>
-        ) : (
-          <span className="text-[11px] text-white/18 font-mono select-none">—</span>
-        )}
+        <RatingBadge rating={item.rating || item.ai_rating || null} isAi={!item.rating && !!item.ai_rating} />
       </TableCell>
 
       {/* ── TAGS ── */}
-      {/* overflow:hidden impede que tags longas invadam colunas vizinhas */}
       <TableCell className="py-2 px-3 align-middle overflow-hidden">
-        {item.tags?.length > 0 ? (
+        {(item.tags?.length > 0 || item.ai_tags?.length) ? (
           <Tooltip>
             <TooltipTrigger asChild>
-              {/* container flex que não cresce além da célula */}
               <div className="flex items-center gap-1 cursor-help w-full overflow-hidden">
-                {item.tags.slice(0, 2).map((tag) => (
+                {!item.tags?.length && item.ai_tags && item.ai_tags.length > 0 && (
+                  <Sparkles className="w-3 h-3 text-fuchsia-400 opacity-80 shrink-0" />
+                )}
+                {(item.tags?.length > 0 ? item.tags : item.ai_tags || []).slice(0, 2).map((tag) => (
                   <span
                     key={tag}
-                    className="shrink truncate min-w-0 text-[10px] px-1.5 py-[2.5px] rounded bg-white/[0.06] text-white/55 uppercase tracking-wider font-bold border border-white/[0.08]"
+                    className={`shrink truncate min-w-0 text-[10px] px-1.5 py-[2.5px] rounded uppercase tracking-wider font-bold border transition-colors ${
+                      !item.tags?.length && item.ai_tags && item.ai_tags.length > 0 
+                      ? "bg-fuchsia-500/10 border-fuchsia-500/20 text-fuchsia-300"
+                      : "bg-white/[0.06] border-white/[0.08] text-white/55"
+                    }`}
                   >
                     {tag}
                   </span>
                 ))}
-                {item.tags.length > 2 && (
+                {(item.tags?.length > 0 ? item.tags : item.ai_tags || []).length > 2 && (
                   <span className="shrink-0 text-[9px] px-1.5 py-[2px] rounded bg-white/[0.03] text-white/35 font-bold border border-white/[0.06]">
-                    +{item.tags.length - 2}
+                    +{(item.tags?.length > 0 ? item.tags : item.ai_tags || []).length - 2}
                   </span>
                 )}
               </div>
@@ -148,11 +247,33 @@ export function SortableRow({
               align="start"
               className="bg-[#121212] border-white/10 text-white/70 shadow-2xl px-3 py-2.5 flex flex-wrap gap-1.5 max-w-[320px]"
             >
-              {item.tags.map(tag => (
+              {(item.tags?.length > 0 ? item.tags : item.ai_tags || []).map(tag => (
                 <span key={tag} className="uppercase text-[10px] font-semibold tracking-widest bg-white/[0.06] px-2 py-1 rounded border border-white/[0.08]">
                   {tag}
                 </span>
               ))}
+            </TooltipContent>
+          </Tooltip>
+        ) : (
+          <span className="text-[11px] text-white/18 select-none">—</span>
+        )}
+      </TableCell>
+
+      {/* ── CONTEST ── */}
+      <TableCell className="py-3.5 px-3 align-middle">
+        {item.contest_name ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="text-[11px] font-mono font-bold tracking-wider text-white/35 hover:text-white/60 transition-colors cursor-default uppercase">
+                {abbreviateContest(item.contest_name)}
+              </span>
+            </TooltipTrigger>
+            <TooltipContent
+              side="top"
+              align="start"
+              className="bg-[#121212] border-white/10 text-white/70 shadow-2xl px-3 py-2 text-[12px] max-w-[240px]"
+            >
+              {item.contest_name}
             </TooltipContent>
           </Tooltip>
         ) : (

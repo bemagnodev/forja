@@ -13,8 +13,8 @@ export function PriorityBadge({ priority }: { priority: string }) {
         borderColor:      c.border + "60",
       }}
     >
-      <Icon className="w-2.5 h-2.5 shrink-0" strokeWidth={2.5} />
-      {priority}
+      {Icon && <Icon className="w-2.5 h-2.5 shrink-0" strokeWidth={2.5} />}
+      {priority === "FUTURE" ? "FUTURO" : priority}
     </span>
   );
 }

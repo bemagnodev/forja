@@ -248,7 +248,7 @@ export function AddItemDialog({ onCreate }: { onCreate: (data: any) => void }) {
                       className="w-2 h-2 rounded-full"
                       style={{ backgroundColor: active ? opt.color : "rgba(255,255,255,0.15)" }}
                     />
-                    {opt.value}
+                    {opt.value === "FUTURE" ? "FUTURO" : opt.value}
                   </button>
                 );
               })}

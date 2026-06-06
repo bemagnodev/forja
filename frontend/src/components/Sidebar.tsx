@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { useState } from "react";
+import React, { useState } from "react";
 import {
   Anvil,
   ListChecks,
@@ -81,35 +81,50 @@ export function Sidebar() {
   const location = useLocation();
   const [logoError, setLogoError] = useState(false);
 
-  // Estado da sincronização: idle | loading | success | error
+  // Estados independentes por plataforma: idle | loading | success | error
   type SyncState = "idle" | "loading" | "success" | "error";
-  const [syncState, setSyncState] = useState<SyncState>("idle");
-  const [syncMessage, setSyncMessage] = useState("");
 
-  async function handleSync() {
-    if (syncState === "loading") return; // evita duplo clique
-    setSyncState("loading");
-    setSyncMessage("");
-    try {
-      const res = await fetch("http://localhost:8000/api/sync/cf", { method: "POST" });
-      const data = await res.json();
-      if (data.success) {
-        setSyncState("success");
-        setSyncMessage(data.message);
-      } else {
-        setSyncState("error");
-        setSyncMessage(data.message);
+  // Codeforces
+  const [syncStateCf, setSyncStateCf] = useState<SyncState>("idle");
+  const [syncMessageCf, setSyncMessageCf] = useState("");
+
+  // AtCoder
+  const [syncStateAt, setSyncStateAt] = useState<SyncState>("idle");
+  const [syncMessageAt, setSyncMessageAt] = useState("");
+
+  // Cria um handler genérico que dispara o endpoint de qualquer plataforma
+  function makeSyncHandler(
+    endpoint: string,
+    setState: React.Dispatch<React.SetStateAction<SyncState>>,
+    setMessage: React.Dispatch<React.SetStateAction<string>>
+  ) {
+    return async () => {
+      setState((s) => { if (s === "loading") return s; return "loading"; });
+      setMessage("");
+      try {
+        const res = await fetch(`http://localhost:8000/api/sync/${endpoint}`, { method: "POST" });
+        const data = await res.json();
+        if (data.success) {
+          setState("success");
+          setMessage(data.message);
+        } else {
+          setState("error");
+          setMessage(data.message);
+        }
+      } catch {
+        setState("error");
+        setMessage("Erro de conexão");
       }
-    } catch {
-      setSyncState("error");
-      setSyncMessage("Erro de conexão");
-    }
-    // Reseta para idle após 4 segundos
-    setTimeout(() => {
-      setSyncState("idle");
-      setSyncMessage("");
-    }, 4000);
+      // Reseta para idle após 4 segundos
+      setTimeout(() => {
+        setState("idle");
+        setMessage("");
+      }, 4000);
+    };
   }
+
+  const handleSyncCf = makeSyncHandler("cf", setSyncStateCf, setSyncMessageCf);
+  const handleSyncAt = makeSyncHandler("atcoder", setSyncStateAt, setSyncMessageAt);
 
   return (
     <aside className="w-56 shrink-0 min-h-screen flex flex-col border-r border-white/[0.07] bg-[#080808]">
@@ -166,41 +181,73 @@ export function Sidebar() {
           />
         ))}
 
-        {/* ── Botão de Sync ── */}
+        {/* ── Botão de Sync CF ── */}
         <button
-          onClick={handleSync}
-          disabled={syncState === "loading"}
+          onClick={handleSyncCf}
+          disabled={syncStateCf === "loading"}
           className={[
             "group relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-150 w-full border",
-            syncState === "idle"
+            syncStateCf === "idle"
               ? "text-white/45 hover:text-white/85 hover:bg-white/[0.04] border-transparent"
-              : syncState === "loading"
+              : syncStateCf === "loading"
               ? "text-white/60 bg-white/[0.03] border-white/[0.06] cursor-wait"
-              : syncState === "success"
+              : syncStateCf === "success"
               ? "text-emerald-400/80 bg-emerald-500/[0.07] border-emerald-500/20"
               : "text-red-400/80 bg-red-500/[0.07] border-red-500/20",
           ].join(" ")}
         >
-          {/* Ícone troca conforme o estado */}
-          {syncState === "idle" && (
+          {syncStateCf === "idle" && (
             <RefreshCw className="w-4 h-4 shrink-0 text-white/30 group-hover:text-white/60 transition-colors" strokeWidth={1.75} />
           )}
-          {syncState === "loading" && (
+          {syncStateCf === "loading" && (
             <RefreshCw className="w-4 h-4 shrink-0 text-white/50 animate-spin" strokeWidth={1.75} />
           )}
-          {syncState === "success" && (
+          {syncStateCf === "success" && (
             <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" strokeWidth={1.75} />
           )}
-          {syncState === "error" && (
+          {syncStateCf === "error" && (
             <AlertCircle className="w-4 h-4 shrink-0 text-red-400" strokeWidth={1.75} />
           )}
-
-          {/* Texto muda conforme estado */}
           <span className="flex-1 truncate text-left">
-            {syncState === "idle" && "Sincronizar CF"}
-            {syncState === "loading" && "Sincronizando..."}
-            {syncState === "success" && (syncMessage || "Concluído!")}
-            {syncState === "error" && (syncMessage || "Erro!")}
+            {syncStateCf === "idle" && "Sincronizar CF"}
+            {syncStateCf === "loading" && "Sincronizando..."}
+            {syncStateCf === "success" && (syncMessageCf || "Concluído!")}
+            {syncStateCf === "error" && (syncMessageCf || "Erro!")}
+          </span>
+        </button>
+
+        {/* ── Botão de Sync AtCoder ── */}
+        <button
+          onClick={handleSyncAt}
+          disabled={syncStateAt === "loading"}
+          className={[
+            "group relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-150 w-full border",
+            syncStateAt === "idle"
+              ? "text-white/45 hover:text-white/85 hover:bg-white/[0.04] border-transparent"
+              : syncStateAt === "loading"
+              ? "text-white/60 bg-white/[0.03] border-white/[0.06] cursor-wait"
+              : syncStateAt === "success"
+              ? "text-emerald-400/80 bg-emerald-500/[0.07] border-emerald-500/20"
+              : "text-red-400/80 bg-red-500/[0.07] border-red-500/20",
+          ].join(" ")}
+        >
+          {syncStateAt === "idle" && (
+            <RefreshCw className="w-4 h-4 shrink-0 text-white/30 group-hover:text-white/60 transition-colors" strokeWidth={1.75} />
+          )}
+          {syncStateAt === "loading" && (
+            <RefreshCw className="w-4 h-4 shrink-0 text-white/50 animate-spin" strokeWidth={1.75} />
+          )}
+          {syncStateAt === "success" && (
+            <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" strokeWidth={1.75} />
+          )}
+          {syncStateAt === "error" && (
+            <AlertCircle className="w-4 h-4 shrink-0 text-red-400" strokeWidth={1.75} />
+          )}
+          <span className="flex-1 truncate text-left">
+            {syncStateAt === "idle" && "Sincronizar AtCoder"}
+            {syncStateAt === "loading" && "Sincronizando..."}
+            {syncStateAt === "success" && (syncMessageAt || "Concluído!")}
+            {syncStateAt === "error" && (syncMessageAt || "Erro!")}
           </span>
         </button>
       </nav>

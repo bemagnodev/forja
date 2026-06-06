@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import React, { useCallback, useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 
@@ -87,10 +87,31 @@ export function Queue() {
     useSensor(KeyboardSensor)
   );
 
-  // Exibe apenas itens não concluídos
-  const visibleItems = items.filter((i) => !i.is_completed);
+  const [priorityFilter, setPriorityFilter] = useState("ALL");
+  const [groupByContest, setGroupByContest] = useState(false);
+
+  // Exibe apenas itens não concluídos e aplica filtro de prioridade
+  const filteredItems = useMemo(() => {
+    return items.filter((i) => {
+      if (i.is_completed) return false;
+      if (priorityFilter !== "ALL" && i.priority !== priorityFilter) return false;
+      return true;
+    });
+  }, [items, priorityFilter]);
+
+  const groupedItems = useMemo(() => {
+    if (!groupByContest) return null;
+    const groups: Record<string, QueueItem[]> = {};
+    filteredItems.forEach(i => {
+      const key = i.contest_name || "Sem Contest";
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(i);
+    });
+    return groups;
+  }, [filteredItems, groupByContest]);
 
   const handleDragEnd = (event: DragEndEvent) => {
+    if (groupByContest) return;
     const { active, over } = event;
     if (!over || active.id === over.id) return;
     const oldIndex = items.findIndex((i) => i.id === active.id);
@@ -131,6 +152,31 @@ export function Queue() {
         </div>
       )}
 
+      {/* Filters and Controls */}
+      {!isLoading && !isError && (
+        <div className="flex items-center justify-between mb-4 mt-2">
+          <div className="flex gap-2">
+            {["ALL", "P0", "P1", "P2", "UPSOLVING", "FUTURE"].map(p => (
+              <button
+                key={p}
+                onClick={() => setPriorityFilter(p)}
+                className={`px-3 py-1 rounded-full text-[11px] font-bold tracking-wider transition-colors border ${priorityFilter === p ? "bg-[#dc143c]/20 text-[#dc143c] border-[#dc143c]" : "bg-white/5 text-white/40 border-white/10 hover:bg-white/10"}`}
+              >
+                {p === "ALL" ? "TODAS" : p}
+              </button>
+            ))}
+          </div>
+          
+          <label className="flex items-center gap-2 cursor-pointer">
+            <span className="text-[11px] font-bold tracking-wider text-white/50 uppercase select-none">Agrupar por Contest</span>
+            <div className={`w-8 h-4 rounded-full transition-colors relative ${groupByContest ? 'bg-[#dc143c]' : 'bg-white/10'}`}>
+              <div className={`absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full transition-transform ${groupByContest ? 'translate-x-4' : 'translate-x-0'}`} />
+            </div>
+            <input type="checkbox" className="hidden" checked={groupByContest} onChange={(e) => setGroupByContest(e.target.checked)} />
+          </label>
+        </div>
+      )}
+
       {/* ── Tabela ── */}
       {!isLoading && !isError && (
         <div className="border border-white/[0.07] rounded-2xl overflow-hidden bg-[#080808]/70 backdrop-blur-xl">
@@ -141,6 +187,7 @@ export function Queue() {
                 <col style={{ width: "26%" }} />
                 <col style={{ width: "76px" }} />
                 <col style={{ width: "26%" }} />
+                <col style={{ width: "72px" }} />
                 <col />
                 <col style={{ width: "116px" }} />
               </colgroup>
@@ -160,6 +207,9 @@ export function Queue() {
                     Tags
                   </TableHead>
                   <TableHead className="text-[9px] uppercase tracking-widest text-white/20 font-bold py-3 px-3">
+                    Contest
+                  </TableHead>
+                  <TableHead className="text-[9px] uppercase tracking-widest text-white/20 font-bold py-3 px-3">
                     Descrição
                   </TableHead>
                   <TableHead className="text-[9px] uppercase tracking-widest text-white/20 font-bold py-3 px-4 text-center">
@@ -170,9 +220,9 @@ export function Queue() {
 
               <TableBody>
                 {/* Estado vazio */}
-                {visibleItems.length === 0 && (
+                {filteredItems.length === 0 && (
                   <TableRow className="hover:bg-transparent border-0">
-                    <TableCell colSpan={6} className="py-32 text-center">
+                    <TableCell colSpan={7} className="py-32 text-center">
                       <div className="flex flex-col items-center gap-4">
                         <div className="w-12 h-12 rounded-full bg-white/[0.03] border border-white/[0.06] flex items-center justify-center text-white/20">
                           <Inbox className="w-6 h-6" strokeWidth={1.5} />
@@ -186,17 +236,40 @@ export function Queue() {
                   </TableRow>
                 )}
 
-                <SortableContext items={visibleItems.map((i) => i.id)} strategy={verticalListSortingStrategy}>
-                  {visibleItems.map((item) => (
-                    <SortableRow
-                      key={item.id}
-                      item={item}
-                      onToggle={handleToggle}
-                      onPatchPriority={(id, priority) => patchMutation.mutate({ id, data: { priority } })}
-                      onPatchDescription={(id, description) => patchMutation.mutate({ id, data: { description } })}
-                    />
-                  ))}
-                </SortableContext>
+                {groupByContest ? (
+                  Object.entries(groupedItems!).map(([contestName, contestItems]) => (
+                    <React.Fragment key={contestName}>
+                      <TableRow className="bg-white/[0.02] border-y border-white/[0.05] hover:bg-white/[0.02]">
+                        <TableCell colSpan={7} className="py-2.5 px-5 font-bold text-[12px] text-white/50 uppercase tracking-widest">
+                          {contestName}
+                        </TableCell>
+                      </TableRow>
+                      <SortableContext items={contestItems.map((i) => i.id)} strategy={verticalListSortingStrategy}>
+                        {contestItems.map((item) => (
+                          <SortableRow
+                            key={item.id}
+                            item={item}
+                            onToggle={handleToggle}
+                            onPatchPriority={(id, priority) => patchMutation.mutate({ id, data: { priority } })}
+                            onPatchDescription={(id, description) => patchMutation.mutate({ id, data: { description } })}
+                          />
+                        ))}
+                      </SortableContext>
+                    </React.Fragment>
+                  ))
+                ) : (
+                  <SortableContext items={filteredItems.map((i) => i.id)} strategy={verticalListSortingStrategy}>
+                    {filteredItems.map((item) => (
+                      <SortableRow
+                        key={item.id}
+                        item={item}
+                        onToggle={handleToggle}
+                        onPatchPriority={(id, priority) => patchMutation.mutate({ id, data: { priority } })}
+                        onPatchDescription={(id, description) => patchMutation.mutate({ id, data: { description } })}
+                      />
+                    ))}
+                  </SortableContext>
+                )}
               </TableBody>
             </Table>
           </DndContext>
