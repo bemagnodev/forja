@@ -26,7 +26,7 @@ export function Login() {
       toast({
         title: "Acesso Negado",
         description: "Credenciais inválidas. As portas da Forja permanecem fechadas.",
-        variant: "destructive",
+        type: "error",
       });
     } finally {
       setLoading(false);
@@ -74,7 +74,7 @@ export function Login() {
         <div className="flex flex-col items-center mb-10">
           <img src="/logos/sword.png" alt="A Forja Logo" className="w-16 h-16 object-contain mb-4 relative z-10" />
           <h1 className="text-4xl font-black tracking-tight text-white mb-2">A FORJA</h1>
-          <p className="text-zinc-400 text-xs text-center font-medium tracking-widest uppercase">Sistema de Treinamento<br/>em Programação Competitiva</p>
+          <p className="text-zinc-400 text-xs text-center font-medium tracking-widest uppercase">Sistema de Treinamento<br/>de Programação Competitiva</p>
         </div>
 
         <div className="bg-zinc-950/80 backdrop-blur-xl border border-zinc-800/80 rounded-2xl p-6 shadow-2xl relative">
@@ -113,9 +113,9 @@ export function Login() {
             <Button 
               type="submit" 
               disabled={loading}
-              className="w-full mt-4 bg-gradient-to-b from-red-600 to-red-800 hover:from-red-500 hover:to-red-700 text-white font-bold py-6 rounded-xl transition-all shadow-[0_0_20px_rgba(220,38,38,0.4)] hover:shadow-[0_0_30px_rgba(220,38,38,0.6)] border border-red-500/30 uppercase tracking-widest text-sm"
+              className="w-full mt-4 bg-primary hover:bg-primary/90 text-white font-bold py-6 rounded-xl transition-all uppercase tracking-widest text-sm"
             >
-              {loading ? 'Acessando...' : 'Entrar na Forja'}
+              {loading ? 'Acessando...' : 'Entrar'}
             </Button>
           </form>
         </div>
