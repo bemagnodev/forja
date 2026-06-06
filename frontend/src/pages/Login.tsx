@@ -19,7 +19,7 @@ export function Login() {
     e.preventDefault();
     setLoading(true);
     try {
-      const resp = await api.post('/token', { username, password });
+      const resp = await api.post('/token/pair', { username, password });
       login(resp.data.access, resp.data.refresh);
       navigate('/');
     } catch (err) {
