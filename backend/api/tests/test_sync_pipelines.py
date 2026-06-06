@@ -1,6 +1,8 @@
 import pytest
-import responses
+from unittest.mock import patch
+from io import StringIO
 from django.core.management import call_command
+import responses
 from api.models import User, Problem, Submission, UserProblemTracking, PlatformChoices
 
 @pytest.mark.django_db
@@ -120,6 +122,32 @@ def test_sync_atcoder_title_mapping():
     
     problem = Problem.objects.get(platform_id='dp_a')
     assert problem.title == 'Frog 1'
+
+@pytest.mark.django_db
+@patch('api.services.scrapers.atcoder.AtCoderScraper.scrape')
+@patch('api.services.scrapers.atcoder.AtCoderClient.get_problems')
+def test_sync_atcoder_endpoint(mock_get_problems, mock_scrape, api_client, base_user):
+    # Mock do catálogo de problemas (para o mapeamento de ID -> Título funcionar)
+    mock_get_problems.return_value = [
+        {"id": "abc100_a", "contest_id": "abc100", "title": "Happy New Year", "name": "Happy New Year"}
+    ]
+    
+    # Simula o retorno do scrape com 1 submissão
+    mock_scrape.return_value = {
+        "user_handle": "mentor_ac",
+        "submissions": [
+            {
+                "submission_id": "ac_sub_1",
+                "problem_id": "abc100_a",
+                "contest_id": "abc100",
+                "verdict": "AC",
+                "creation_time": 1600000000,
+            }
+        ]
+    }
+    
+    # Testa o endpoint usando o api_client (autenticado)
+    resp = api_client.post("/api/sync/atcoder")
 
 @pytest.mark.django_db
 @responses.activate

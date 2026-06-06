@@ -10,17 +10,22 @@ from .services.scrapers.codeforces import CodeforcesScraper
 from .services.scrapers.exceptions import UnparseableProblemException
 from .services.ai_classifier import classify_problem
 
+from ninja_jwt.routers.obtain import obtain_pair_router
+from ninja_jwt.authentication import JWTAuth
+
 api = NinjaAPI(
     title="A Forja API",
     description="Backend de dados para análise de performance competitiva+",
     version="1.0.0",
     urls_namespace="api",
+    auth=JWTAuth(),
 )
 
-def get_active_user():
-    """Retorna o usuário ativo do MVP: aquele com cf_handle configurado.
-    Mais robusto que User.objects.first(), que pode retornar usuários de teste."""
-    return User.objects.filter(cf_handle__isnull=False).exclude(cf_handle='').first()
+api.add_router("/token", obtain_pair_router, auth=None)
+
+def get_active_user(request):
+    """Retorna o usuário ativo (autenticado via JWT)"""
+    return request.user
 
 # === SCHEMAS  ===
 
@@ -59,8 +64,8 @@ class ProblemSchema(Schema):
 
     @staticmethod
     def resolve_tracking(obj):
-        user = get_active_user()
-        return obj.user_trackings.filter(user=user).first()
+        tracking_list = getattr(obj, '_trackings_list', [])
+        return tracking_list[0] if tracking_list else None
 
 class SubmissionSchema(Schema):
     id: int
@@ -130,12 +135,12 @@ class QueueSchema(Schema):
     @staticmethod
     def resolve_already_solved(obj):
         if obj.linked_problem:
-            # Busca o tracking via usuário ativo para garantir consistência entre plataformas
-            user = get_active_user()
-            tracking = obj.linked_problem.user_trackings.filter(user=user).first()
-            # Fallback: qualquer tracking existente (MVP mono-usuário)
+            # Busca o tracking injetado via prefetch (_trackings_list)
+            tracking_list = getattr(obj.linked_problem, '_trackings_list', [])
+            tracking = tracking_list[0] if tracking_list else None
+            # Fallback
             if not tracking:
-                tracking = obj.linked_problem.user_trackings.first()
+                tracking = getattr(obj.linked_problem, '_tracking', None)
             if tracking:
                 success_system = tracking.system_status in ['SOLVED_LIVE', 'UPSOLVED', 'PRACTICE_AC']
                 success_review = tracking.review_status in ['DONE', 'TEAM_DONE']
@@ -199,26 +204,37 @@ def list_submissions(request, limit: int = 20, offset: int = 0, platform: Option
     Filtros: ?platform=CSES ou ?platform=CF
     Paginação: ?limit=10&offset=0
     """
-    # 1. select related query_set, para evitar multiplas queries
-    qs = Submission.objects.select_related('problem', 'problem__contest').order_by('-creation_time')
+    user = get_active_user(request)
+    from django.db.models import Prefetch
+    qs = Submission.objects.filter(user=user).select_related('problem', 'problem__contest').prefetch_related(
+        Prefetch(
+            'problem__user_trackings',
+            queryset=UserProblemTracking.objects.filter(user=user),
+            to_attr='_trackings_list'
+        )
+    ).order_by('-creation_time')
     
-    # 2. Se o usuário pediu uma plataforma específica, filtra
     if platform:
         qs = qs.filter(problem__contest__platform=platform)
     
-    # 3. define a paginação
     return qs[offset : offset + limit]
 
 @api.get("/problems/solved", response=List[ProblemSchema])
 def list_solved_problems(request, platform: Optional[str] = None):
-    user = get_active_user()
-    # Filtra problemas que o usuário marcou como DONE na triagem
+    user = get_active_user(request)
     problem_ids = UserProblemTracking.objects.filter(
         user=user, 
         review_status='DONE'
     ).values_list('problem_id', flat=True)
     
-    qs = Problem.objects.filter(id__in=problem_ids).select_related('contest')
+    from django.db.models import Prefetch
+    qs = Problem.objects.filter(id__in=problem_ids).select_related('contest').prefetch_related(
+        Prefetch(
+            'user_trackings',
+            queryset=UserProblemTracking.objects.filter(user=user),
+            to_attr='_trackings_list'
+        )
+    )
     
     if platform:
         qs = qs.filter(platform=platform)
@@ -288,12 +304,12 @@ def predict_problem(request, problem_id: int, model_name: Optional[str] = None, 
 
 @api.get("/stats", response=StatsSchema)
 def get_stats(request):
-    user = get_active_user()
+    user = get_active_user(request)
     solved_count = UserProblemTracking.objects.filter(user=user, review_status='DONE').count()
     return {
         "total_solved": solved_count,
-        "total_submissions": Submission.objects.count(),
-        "total_contests": Contest.objects.count(),
+        "total_submissions": Submission.objects.filter(user=user).count(),
+        "total_contests": ContestParticipation.objects.filter(user=user).count(),
         "platform_breakdown": {
             "cf_solved": UserProblemTracking.objects.filter(
                 user=user, 
@@ -313,18 +329,27 @@ def get_stats(request):
 @api.get("/queue", response=List[QueueSchema])
 def list_queue(request):
     """Retorna a fila completa, ordenada pela posição manual."""
-    # select_related evita N+1 queries ao acessar linked_problem e seu contest
+    user = get_active_user(request)
+    from django.db.models import Prefetch
     return (
         QueueItem.objects
+        .filter(user=user)
         .select_related('linked_problem', 'linked_problem__contest')
+        .prefetch_related(
+            Prefetch(
+                'linked_problem__user_trackings',
+                queryset=UserProblemTracking.objects.filter(user=user),
+                to_attr='_trackings_list'
+            )
+        )
         .order_by('order', '-created_at')
     )
 
 @api.post("/queue", response=QueueSchema)
 def create_queue_item(request, payload: QueueCreateSchema):
     """Cria um novo item na fila. Posição = final da fila."""
-    user = get_active_user()  # MVP mono-usuário
-    max_order = QueueItem.objects.count()
+    user = get_active_user(request)
+    max_order = QueueItem.objects.filter(user=user).count()
     item = QueueItem.objects.create(
         user=user,
         title=payload.title,
@@ -340,7 +365,7 @@ def create_queue_item(request, payload: QueueCreateSchema):
 @api.post("/queue/{item_id}/toggle", response=QueueSchema)
 def toggle_queue_done(request, item_id: int):
     """Alterna o estado boolean is_completed de um item da fila."""
-    item = QueueItem.objects.get(id=item_id)
+    item = QueueItem.objects.get(id=item_id, user=request.user)
     item.is_completed = not item.is_completed
     
     if item.is_completed:
@@ -354,7 +379,7 @@ def toggle_queue_done(request, item_id: int):
 
 @api.post("/queue/{item_id}/priority", response=QueueSchema)
 def update_queue_priority(request, item_id: int, payload: QueueUpdatePrioritySchema):
-    item = QueueItem.objects.get(id=item_id)
+    item = QueueItem.objects.get(id=item_id, user=request.user)
     item.priority = payload.priority
     item.save()
     return item
@@ -363,12 +388,12 @@ def update_queue_priority(request, item_id: int, payload: QueueUpdatePrioritySch
 def reorder_queue(request, payload: QueueReorderSchema):
     """Recebe a lista de IDs na nova ordem e atualiza o campo order."""
     for index, item_id in enumerate(payload.ordered_ids):
-        QueueItem.objects.filter(id=item_id).update(order=index)
+        QueueItem.objects.filter(id=item_id, user=request.user).update(order=index)
     return {"ok": True}
 
 @api.post("/queue/{item_id}/status", response=QueueSchema)
 def update_queue_status(request, item_id: int, payload: QueueUpdateStatusSchema):
-    item = QueueItem.objects.get(id=item_id)
+    item = QueueItem.objects.get(id=item_id, user=request.user)
     item.is_completed = payload.is_completed
     
     if item.is_completed:
@@ -389,7 +414,7 @@ class QueuePatchSchema(Schema):
 @api.patch("/queue/{item_id}", response=QueueSchema)
 def patch_queue_item(request, item_id: int, payload: QueuePatchSchema):
     """Edição parcial de um item da fila (prioridade, descrição)."""
-    item = QueueItem.objects.get(id=item_id)
+    item = QueueItem.objects.get(id=item_id, user=request.user)
     if payload.priority is not None:
         item.priority = payload.priority
     if payload.description is not None:
@@ -431,10 +456,9 @@ class SyncResultSchema(Schema):
 @api.post("/sync/cf", response=SyncResultSchema)
 def sync_codeforces(request):
     """Dispara o sync incremental do Codeforces para o usuário configurado."""
-    # Pega o primeiro usuário com handle configurado
-    user = User.objects.filter(cf_handle__isnull=False).exclude(cf_handle='').first()
-    if not user:
-        return {"success": False, "message": "Nenhum usuário com cf_handle configurado.", "handle": "", "changes": 0}
+    user = get_active_user(request)
+    if not user.cf_handle:
+        return {"success": False, "message": "Nenhum handle configurado.", "handle": "", "changes": 0}
 
     # Captura o stdout do management command em memória
     out = StringIO()
@@ -455,10 +479,9 @@ def sync_codeforces(request):
 @api.post("/sync/atcoder", response=SyncResultSchema)
 def sync_atcoder(request):
     """Dispara o sync incremental do AtCoder para o usuário configurado."""
-    # Pega o primeiro usuário com atcoder_handle configurado
-    user = User.objects.filter(atcoder_handle__isnull=False).exclude(atcoder_handle='').first()
-    if not user:
-        return {"success": False, "message": "Nenhum usuário com atcoder_handle configurado.", "handle": "", "changes": 0}
+    user = get_active_user(request)
+    if not user.atcoder_handle:
+        return {"success": False, "message": "Nenhum handle configurado.", "handle": "", "changes": 0}
 
     # Captura o stdout do management command em memória
     out = StringIO()
@@ -466,7 +489,6 @@ def sync_atcoder(request):
     output = out.getvalue()
 
     # Extrai o número de status modificados da linha final do comando
-    # Formato da linha: "Finalizado para X! Status modificados: N"
     match = re.search(r'Status modificados: (\d+)', output)
     changes = int(match.group(1)) if match else 0
 
@@ -600,7 +622,7 @@ def list_contest_participations(request):
     """Lista todos os contests que o usuário participou, com progresso dinâmico."""
     from django.db.models import Count, Q
 
-    user = get_active_user()
+    user = get_active_user(request)
 
     participations = (
         ContestParticipation.objects
@@ -648,7 +670,8 @@ def list_contest_participations(request):
 @api.get("/contests/{contest_id}/problems", response=List[ContestProblemSchema])
 def list_contest_problems(request, contest_id: int):
     """Retorna todos os problemas de um contest com status de tracking do usuário."""
-    user = get_active_user()
+    user = get_active_user(request)
+    from django.db.models import Prefetch
 
     problems = list(
         Problem.objects
@@ -676,7 +699,7 @@ class TrackingUpdateSchema(Schema):
 @api.patch("/tracking/{problem_id}", response=ContestProblemSchema)
 def update_tracking(request, problem_id: int, payload: TrackingUpdateSchema):
     """Atualiza o review_status de um problema. A FSM do modelo executa automaticamente no save()."""
-    user = get_active_user()
+    user = get_active_user(request)
     tracking, _ = UserProblemTracking.objects.get_or_create(
         user=user,
         problem_id=problem_id,

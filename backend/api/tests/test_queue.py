@@ -7,6 +7,13 @@ def base_user():
     return User.objects.create(username="mentor", cf_handle="mentor")
 
 @pytest.fixture
+def api_client(client, base_user):
+    from ninja_jwt.tokens import RefreshToken
+    refresh = RefreshToken.for_user(base_user)
+    client.defaults['HTTP_AUTHORIZATION'] = f'Bearer {refresh.access_token}'
+    return client
+
+@pytest.fixture
 def sample_problem():
     contest = Contest.objects.create(platform='CF', platform_id='1000', name='Test Contest')
     return Problem.objects.create(platform='CF', platform_id='1000A', title='Math', contest=contest)
@@ -37,10 +44,10 @@ def test_create_queue_item_linked(base_user, sample_problem):
     assert item.priority == 'UPSOLVING'
 
 @pytest.mark.django_db
-def test_queue_endpoints(client, base_user, sample_problem):
+def test_queue_endpoints(api_client, base_user, sample_problem):
     """Testa a integração da API Ninja com a lógica da QueueItem"""
     # Create
-    resp = client.post("/api/queue", data={
+    resp = api_client.post("/api/queue", data={
         "title": "Ler o livro de Grafos",
         "priority": "P1"
     }, content_type="application/json")
@@ -51,14 +58,14 @@ def test_queue_endpoints(client, base_user, sample_problem):
     item_id = data["id"]
     
     # Mudar priority inline (simulação na tabela)
-    resp_put = client.post(f"/api/queue/{item_id}/priority", data={
+    resp_put = api_client.post(f"/api/queue/{item_id}/priority", data={
         "priority": "P0"
     }, content_type="application/json")
     assert resp_put.status_code == 200
     assert resp_put.json()["priority"] == "P0"
     
     # Marcar como Completa
-    resp_done = client.post(f"/api/queue/{item_id}/status", data={
+    resp_done = api_client.post(f"/api/queue/{item_id}/status", data={
         "is_completed": True
     }, content_type="application/json")
     assert resp_done.status_code == 200

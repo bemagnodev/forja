@@ -11,34 +11,52 @@ import { Profile } from "./pages/Profile";
 import { AILab } from "./pages/AILab";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ToastProvider } from "@/components/ui/toast";
+import { AuthProvider } from "@/contexts/AuthContext";
+import { Login } from "@/pages/Login";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 
+function ProtectedLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex h-screen overflow-hidden bg-[#050505] text-foreground w-full">
+      <Sidebar />
+      <main className="flex-1 overflow-y-auto overflow-x-hidden">
+        {children}
+      </main>
+    </div>
+  );
+}
 
 function App() {
   return (
-    <ToastProvider>
-      <TooltipProvider>
-        <Router>
-        <div className="flex h-screen overflow-hidden bg-[#050505] text-foreground w-full">
-          <Sidebar />
-          <main className="flex-1 overflow-y-auto overflow-x-hidden">
+    <AuthProvider>
+      <ToastProvider>
+        <TooltipProvider>
+          <Router>
             <Routes>
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/" element={<Queue />} />
-              <Route path="/contests" element={<Contests />} />
-              <Route path="/contests/:id" element={<ContestDetail />} />
-              <Route path="/ai-lab" element={<AILab />} />
-              <Route path="/teams" element={<Teams />} />
-              <Route path="/notes" element={<Notes />} />
-              <Route path="/settings" element={<Settings />} />
-              <Route path="/profile" element={<Profile />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/*" element={
+                <ProtectedRoute>
+                  <ProtectedLayout>
+                    <Routes>
+                      <Route path="/dashboard" element={<Dashboard />} />
+                      <Route path="/" element={<Queue />} />
+                      <Route path="/contests" element={<Contests />} />
+                      <Route path="/contests/:id" element={<ContestDetail />} />
+                      <Route path="/ai-lab" element={<AILab />} />
+                      <Route path="/teams" element={<Teams />} />
+                      <Route path="/notes" element={<Notes />} />
+                      <Route path="/settings" element={<Settings />} />
+                      <Route path="/profile" element={<Profile />} />
+                    </Routes>
+                  </ProtectedLayout>
+                </ProtectedRoute>
+              } />
             </Routes>
-          </main>
-        </div>
-        </Router>
-      </TooltipProvider>
-    </ToastProvider>
+          </Router>
+        </TooltipProvider>
+      </ToastProvider>
+    </AuthProvider>
   );
 }
 
 export default App;
-
