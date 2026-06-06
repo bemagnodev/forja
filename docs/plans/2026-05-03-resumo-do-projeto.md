@@ -1,6 +1,6 @@
 # Resumo do Projeto Forja — Estado Atual e Planejamento
 **Data:** 03 de Maio de 2026
-**Autor:** Bernardo (desenvolvedor) / Raul (mentor IA)
+**Autor:** Bernardo 
 
 Este documento é um registro técnico de alto detalhe do estado da plataforma **Forja** nesta data. Cobre a arquitetura consolidada, todos os componentes implementados, as decisões de design tomadas, o estado da suíte de testes, e os próximos passos planejados. Serve como referência para novos *sprints* e como linha de base formal do projeto.
 
