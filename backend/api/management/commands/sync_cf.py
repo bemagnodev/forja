@@ -178,14 +178,19 @@ class Command(BaseCommand):
                 
                 if is_contest_effort and problem.contest:
                     is_virtual_participation = p_type == Submission.ParticipantType.VIRTUAL
-                    participation, created = ContestParticipation.objects.get_or_create(
+                    participation = ContestParticipation.objects.filter(
                         user=user, 
-                        contest=problem.contest,
-                        defaults={
-                            'participation_date': creation_dt,
-                            'is_virtual': is_virtual_participation
-                        }
-                    )
+                        contest=problem.contest
+                    ).first()
+                    created = False
+                    if not participation:
+                        participation = ContestParticipation.objects.create(
+                            user=user,
+                            contest=problem.contest,
+                            participation_date=creation_dt,
+                            is_virtual=is_virtual_participation
+                        )
+                        created = True
                     if created:
                         # Espalha Unattempted para todas as outras questões do Contest
                         all_problems_in_contest = Problem.objects.filter(contest=problem.contest)
