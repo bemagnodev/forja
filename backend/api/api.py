@@ -460,20 +460,22 @@ def sync_codeforces(request):
     if not user.cf_handle:
         return {"success": False, "message": "Nenhum handle configurado.", "handle": "", "changes": 0}
 
-    # Captura o stdout do management command em memória
-    out = StringIO()
-    call_command('sync_cf', handle=user.cf_handle, stdout=out)
-    output = out.getvalue()
+    import threading
+    from django.core.management import call_command
+    
+    def run_sync():
+        try:
+            call_command('sync_cf', handle=user.cf_handle)
+        except Exception as e:
+            print(f"Erro no sync_cf em background: {e}")
 
-    # Extrai a contagem de alterações da linha final do comando
-    match = re.search(r'\((\d+) altera', output)
-    changes = int(match.group(1)) if match else 0
+    threading.Thread(target=run_sync).start()
 
     return {
         "success": True,
-        "message": f"{changes} alterações sincronizadas.",
+        "message": "Sincronização iniciada em segundo plano. Os dados aparecerão em breve.",
         "handle": user.cf_handle,
-        "changes": changes,
+        "changes": 0,
     }
 
 @api.post("/sync/atcoder", response=SyncResultSchema)
@@ -483,20 +485,22 @@ def sync_atcoder(request):
     if not user.atcoder_handle:
         return {"success": False, "message": "Nenhum handle configurado.", "handle": "", "changes": 0}
 
-    # Captura o stdout do management command em memória
-    out = StringIO()
-    call_command('sync_atcoder', handle=user.atcoder_handle, stdout=out)
-    output = out.getvalue()
+    import threading
+    from django.core.management import call_command
+    
+    def run_sync():
+        try:
+            call_command('sync_atcoder', handle=user.atcoder_handle)
+        except Exception as e:
+            print(f"Erro no sync_atcoder em background: {e}")
 
-    # Extrai o número de status modificados da linha final do comando
-    match = re.search(r'Status modificados: (\d+)', output)
-    changes = int(match.group(1)) if match else 0
+    threading.Thread(target=run_sync).start()
 
     return {
         "success": True,
-        "message": f"{changes} status atualizados.",
+        "message": "Sincronização iniciada em segundo plano. Os dados aparecerão em breve.",
         "handle": user.atcoder_handle,
-        "changes": changes,
+        "changes": 0,
     }
 
 # === UPSOLVING ===
@@ -620,46 +624,41 @@ class ContestProblemSchema(Schema):
 @api.get("/contests", response=List[ContestParticipationSchema])
 def list_contest_participations(request):
     """Lista todos os contests que o usuário participou, com progresso dinâmico."""
-    from django.db.models import Count, Q
-
     user = get_active_user(request)
 
-    participations = (
+    participations = list(
         ContestParticipation.objects
         .select_related('contest')
         .filter(user=user)
     )
 
+    contest_ids = [p.contest_id for p in participations]
+
+    # Batch Query (Elimina o problema N+1)
+    trackings = UserProblemTracking.objects.filter(
+        user=user,
+        problem__contest_id__in=contest_ids
+    ).values('problem__contest_id', 'system_status')
+
+    counts_by_contest = {cid: {'solved_live': 0, 'pending_upsolve': 0, 'upsolved': 0, 'unattempted': 0, 'total': 0} for cid in contest_ids}
+
+    for t in trackings:
+        cid = t['problem__contest_id']
+        status = t['system_status']
+        counts_by_contest[cid]['total'] += 1
+        if status == 'SOLVED_LIVE':
+            counts_by_contest[cid]['solved_live'] += 1
+        elif status == 'PENDING_UPSOLVE':
+            counts_by_contest[cid]['pending_upsolve'] += 1
+        elif status == 'UPSOLVED':
+            counts_by_contest[cid]['upsolved'] += 1
+        elif status == 'UNATTEMPTED':
+            counts_by_contest[cid]['unattempted'] += 1
+
     result = []
     for p in participations:
-        # Calcula contagens por system_status em uma query só com group_by
-        tracking_qs = UserProblemTracking.objects.filter(
-            user=user,
-            problem__contest=p.contest,
-        )
-
-        counts = {
-            'solved_live': 0,
-            'pending_upsolve': 0,
-            'upsolved': 0,
-            'unattempted': 0,
-            'total': 0,
-        }
-
-        for t in tracking_qs.values('system_status'):
-            status = t['system_status']
-            counts['total'] += 1
-            if status == 'SOLVED_LIVE':
-                counts['solved_live'] += 1
-            elif status == 'PENDING_UPSOLVE':
-                counts['pending_upsolve'] += 1
-            elif status == 'UPSOLVED':
-                counts['upsolved'] += 1
-            elif status == 'UNATTEMPTED':
-                counts['unattempted'] += 1
-
-        p._progress = counts
-        p._pending_count = counts['pending_upsolve']
+        p._progress = counts_by_contest.get(p.contest_id, {'solved_live': 0, 'pending_upsolve': 0, 'upsolved': 0, 'unattempted': 0, 'total': 0})
+        p._pending_count = p._progress['pending_upsolve']
         result.append(p)
 
     # Ordena: por data desc
