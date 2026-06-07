@@ -324,6 +324,61 @@ def get_stats(request):
         }
     }
 
+# === DASHBOARD ===
+
+class TopicStatsSchema(Schema):
+    name: str
+    solved: int
+    accuracy: float
+
+class DashboardKPIsSchema(Schema):
+    total_solved: int
+    streak: int
+    max_streak: int
+    acceptance_rate: float
+    solved_this_month: int
+
+class DashboardHeatmapSchema(Schema):
+    date: str
+    count: int
+
+class Last7DaysSchema(Schema):
+    activity: List[bool]
+    total_solved: int
+    average_difficulty: int
+    top_topics: List[dict]
+
+class DashboardRecentContestSchema(Schema):
+    id: int
+    contest_id: int
+    name: str
+    platform: str
+    date: Optional[str]
+    progress: dict
+
+class DashboardRecentACSchema(Schema):
+    id: int
+    problem_name: str
+    platform: str
+    tags: List[str]
+    date: str
+
+class DashboardStatsSchema(Schema):
+    kpis: DashboardKPIsSchema
+    heatmap: List[DashboardHeatmapSchema]
+    last_7_days: Last7DaysSchema
+    difficulty_breakdown: dict
+    topics: List[TopicStatsSchema]
+    recent_contests: List[DashboardRecentContestSchema]
+    recent_acs: List[DashboardRecentACSchema]
+
+@api.get("/dashboard/stats", response=DashboardStatsSchema)
+def get_dashboard_stats_endpoint(request):
+    """Retorna todas as estatísticas agregadas para o painel principal."""
+    user = get_active_user(request)
+    from .services.dashboard_service import get_dashboard_stats
+    return get_dashboard_stats(user)
+
 # === QUEUE / TRACKING ===
 
 @api.get("/queue", response=List[QueueSchema])
