@@ -13,11 +13,11 @@ export function TopicMastery({ data }: TopicMasteryProps) {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay: 0.8 }}
-      className="bg-zinc-900/50 backdrop-blur-md border border-zinc-800 rounded-xl p-5 col-span-1 lg:col-span-2"
+      className="bg-zinc-900/50 backdrop-blur-md border border-zinc-800 rounded-xl p-5 col-span-1 lg:col-span-2 h-full flex flex-col"
     >
       <div className="flex justify-between items-center mb-6">
-        <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-widest">TOPIC MASTERY</h3>
-        <span className="text-xs text-zinc-500">{data.length} topics mapped</span>
+        <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-widest">DOMÍNIO DE TÓPICOS</h3>
+        <span className="text-xs text-zinc-500">{data.length} mapeados</span>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-4">
@@ -39,7 +39,7 @@ export function TopicMastery({ data }: TopicMasteryProps) {
                 />
               </div>
               <div className="flex justify-between mt-0.5">
-                <span className="text-[9px] text-zinc-600 font-medium">{topic.accuracy}% acc</span>
+                <span className="text-[9px] text-zinc-600 font-medium">{topic.accuracy}% acerto</span>
               </div>
             </div>
           );

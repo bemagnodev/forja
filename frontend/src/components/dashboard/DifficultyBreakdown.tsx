@@ -29,11 +29,11 @@ export function DifficultyBreakdown({ data }: DifficultyBreakdownProps) {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay: 0.7 }}
-      className="bg-zinc-900/50 backdrop-blur-md border border-zinc-800 rounded-xl p-5"
+      className="bg-zinc-900/50 backdrop-blur-md border border-zinc-800 rounded-xl p-5 h-full flex flex-col"
     >
       <div className="flex justify-between items-center mb-6">
-        <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-widest">DIFFICULTY BREAKDOWN</h3>
-        <span className="text-xs text-zinc-500">{total} rated problems</span>
+        <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-widest">POR DIFICULDADE</h3>
+        <span className="text-xs text-zinc-500">{total} classificados</span>
       </div>
 
       <div className="flex flex-col gap-3">

@@ -374,6 +374,7 @@ class DashboardRecentACSchema(Schema):
     platform: str
     tags: List[str]
     date: str
+    url: Optional[str] = None
 
 class DashboardStatsSchema(Schema):
     kpis: DashboardKPIsSchema

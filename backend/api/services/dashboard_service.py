@@ -183,7 +183,8 @@ def get_dashboard_stats(user):
             "problem_name": sub.problem.title,
             "platform": sub.problem.platform,
             "tags": meta.get('tags', [])[:3],
-            "date": sub.creation_time.isoformat()
+            "date": sub.creation_time.isoformat(),
+            "url": sub.problem.url
         })
 
     return {

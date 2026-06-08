@@ -18,7 +18,7 @@ export function Last7DaysWidget({ data }: Last7DaysWidgetProps) {
       transition={{ duration: 0.5, delay: 0.6 }}
       className="bg-zinc-900/50 backdrop-blur-md border border-zinc-800 rounded-xl p-5 flex flex-col h-full"
     >
-      <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-6">LAST 7 DAYS</h3>
+      <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-6">ÚLTIMOS 7 DIAS</h3>
       
       <div className="flex justify-between items-center mb-8 px-2">
         {data.activity.map((isActive, idx) => (
@@ -36,21 +36,21 @@ export function Last7DaysWidget({ data }: Last7DaysWidgetProps) {
 
       <div className="grid grid-cols-2 gap-y-6 gap-x-4 mt-auto border-t border-zinc-800/50 pt-6">
         <div>
-          <span className="block text-[10px] text-zinc-500 uppercase tracking-wider mb-1">Total Solved</span>
+          <span className="block text-[10px] text-zinc-500 uppercase tracking-wider mb-1">Total Resolvido</span>
           <span className="text-2xl font-black text-zinc-100" style={{ fontFamily: 'Clash Display, system-ui, sans-serif' }}>
             {data.total_solved}
           </span>
         </div>
         
         <div>
-          <span className="block text-[10px] text-zinc-500 uppercase tracking-wider mb-1">Avg Difficulty</span>
+          <span className="block text-[10px] text-zinc-500 uppercase tracking-wider mb-1">Dif. Média</span>
           <span className="text-2xl font-black text-zinc-100" style={{ fontFamily: 'Clash Display, system-ui, sans-serif' }}>
             {data.average_difficulty || '-'}
           </span>
         </div>
         
         <div className="col-span-2">
-          <span className="block text-[10px] text-zinc-500 uppercase tracking-wider mb-2">Top Topics</span>
+          <span className="block text-[10px] text-zinc-500 uppercase tracking-wider mb-2">Tópicos Frequentes</span>
           <div className="flex flex-wrap gap-2">
             {data.top_topics.length > 0 ? data.top_topics.map((t, idx) => (
               <div key={idx} className="px-2 py-1 bg-zinc-800/80 rounded border border-zinc-700/50 text-xs font-medium text-zinc-300 flex items-center gap-2">

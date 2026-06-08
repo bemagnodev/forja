@@ -9,30 +9,30 @@ interface KPICardsProps {
 export function KPICards({ kpis }: KPICardsProps) {
   const cards = [
     {
-      title: "TOTAL SOLVED",
+      title: "TOTAL RESOLVIDO",
       value: kpis.total_solved,
-      subtitle: "PROBLEMS ACROSS PLATFORMS",
+      subtitle: "PROBLEMAS NAS PLATAFORMAS",
       icon: <Trophy className="w-5 h-5 text-red-500/80" />,
       delay: 0.1,
     },
     {
-      title: "CURRENT STREAK",
+      title: "OFENSIVA ATUAL",
       value: `${kpis.streak}d`,
-      subtitle: `BEST ${kpis.max_streak} DAYS`,
+      subtitle: `MÁXIMO DE ${kpis.max_streak} DIAS`,
       icon: <Flame className="w-5 h-5 text-orange-500/80" />,
       delay: 0.2,
     },
     {
-      title: "ACCEPTANCE RATE",
+      title: "TAXA DE ACERTO",
       value: `${kpis.acceptance_rate}%`,
-      subtitle: "SUCCESS RATE",
+      subtitle: "SUCESSO GERAL",
       icon: <CheckCircle2 className="w-5 h-5 text-emerald-500/80" />,
       delay: 0.3,
     },
     {
-      title: "SOLVED THIS MONTH",
+      title: "RESOLVIDOS NO MÊS",
       value: kpis.solved_this_month,
-      subtitle: "THIS MONTH",
+      subtitle: "NESTE MÊS",
       icon: <CalendarCheck className="w-5 h-5 text-red-400/80" />,
       delay: 0.4,
     },

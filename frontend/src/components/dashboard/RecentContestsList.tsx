@@ -13,11 +13,11 @@ export function RecentContestsList({ data }: RecentContestsListProps) {
     switch (platform) {
       case 'CF_OFFICIAL':
       case 'CF_GYM':
-        return <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-[#1e457e] text-blue-200">CF</span>;
+        return <img src="/logos/code-forces.png" alt="CF" className="w-4 h-4 object-contain rounded-sm" />;
       case 'ATCODER':
-        return <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-[#111] text-white border border-zinc-700">AT</span>;
+        return <img src="/logos/atCoder.png" alt="AT" className="w-4 h-4 object-contain rounded-sm" />;
       case 'CSES':
-        return <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-zinc-800 text-zinc-300">CS</span>;
+        return <img src="/logos/cses.png" alt="CS" className="w-4 h-4 object-contain rounded-sm" />;
       default:
         return <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-zinc-800 text-zinc-300">{platform}</span>;
     }
@@ -32,7 +32,7 @@ export function RecentContestsList({ data }: RecentContestsListProps) {
     >
       <div className="flex justify-between items-center mb-6">
         <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-widest cursor-pointer hover:text-white transition-colors" onClick={() => navigate('/contests')}>
-          RECENT CONTESTS &rarr;
+          CONTESTS RECENTES &rarr;
         </h3>
       </div>
 
@@ -65,7 +65,7 @@ export function RecentContestsList({ data }: RecentContestsListProps) {
               {contest.progress.pending_upsolve > 0 && (
                 <div className="flex items-center gap-1">
                   <div className="w-1.5 h-1.5 rounded-full bg-orange-500"></div>
-                  <span className="text-orange-400 font-medium">{contest.progress.pending_upsolve} Pending</span>
+                  <span className="text-orange-400 font-medium">{contest.progress.pending_upsolve} Pendentes</span>
                 </div>
               )}
             </div>

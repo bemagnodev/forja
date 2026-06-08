@@ -47,6 +47,7 @@ export interface RecentAC {
   platform: string;
   tags: string[];
   date: string;
+  url?: string;
 }
 
 export interface DashboardStats {
