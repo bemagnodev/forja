@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { api } from "@/lib/api";
 import {
   Anvil,
@@ -81,6 +81,25 @@ function NavItem({
 export function Sidebar() {
   const location = useLocation();
   const [logoError, setLogoError] = useState(false);
+
+  interface UserProfile {
+    first_name: string;
+    last_name: string;
+    username: string;
+  }
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+
+  useEffect(() => {
+    async function fetchUser() {
+      try {
+        const { data } = await api.get('/users/me');
+        setUserProfile(data);
+      } catch (err) {
+        console.error("Erro ao buscar perfil do usuário", err);
+      }
+    }
+    fetchUser();
+  }, []);
 
   // Estados independentes por plataforma: idle | loading | success | error
   type SyncState = "idle" | "loading" | "success" | "error";
@@ -263,7 +282,7 @@ export function Sidebar() {
           </div>
           <div className="flex flex-col gap-1 text-left">
             <span className="text-[12px] font-semibold text-white/70 group-hover:text-white/90 transition-colors leading-none">
-              Bernardo
+              {userProfile ? `${userProfile.first_name} ${userProfile.last_name}`.trim() || userProfile.username : 'Carregando...'}
             </span>
             <span className="text-[9px] text-white/25 leading-none">MVP v0.1</span>
           </div>

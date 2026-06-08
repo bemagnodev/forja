@@ -21,7 +21,7 @@ export function Login() {
     try {
       const resp = await api.post('/token/pair', { username, password });
       login(resp.data.access, resp.data.refresh);
-      navigate('/');
+      navigate('/dashboard');
     } catch (err) {
       toast({
         title: "Acesso Negado",

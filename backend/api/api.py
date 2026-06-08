@@ -27,6 +27,18 @@ def get_active_user(request):
     """Retorna o usuário ativo (autenticado via JWT)"""
     return request.user
 
+# === USERS ===
+class UserProfileSchema(Schema):
+    username: str
+    first_name: str
+    last_name: str
+    email: str
+
+@api.get("/users/me", response=UserProfileSchema)
+def get_me(request):
+    user = get_active_user(request)
+    return user
+
 # === SCHEMAS  ===
 
 class ContestSchema(Schema):
