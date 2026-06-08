@@ -88,6 +88,7 @@ export function Sidebar() {
     username: string;
   }
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [userError, setUserError] = useState(false);
 
   useEffect(() => {
     async function fetchUser() {
@@ -96,6 +97,7 @@ export function Sidebar() {
         setUserProfile(data);
       } catch (err) {
         console.error("Erro ao buscar perfil do usuário", err);
+        setUserError(true);
       }
     }
     fetchUser();
@@ -282,7 +284,9 @@ export function Sidebar() {
           </div>
           <div className="flex flex-col gap-1 text-left">
             <span className="text-[12px] font-semibold text-white/70 group-hover:text-white/90 transition-colors leading-none">
-              {userProfile ? `${userProfile.first_name} ${userProfile.last_name}`.trim() || userProfile.username : 'Carregando...'}
+              {userProfile 
+                ? `${userProfile.first_name} ${userProfile.last_name}`.trim() || userProfile.username 
+                : userError ? 'Usuário' : 'Carregando...'}
             </span>
             <span className="text-[9px] text-white/25 leading-none">MVP v0.1</span>
           </div>
