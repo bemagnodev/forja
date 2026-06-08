@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { HeatmapData } from "@/lib/api-dashboard";
+import type { HeatmapData } from "@/lib/api-dashboard";
 
 interface ActivityHeatmapProps {
   data: HeatmapData[];

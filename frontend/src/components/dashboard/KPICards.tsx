@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { DashboardKPIs } from "@/lib/api-dashboard";
+import type { DashboardKPIs } from "@/lib/api-dashboard";
 import { CheckCircle2, Flame, Trophy, CalendarCheck } from "lucide-react";
 
 interface KPICardsProps {

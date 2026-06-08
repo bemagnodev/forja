@@ -34,6 +34,8 @@ class Command(BaseCommand):
             
             start_epoch = c.get('start_epoch_second', 0) # tempo em Unix Time (segundos desde 1970)
             duration = c.get('duration_second', 0)
+            if duration and duration > 2147483647:
+                duration = 2147483647
             title = c.get('title', platform_id)
             
             start_time = datetime.fromtimestamp(start_epoch, tz=timezone.UTC)

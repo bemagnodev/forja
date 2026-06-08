@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Last7DaysStats } from "@/lib/api-dashboard";
+import type { Last7DaysStats } from "@/lib/api-dashboard";
 import { Check, X } from "lucide-react";
 
 interface Last7DaysWidgetProps {

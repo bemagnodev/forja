@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { PageLayout } from "@/components/layouts/PageLayout";
-import { fetchDashboardStats, DashboardStats } from "@/lib/api-dashboard";
+import { fetchDashboardStats, type DashboardStats } from "@/lib/api-dashboard";
 import { KPICards } from "@/components/dashboard/KPICards";
 import { ActivityHeatmap } from "@/components/dashboard/ActivityHeatmap";
 import { Last7DaysWidget } from "@/components/dashboard/Last7DaysWidget";

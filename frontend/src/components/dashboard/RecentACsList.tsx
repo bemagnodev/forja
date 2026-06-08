@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { RecentAC } from "@/lib/api-dashboard";
+import type { RecentAC } from "@/lib/api-dashboard";
 
 interface RecentACsListProps {
   data: RecentAC[];

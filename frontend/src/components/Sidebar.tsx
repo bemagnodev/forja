@@ -1,5 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import React, { useState } from "react";
+import { api } from "@/lib/api";
 import {
   Anvil,
   ListChecks,
@@ -102,8 +103,7 @@ export function Sidebar() {
       setState((s) => { if (s === "loading") return s; return "loading"; });
       setMessage("");
       try {
-        const res = await fetch(`http://localhost:8000/api/sync/${endpoint}`, { method: "POST" });
-        const data = await res.json();
+        const { data } = await api.post(`/sync/${endpoint}`);
         if (data.success) {
           setState("success");
           setMessage(data.message);
@@ -111,9 +111,9 @@ export function Sidebar() {
           setState("error");
           setMessage(data.message);
         }
-      } catch {
+      } catch (err: any) {
         setState("error");
-        setMessage("Erro de conexão");
+        setMessage(err.response?.data?.message || "Erro de conexão");
       }
       // Reseta para idle após 4 segundos
       setTimeout(() => {

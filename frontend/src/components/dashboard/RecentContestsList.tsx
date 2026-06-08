@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { RecentContest } from "@/lib/api-dashboard";
+import type { RecentContest } from "@/lib/api-dashboard";
 import { useNavigate } from "react-router-dom";
 
 interface RecentContestsListProps {

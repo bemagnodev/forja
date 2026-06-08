@@ -164,7 +164,7 @@ class Command(BaseCommand):
                             tracking.system_status = new_sys_status
                             tracking.save()
 
-                self.stdout.write(self.style.SUCCESS(f"✅ CSES de {user.username} finalizado! {count_probs} interações processadas."))
+                self.stdout.write(self.style.SUCCESS(f"[OK] CSES de {user.username} finalizado! {count_probs} interações processadas."))
 
             except Exception as e:
                 self.stdout.write(self.style.ERROR(f"Erro Crítico processando {user.username}: {e}"))

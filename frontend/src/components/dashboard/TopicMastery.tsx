@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { TopicStat } from "@/lib/api-dashboard";
+import type { TopicStat } from "@/lib/api-dashboard";
 
 interface TopicMasteryProps {
   data: TopicStat[];
