@@ -60,7 +60,7 @@ export function DifficultyBreakdown({ data }: DifficultyBreakdownProps) {
         <span className="text-xs text-zinc-500">{total} classificados</span>
       </div>
 
-      <div className="flex flex-col gap-3 flex-1 justify-center">
+      <div className="flex flex-col flex-1 justify-between py-1">
         {activeTiers.map((tier, idx) => {
           const width = Math.max((tier.count / maxCount) * 100, 2);
           
