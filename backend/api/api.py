@@ -263,7 +263,11 @@ class AIPredictionSchema(Schema):
 
 @api.post("/problems/{problem_id}/predict", response=AIPredictionSchema)
 def predict_problem(request, problem_id: int, model_name: Optional[str] = None, force: bool = False):
-    problem = Problem.objects.get(id=problem_id)
+    from django.shortcuts import get_object_or_404
+    from requests.exceptions import RequestException
+    from google.genai.errors import APIError
+
+    problem = get_object_or_404(Problem, id=problem_id)
     metadata = problem.platform_metadata or {}
     
     # Cache hit
@@ -293,9 +297,16 @@ def predict_problem(request, problem_id: int, model_name: Optional[str] = None, 
         problem_data = scraper.scrape(problem.url)
     except UnparseableProblemException as e:
         return 400, {"message": str(e)}
+    except RequestException as e:
+        return 502, {"message": f"Erro de conexão ao raspar o problema: {str(e)}"}
         
     # AI Classifier
-    ai_result = classify_problem(problem_data, model_name=model_name)
+    try:
+        ai_result = classify_problem(problem_data, model_name=model_name)
+    except APIError as e:
+        return 503, {"message": f"Erro na API do Gemini (verifique a GEMINI_API_KEY no Render): {str(e)}"}
+    except Exception as e:
+        return 500, {"message": f"Erro ao classificar via IA: {str(e)}"}
     
     # Update DB
     metadata["ai_rating"] = ai_result.get("predicted_rating")
