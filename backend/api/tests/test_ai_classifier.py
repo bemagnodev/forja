@@ -131,11 +131,13 @@ def test_fallback_to_default_model_when_env_not_set(mock_get_client, monkeypatch
 # Testes de Resiliência (Retry)
 # ---------------------------------------------------------------------------
 
+from google.genai.errors import APIError
+
 @patch("api.services.ai_classifier.get_gemini_client")
 @patch("tenacity.nap.time.sleep", return_value=None)
 def test_retry_only_on_429_resource_exhausted(mock_sleep, mock_get_client, monkeypatch):
     """
-    Cenário: A API retorna 429 ResourceExhausted nas duas primeiras chamadas,
+    Cenário: A API retorna 429 APIError nas duas primeiras chamadas,
     depois responde com sucesso na terceira.
     Resultado Esperado: Tenacity faz retry e a função completa com sucesso.
     O modelo passado é preservado nas três tentativas.
@@ -148,8 +150,8 @@ def test_retry_only_on_429_resource_exhausted(mock_sleep, mock_get_client, monke
     mock_response.parsed = {"predicted_rating": 800, "predicted_tags": ["implementation"], "reasoning": "Easy"}
 
     mock_client.models.generate_content.side_effect = [
-        ResourceExhausted("429 Rate limit"),
-        ResourceExhausted("429 Rate limit"),
+        APIError(429, "429 Rate limit", {}),
+        APIError(429, "429 Rate limit", {}),
         mock_response,
     ]
 

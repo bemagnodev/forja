@@ -10,7 +10,7 @@ def test_codeforces_client_success():
     Cenário: A API do Codeforces está online e responde corretamente ao pedido de submissões de um usuário.
     Resultado Esperado: O CodeforcesClient deve parsear o JSON e retornar exatamente a lista contida em 'result'.
     """
-    client = CodeforcesClient(sleep_time=0)
+    client = CodeforcesClient(sleep_time=0, api_key="", api_secret="")
     
     responses.add(
         responses.GET,

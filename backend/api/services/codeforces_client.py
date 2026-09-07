@@ -12,12 +12,12 @@ class CodeforcesClient:
     """
     BASE_URL = "https://codeforces.com/api"
 
-    def __init__(self, timeout: int = 15, sleep_time: float = 0.5):
+    def __init__(self, timeout: int = 15, sleep_time: float = 0.5, api_key: Optional[str] = None, api_secret: Optional[str] = None):
         self.timeout = timeout
         self.sleep_time = sleep_time
         self.session = requests.Session()
-        self.api_key = os.environ.get('CF_API_KEY')
-        self.api_secret = os.environ.get('CF_API_SECRET')
+        self.api_key = api_key if api_key is not None else os.environ.get('CF_API_KEY')
+        self.api_secret = api_secret if api_secret is not None else os.environ.get('CF_API_SECRET')
 
     def _make_request(self, endpoint: str, params: dict = None) -> Any:
         url = f"{self.BASE_URL}/{endpoint}"

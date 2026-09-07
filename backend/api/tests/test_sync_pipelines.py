@@ -125,7 +125,7 @@ def test_sync_atcoder_title_mapping():
 
 @pytest.mark.django_db
 @patch('api.services.scrapers.atcoder.AtCoderScraper.scrape')
-@patch('api.services.scrapers.atcoder.AtCoderClient.get_problems')
+@patch('api.services.atcoder_client.AtCoderClient.get_problems')
 def test_sync_atcoder_endpoint(mock_get_problems, mock_scrape, api_client, base_user):
     # Mock do catálogo de problemas (para o mapeamento de ID -> Título funcionar)
     mock_get_problems.return_value = [
@@ -148,6 +148,9 @@ def test_sync_atcoder_endpoint(mock_get_problems, mock_scrape, api_client, base_
     
     # Testa o endpoint usando o api_client (autenticado)
     resp = api_client.post("/api/sync/atcoder")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["success"] is True
 
 @pytest.mark.django_db
 @responses.activate
