@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
 from pathlib import Path
+from datetime import timedelta
 import os
 import dj_database_url
 from dotenv import load_dotenv
@@ -150,3 +151,12 @@ CORS_ALLOWED_ORIGINS = [
 cors_env = os.environ.get('CORS_ALLOWED_ORIGINS')
 if cors_env:
     CORS_ALLOWED_ORIGINS.extend(cors_env.split(','))
+
+# Configuração de Sessão e JWT (Ninja JWT)
+# Mantém o usuário logado por 30 dias usando Refresh Token
+NINJA_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(days=1),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=30),
+    'ROTATE_REFRESH_TOKENS': False,
+    'BLACKLIST_AFTER_ROTATION': False,
+}
