@@ -23,6 +23,40 @@ api = NinjaAPI(
 
 api.add_router("/token", obtain_pair_router, auth=None)
 
+# === AUTH & CONVITES ===
+from django.contrib.auth.tokens import default_token_generator
+from django.utils.http import urlsafe_base64_decode
+from django.utils.encoding import force_str
+
+class SetPasswordSchema(Schema):
+    uid: str
+    token: str
+    password: str
+
+class AuthResponseSchema(Schema):
+    success: bool
+    message: str
+
+@api.post("/auth/set-password", response={200: AuthResponseSchema, 400: AuthResponseSchema}, auth=None)
+def set_user_password(request, payload: SetPasswordSchema):
+    """Permite ao usuário definir/trocar sua senha usando o link de convite seguro gerado pelo admin"""
+    try:
+        uid = force_str(urlsafe_base64_decode(payload.uid))
+        user = User.objects.get(pk=uid)
+    except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+        return 400, {"success": False, "message": "Link de convite inválido ou expirado."}
+
+    if not default_token_generator.check_token(user, payload.token):
+        return 400, {"success": False, "message": "O link de convite expirou ou já foi utilizado."}
+
+    if len(payload.password) < 6:
+        return 400, {"success": False, "message": "A senha deve conter no mínimo 6 caracteres."}
+
+    user.set_password(payload.password)
+    user.save()
+
+    return 200, {"success": True, "message": f"Senha de '{user.username}' definida com sucesso!"}
+
 def get_active_user(request):
     """Retorna o usuário ativo (autenticado via JWT)"""
     return request.user

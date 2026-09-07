@@ -13,6 +13,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { ToastProvider } from "@/components/ui/toast";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { Login } from "@/pages/Login";
+import { SetPassword } from "@/pages/SetPassword";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 
 function ProtectedLayout({ children }: { children: React.ReactNode }) {
@@ -34,6 +35,7 @@ function App() {
           <Router>
             <Routes>
               <Route path="/login" element={<Login />} />
+              <Route path="/set-password" element={<SetPassword />} />
               <Route path="/*" element={
                 <ProtectedRoute>
                   <ProtectedLayout>
