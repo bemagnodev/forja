@@ -15,7 +15,7 @@ def test_sync_atcoder_bypass_wj(capsys):
     3. A submissão antiga (id 98) é barrada pela proteção incremental.
     """
     user = User.objects.create(username="test_user", atcoder_handle="toro", atcoder_last_sync_time=1000)
-    
+
     responses.add(
         responses.GET,
         'https://kenkoooo.com/atcoder/resources/problems.json',
@@ -26,7 +26,7 @@ def test_sync_atcoder_bypass_wj(capsys):
         ],
         status=200
     )
-    
+
     responses.add(
         responses.GET,
         'https://kenkoooo.com/atcoder/atcoder-api/v3/user/submissions',
@@ -37,9 +37,9 @@ def test_sync_atcoder_bypass_wj(capsys):
         ],
         status=200
     )
-    
+
     call_command('sync_atcoder')
-    
+
     user.refresh_from_db()
     assert user.atcoder_last_sync_time == 1200
     assert Submission.objects.filter(platform_submission_id="99").exists()
@@ -51,7 +51,7 @@ def test_sync_atcoder_bypass_wj(capsys):
 def test_sync_atcoder_title_mapping():
     """Testa se o título real do problema é mapeado corretamente usando problems.json"""
     user = User.objects.create(username="test_user2", atcoder_handle="tourist", atcoder_last_sync_time=0)
-    
+
     responses.add(
         responses.GET,
         'https://kenkoooo.com/atcoder/resources/problems.json',
@@ -60,7 +60,7 @@ def test_sync_atcoder_title_mapping():
         ],
         status=200
     )
-    
+
     responses.add(
         responses.GET,
         'https://kenkoooo.com/atcoder/atcoder-api/v3/user/submissions',
@@ -69,8 +69,8 @@ def test_sync_atcoder_title_mapping():
         ],
         status=200
     )
-    
+
     call_command('sync_atcoder')
-    
+
     problem = Problem.objects.get(platform_id='dp_a')
     assert problem.title == 'Frog 1'

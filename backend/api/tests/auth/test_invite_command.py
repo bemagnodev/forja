@@ -95,7 +95,7 @@ def test_invite_and_set_password(client):
 
     out = StringIO()
     call_command('invite_user', 'novo_colega', cf_handle='colega_cf', stdout=out)
-    
+
     user = User.objects.get(username='novo_colega')
     assert user.cf_handle == 'colega_cf'
     assert not user.has_usable_password()

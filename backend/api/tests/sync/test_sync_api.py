@@ -10,7 +10,7 @@ def test_sync_atcoder_endpoint(mock_get_problems, mock_scrape, api_client, base_
     mock_get_problems.return_value = [
         {"id": "abc100_a", "contest_id": "abc100", "title": "Happy New Year", "name": "Happy New Year"}
     ]
-    
+
     mock_scrape.return_value = {
         "user_handle": "mentor_ac",
         "submissions": [
@@ -23,7 +23,7 @@ def test_sync_atcoder_endpoint(mock_get_problems, mock_scrape, api_client, base_
             }
         ]
     }
-    
+
     resp = api_client.post("/api/sync/atcoder")
     assert resp.status_code == 200
     data = resp.json()
@@ -35,7 +35,7 @@ def test_sync_atcoder_api(api_client, base_user):
     """Testa o endpoint de disparo de sync do AtCoder quando o usuário possui atcoder_handle."""
     base_user.atcoder_handle = "tourist"
     base_user.save()
-    
+
     resp = api_client.post("/api/sync/atcoder")
     assert resp.status_code == 200
     data = resp.json()

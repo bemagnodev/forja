@@ -51,7 +51,7 @@ backend/api/tests/
 
 1. **Unitário**: Testes de funções isoladas e classificadores (ex: `test_ai_classifier.py`, `test_password_policy.py`).
 2. **Integração**: Testes de pipelines, scrapers com HTML simulado e comandos Django (ex: `test_codeforces_pipeline.py`, `test_invite_command.py`).
-3. **Fluxo Completo / E2E de API**: Simulação de ponta a ponta chamando endpoints da API Ninja via `client` HTTP e validando alterações persistidas no banco (ex: `test_set_password_api.py`, `test_dashboard.py`).
+3. **Teste de Integração da API / Fluxo Completo do Backend**: Chamadas HTTP para os endpoints da API Ninja via `client` do Django/Pytest e verificação do resultado persistido no banco de dados isolado de testes. *Nota: esses testes não utilizam navegador real nem validam a renderização do frontend.*
 
 ---
 
@@ -182,8 +182,8 @@ Resultado esperado:
 
 ## 14. Checklist Pré-Commit
 
-- [ ] `pytest --collect-only` confirma que nenhum teste foi perdido ou desativado.
-- [ ] `python -m pytest` executa 100% verde (63 passed).
+- [ ] `pytest --collect-only` confirma que a quantidade de testes coletados não diminuiu sem justificativa documentada.
+- [ ] `python -m pytest` executa toda a suíte sem falhas.
 - [ ] `manage.py check` não relata erros de configuração.
 - [ ] `git diff --check` não retorna erros de espaçamento/whitespace.
 - [ ] Nenhum `.env`, token, chave de API ou banco de dados foi incluído.
