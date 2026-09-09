@@ -144,10 +144,11 @@ Resultado esperado:
 
 ---
 
-## 11. Tarefas em Background e Pendências Conhecidas
+## 11. Tarefas em Background e Isolamento de Despacho
 
-- Tarefas disparadas assincronamente ou via threads em segundo plano devem ser controladas ou mockadas durante a suíte.
-- **Pendência conhecida no AtCoder**: O endpoint `/api/sync/atcoder` dispara uma thread em background (`threading.Thread`) para o scraper do AtCoder em ambiente real. Em suítes de teste usando SQLite em memória (`:memory:`), o acesso concorrente da thread ao banco em memória pode gerar o log `database table is locked: api_user` no console. O teste valida que a resposta HTTP 200 é emitida corretamente.
+- **Despacho Assíncrono (`dispatch_sync`)**: Os endpoints da API (`/api/sync/cf` e `/api/sync/atcoder`) delegam o início de tarefas em segundo plano para a camada de serviços através de `dispatch_sync`.
+- **Testes de API**: Os testes de endpoint mockam o `dispatch_sync` (`@patch("api.api.dispatch_sync")`) para verificar se o comando e o handle corretos foram solicitados. Nenhuma thread real deve escapar do ciclo do pytest.
+- **Testes de Pipelines**: Os comandos de sincronização (`sync_cf`, `sync_atcoder`) são testados sincronicamente em arquivos próprios (`test_codeforces_pipeline.py`, `test_atcoder_pipeline.py`), garantindo determinismo total e prevenindo bloqueios concorrentes no SQLite (`database table is locked`).
 
 ---
 

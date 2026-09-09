@@ -41,6 +41,16 @@ def test_password_policy_accepts_accented_letters(accented_password):
     validate_password(accented_password)
 
 
+@pytest.mark.parametrize("pure_unicode_password", [
+    ("çççççç1!"),
+    ("éééééé2@"),
+    ("ãããããã3#"),
+])
+def test_password_policy_counts_accented_characters_as_letters(pure_unicode_password):
+    """Testa se a política de senha valida a presença de letras usando puramente caracteres Unicode acentuados (sem letras ASCII)."""
+    validate_password(pure_unicode_password)
+
+
 @pytest.mark.django_db
 def test_set_password_endpoint_enforces_password_policy(client):
     """Testa se o endpoint set-password rejeita senhas que descumprem a política do validador."""

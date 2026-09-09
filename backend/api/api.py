@@ -9,6 +9,7 @@ from .models import Submission, Problem, Contest, QueueItem, User, UserProblemTr
 from .services.scrapers.codeforces import CodeforcesScraper
 from .services.scrapers.exceptions import UnparseableProblemException
 from .services.ai_classifier import classify_problem
+from .services.sync_dispatcher import dispatch_sync
 
 from ninja_jwt.routers.obtain import obtain_pair_router
 from ninja_jwt.authentication import JWTAuth
@@ -586,16 +587,7 @@ def sync_codeforces(request):
     if not user.cf_handle:
         return {"success": False, "message": "Nenhum handle configurado.", "handle": "", "changes": 0}
 
-    import threading
-    from django.core.management import call_command
-    
-    def run_sync():
-        try:
-            call_command('sync_cf', handle=user.cf_handle)
-        except Exception as e:
-            print(f"Erro no sync_cf em background: {e}")
-
-    threading.Thread(target=run_sync).start()
+    dispatch_sync("sync_cf", user.cf_handle)
 
     return {
         "success": True,
@@ -611,16 +603,7 @@ def sync_atcoder(request):
     if not user.atcoder_handle:
         return {"success": False, "message": "Nenhum handle configurado.", "handle": "", "changes": 0}
 
-    import threading
-    from django.core.management import call_command
-    
-    def run_sync():
-        try:
-            call_command('sync_atcoder', handle=user.atcoder_handle)
-        except Exception as e:
-            print(f"Erro no sync_atcoder em background: {e}")
-
-    threading.Thread(target=run_sync).start()
+    dispatch_sync("sync_atcoder", user.atcoder_handle)
 
     return {
         "success": True,
