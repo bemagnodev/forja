@@ -2,8 +2,9 @@ import pytest
 import responses
 from api.services.scrapers.exceptions import UnparseableProblemException
 from api.services.scrapers.codeforces import CodeforcesScraper
+from api.services.scrapers.atcoder import AtCoderScraper
+from api.services.scrapers.cses import CSESScraper
 
-# HTML padrão de um problema do CF, incluindo propriedades aninhadas como o site real
 SAMPLE_HTML = """
 <div class="problem-statement">
     <div class="header">
@@ -32,7 +33,6 @@ SAMPLE_HTML = """
 </div>
 """
 
-
 @responses.activate
 def test_codeforces_scraper_success():
     """
@@ -45,21 +45,14 @@ def test_codeforces_scraper_success():
     scraper = CodeforcesScraper()
     result = scraper.scrape("https://codeforces.com/problemset/problem/1/A")
 
-    # Limites devem ter só o valor + unidade, sem o prefixo "time limit per test"
     assert result["time_limit"] == "2 seconds"
     assert result["memory_limit"] == "256 megabytes"
-
-    # LaTeX deve ser removido do texto
     assert "$$$" not in result["description"]
     assert "\\leq" not in result["input_format"]
-    assert "≤" in result["input_format"]  # convertido para Unicode
-    assert "⊕" in result["notes"]         # \oplus → ⊕
-
-    # Campos básicos
+    assert "≤" in result["input_format"]
+    assert "⊕" in result["notes"]
     assert result["title"] == "A. Test Problem"
     assert len(result["testcases"]) == 1
-
-    # total_solved foi removido — garantir que não existe no retorno
     assert "total_solved" not in result
 
 
@@ -79,6 +72,7 @@ def test_codeforces_scraper_unparseable():
     scraper = CodeforcesScraper()
     with pytest.raises(UnparseableProblemException):
         scraper.scrape("https://codeforces.com/problemset/problem/1/B")
+
 
 ATCODER_SAMPLE_HTML = """
 <html>
@@ -130,8 +124,6 @@ def test_atcoder_scraper_success():
     Cenário: Acessa problema do AtCoder. Deve focar no lang-en e extrair as seções.
     Resultado Esperado: Dicionário contendo description, constraints, input_format, e output_format sem texto em japonês.
     """
-    from api.services.scrapers.atcoder import AtCoderScraper
-    
     responses.add(
         responses.GET, 
         "https://atcoder.jp/contests/abc300/tasks/abc300_a", 
@@ -144,7 +136,7 @@ def test_atcoder_scraper_success():
 
     assert "Find the sum" in result["description"]
     assert "問題文" not in result["description"]
-    assert "Constraints" not in result["constraints"] # deve pegar só o inner content
+    assert "Constraints" not in result["constraints"]
     assert "1 \leq A, B \leq 100" in result["constraints"] or "1 ≤ A, B ≤ 100" in result["constraints"]
     assert "Input is given" in result["input_format"]
     assert "Print the answer" in result["output_format"]
@@ -152,8 +144,6 @@ def test_atcoder_scraper_success():
 
 @responses.activate
 def test_atcoder_scraper_unparseable():
-    from api.services.scrapers.atcoder import AtCoderScraper
-    
     responses.add(
         responses.GET,
         "https://atcoder.jp/contests/abc300/tasks/abc300_b",
@@ -164,6 +154,7 @@ def test_atcoder_scraper_unparseable():
     scraper = AtCoderScraper()
     with pytest.raises(UnparseableProblemException):
         scraper.scrape("https://atcoder.jp/contests/abc300/tasks/abc300_b")
+
 
 CSES_SAMPLE_HTML = """
 <html>
@@ -196,8 +187,6 @@ def test_cses_scraper_success():
     Cenário: Acessa problema do CSES.
     Resultado Esperado: Dicionário contendo description, constraints, input_format, e output_format baseados nos headers h1 e tags ul.
     """
-    from api.services.scrapers.cses import CSESScraper
-    
     responses.add(
         responses.GET, 
         "https://cses.fi/problemset/task/1068", 
@@ -208,21 +197,17 @@ def test_cses_scraper_success():
     scraper = CSESScraper()
     result = scraper.scrape("https://cses.fi/problemset/task/1068")
 
-    # Time/Memory limits
     assert "1.00 s" in result["time_limit"]
     assert "512 MB" in result["memory_limit"]
-
-    # Conteúdo principal
     assert "Consider an algorithm." in result["description"]
     assert "simulate the execution." in result["description"]
     assert "The only input line contains" in result["input_format"]
     assert "Print a line that contains" in result["output_format"]
     assert "1 \le n \le 10^6" in result["constraints"] or "1 ≤ n ≤ 10^6" in result["constraints"]
 
+
 @responses.activate
 def test_cses_scraper_unparseable():
-    from api.services.scrapers.cses import CSESScraper
-    
     responses.add(
         responses.GET,
         "https://cses.fi/problemset/task/9999",

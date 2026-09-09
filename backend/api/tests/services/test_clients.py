@@ -1,8 +1,9 @@
 import pytest
-import responses
 import requests
+import responses
 from api.services.codeforces_client import CodeforcesClient
 from api.services.atcoder_client import AtCoderClient
+
 
 @responses.activate
 def test_codeforces_client_success():
@@ -25,6 +26,7 @@ def test_codeforces_client_success():
     assert len(data) == 1
     assert data[0]['id'] == 12345
 
+
 @responses.activate
 def test_codeforces_client_api_error_returns_none():
     """
@@ -41,8 +43,8 @@ def test_codeforces_client_api_error_returns_none():
     )
     
     data = client.get_contests()
-    # get_contests faz: return result if result else []
     assert data == []
+
 
 @responses.activate
 def test_atcoder_client_timeout():
@@ -59,8 +61,8 @@ def test_atcoder_client_timeout():
     )
     
     data = client.get_user_submissions('toro')
-    # O cliente Kenkoooo intercepta e retorna [] para fallback
     assert data == []
+
 
 @responses.activate
 def test_codeforces_client_timeout():

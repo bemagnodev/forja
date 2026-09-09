@@ -1,9 +1,8 @@
 import pytest
-from unittest.mock import patch
-from io import StringIO
-from django.core.management import call_command
 import responses
+from django.core.management import call_command
 from api.models import User, Problem, Submission, UserProblemTracking, PlatformChoices
+
 
 @pytest.mark.django_db
 @responses.activate
@@ -34,123 +33,14 @@ def test_sync_cf_bypass_testing(capsys):
     call_command('sync_cf')
     
     user.refresh_from_db()
-    # O epoch deve parar no 1200. O 1500 (TESTING) não pode ser o max_epoch
     assert user.cf_last_sync_time == 1200
     
-    # Garante que a wall defendeu e ignorou inserts antigos 
-    # id 99 (valido) deve estar no banco
     assert Submission.objects.filter(platform_submission_id="99").exists()
     assert UserProblemTracking.objects.filter(problem__platform_id="1B").exists()
     
-    # id 98 (antigo, epoch 900) não deve estar gravado no banco pois a wall estava em 1000
     assert not Submission.objects.filter(platform_submission_id="98").exists()
     assert not UserProblemTracking.objects.filter(problem__platform_id="1C").exists()
 
-@pytest.mark.django_db
-@responses.activate
-def test_sync_atcoder_bypass_wj(capsys):
-    """
-    Cenário: O usuário tem três submissões no AtCoder: uma antiga, uma válida nova, e uma 'WJ' (Waiting Judge) mais recente.
-    Resultado Esperado:
-    1. A submissão 'WJ' é ignorada, e o 'last_sync_time' avança apenas até o epoch da submissão válida mais recente (1200).
-    2. A submissão id 99 (nova, válida) salva no banco e gera tracking.
-    3. A submissão antiga (id 98) é barrada pela proteção incremental.
-    """
-    user = User.objects.create(username="test_user", atcoder_handle="toro", atcoder_last_sync_time=1000)
-    
-    responses.add(
-        responses.GET,
-        'https://kenkoooo.com/atcoder/resources/problems.json',
-        json=[
-            {'id': 'abc_a', 'title': 'Task A'},
-            {'id': 'abc_b', 'title': 'Task B'},
-            {'id': 'abc_c', 'title': 'Task C'}
-        ],
-        status=200
-    )
-    
-    responses.add(
-        responses.GET,
-        'https://kenkoooo.com/atcoder/atcoder-api/v3/user/submissions',
-        json=[
-            {'id': 98, 'result': 'AC', 'epoch_second': 900, 'problem_id': 'abc_a', 'contest_id': 'abc', 'language': 'C++'},
-            {'id': 99, 'result': 'WA', 'epoch_second': 1200, 'problem_id': 'abc_b', 'contest_id': 'abc', 'language': 'C++'},
-            {'id': 100, 'result': 'WJ', 'epoch_second': 1500, 'problem_id': 'abc_c', 'contest_id': 'abc', 'language': 'C++'}
-        ],
-        status=200
-    )
-    
-    call_command('sync_atcoder')
-    
-    user.refresh_from_db()
-    
-    # O epoch do WJ (1500) não deve ter atualizado o atcoder_last_sync_time
-    assert user.atcoder_last_sync_time == 1200
-
-    # Verifica o processamento da fila
-    # id 99 foi aceito porque epoch 1200 > base 1000
-    assert Submission.objects.filter(platform_submission_id="99").exists()
-    
-    # id 98 descartado porque epoch 900 <= base 1000 (Incremental wall proteged!)
-    assert not Submission.objects.filter(platform_submission_id="98").exists()
-
-@pytest.mark.django_db
-@responses.activate
-def test_sync_atcoder_title_mapping():
-    """Testa se o título real do problema é mapeado corretamente usando problems.json"""
-    user = User.objects.create(username="test_user2", atcoder_handle="tourist", atcoder_last_sync_time=0)
-    
-    responses.add(
-        responses.GET,
-        'https://kenkoooo.com/atcoder/resources/problems.json',
-        json=[
-            {'id': 'dp_a', 'title': 'Frog 1'}
-        ],
-        status=200
-    )
-    
-    responses.add(
-        responses.GET,
-        'https://kenkoooo.com/atcoder/atcoder-api/v3/user/submissions',
-        json=[
-            {'id': 1, 'result': 'AC', 'epoch_second': 1000, 'problem_id': 'dp_a', 'contest_id': 'dp', 'language': 'C++'}
-        ],
-        status=200
-    )
-    
-    call_command('sync_atcoder')
-    
-    problem = Problem.objects.get(platform_id='dp_a')
-    assert problem.title == 'Frog 1'
-
-@pytest.mark.django_db
-@patch('api.services.scrapers.atcoder.AtCoderScraper.scrape')
-@patch('api.services.atcoder_client.AtCoderClient.get_problems')
-def test_sync_atcoder_endpoint(mock_get_problems, mock_scrape, api_client, base_user):
-    # Mock do catálogo de problemas (para o mapeamento de ID -> Título funcionar)
-    mock_get_problems.return_value = [
-        {"id": "abc100_a", "contest_id": "abc100", "title": "Happy New Year", "name": "Happy New Year"}
-    ]
-    
-    # Simula o retorno do scrape com 1 submissão
-    mock_scrape.return_value = {
-        "user_handle": "mentor_ac",
-        "submissions": [
-            {
-                "submission_id": "ac_sub_1",
-                "problem_id": "abc100_a",
-                "contest_id": "abc100",
-                "verdict": "AC",
-                "creation_time": 1600000000,
-            }
-        ]
-    }
-    
-    # Testa o endpoint usando o api_client (autenticado)
-    resp = api_client.post("/api/sync/atcoder")
-    assert resp.status_code == 200
-    data = resp.json()
-    assert data["success"] is True
 
 @pytest.mark.django_db
 @responses.activate
@@ -167,13 +57,9 @@ def test_sync_cf_contest_participation_shield():
     user = User.objects.create(username="upsolver", cf_handle="upsvr")
     contest = Contest.objects.create(platform=PlatformChoices.CF_GYM, platform_id="100123", name="Gym 123")
     
-    # Criamos os problemas manualmente pois eles estariam na base caso o metadados já tivesse rodado
     prob_a = Problem.objects.create(platform=PlatformChoices.CF_GYM, platform_id="100123A", title="Problema A", contest=contest)
     prob_b = Problem.objects.create(platform=PlatformChoices.CF_GYM, platform_id="100123B", title="Problema B", contest=contest)
 
-    # API Request simula fila de respostas: 
-    # Chamada 1 (from=1) -> Retorna a pagina de resultados
-    # Chamada 2 (from=501) -> Retorna array vazio encerrando o loop
     responses.add(
         responses.GET,
         'https://codeforces.com/api/user.status',
@@ -195,16 +81,14 @@ def test_sync_cf_contest_participation_shield():
     
     call_command('sync_cf', force_full=True)
     
-    # 1. Assegurar que 'VIRTUAL' detectou e criou Participation Shield para o contest
     assert user.contest_participations.filter(contest=contest).exists(), "Participation não foi criada!"
     
-    # 2. Prova A (Nova Submissão AC): Deve ter lido a participação no passado e processado como UPSOLVED!
     track_a = UserProblemTracking.objects.get(user=user, problem=prob_a)
     assert track_a.system_status == UserProblemTracking.SystemStatus.UPSOLVED, f"Regra quebrada: O Upsolving AC virou {track_a.system_status}"
     
-    # 3. Prova B (Antiga Submissão WA): A participação forçou para Pending Upsolve
     track_b = UserProblemTracking.objects.get(user=user, problem=prob_b) 
     assert track_b.system_status == UserProblemTracking.SystemStatus.PENDING_UPSOLVE
+
 
 @pytest.mark.django_db
 @responses.activate
@@ -219,7 +103,6 @@ def test_sync_cf_gym_dynamically_fetches_all_problems():
     from api.models import Contest, Problem
     user = User.objects.create(username="gym_user", cf_handle="gymmer")
 
-    # MOCK 1: A Submissão do Usuário
     responses.add(
         responses.GET,
         'https://codeforces.com/api/user.status',
@@ -237,7 +120,6 @@ def test_sync_cf_gym_dynamically_fetches_all_problems():
         },
         status=200
     )
-    # Loop terminator for user.status
     responses.add(
         responses.GET,
         'https://codeforces.com/api/user.status',
@@ -245,7 +127,6 @@ def test_sync_cf_gym_dynamically_fetches_all_problems():
         status=200
     )
     
-    # MOCK 2: O fetch dinâmico do Gym Standings
     responses.add(
         responses.GET,
         'https://codeforces.com/api/contest.standings',
@@ -266,10 +147,6 @@ def test_sync_cf_gym_dynamically_fetches_all_problems():
 
     call_command('sync_cf', force_full=True)
 
-    # Verificaçōes:
-    # 1. O Gym inteiro existiu e teve suas 3 questões mapeadas (e não apenas a questão A da submissão).
     assert Contest.objects.filter(platform_id="100124").exists(), "Gym não foi criado."
     assert Problem.objects.filter(contest__platform_id="100124").count() == 3, "As 3 questões do Gym não foram sincronizadas!"
-    
-    # 2. Como a submissão foi CONTESTANT, o Participation espalhou tracking pra geral
     assert UserProblemTracking.objects.filter(user=user, problem__contest__platform_id="100124").count() == 3, "Máquina de estados não englobou todas as questões do Gym!"

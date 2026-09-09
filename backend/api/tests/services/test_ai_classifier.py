@@ -2,11 +2,8 @@ import time
 import pytest
 from unittest.mock import patch, MagicMock, call
 from google.api_core.exceptions import ResourceExhausted
+from google.genai.errors import APIError
 
-
-# ---------------------------------------------------------------------------
-# Testes do MOCK MODE
-# ---------------------------------------------------------------------------
 
 def test_mock_mode_returns_fixed_response(monkeypatch):
     """
@@ -51,10 +48,6 @@ def test_mock_mode_simulates_latency(monkeypatch):
         classify_problem({"title": "Test"})
         mock_sleep.assert_called_once_with(1.5)
 
-
-# ---------------------------------------------------------------------------
-# Testes de Seleção de Modelo
-# ---------------------------------------------------------------------------
 
 @patch("api.services.ai_classifier.get_gemini_client")
 def test_custom_model_name_is_forwarded_to_api(mock_get_client, monkeypatch):
@@ -122,16 +115,9 @@ def test_fallback_to_default_model_when_env_not_set(mock_get_client, monkeypatch
     classify_problem({"title": "Test"})
 
     call_kwargs = mock_client.models.generate_content.call_args
-    # Deve usar o DEFAULT_MODEL definido em ai_classifier.py quando env não está setado
     from api.services.ai_classifier import DEFAULT_MODEL
     assert call_kwargs.kwargs["model"] == DEFAULT_MODEL
 
-
-# ---------------------------------------------------------------------------
-# Testes de Resiliência (Retry)
-# ---------------------------------------------------------------------------
-
-from google.genai.errors import APIError
 
 @patch("api.services.ai_classifier.get_gemini_client")
 @patch("tenacity.nap.time.sleep", return_value=None)

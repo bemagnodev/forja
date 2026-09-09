@@ -1,17 +1,20 @@
+from unittest.mock import patch, MagicMock
 import pytest
 from api.models import User, Problem, Contest
-from unittest.mock import patch, MagicMock
+
 
 @pytest.fixture
-def base_user(db):
+def prediction_user(db):
     return User.objects.create_user(username="testuser", password="password123", cf_handle="testuser")
 
+
 @pytest.fixture
-def api_client(client, base_user):
+def prediction_api_client(client, prediction_user):
     from ninja_jwt.tokens import RefreshToken
-    refresh = RefreshToken.for_user(base_user)
+    refresh = RefreshToken.for_user(prediction_user)
     client.defaults['HTTP_AUTHORIZATION'] = f'Bearer {refresh.access_token}'
     return client
+
 
 @pytest.fixture
 def setup_problem(db):
@@ -24,10 +27,11 @@ def setup_problem(db):
         platform_metadata={}
     )
 
+
 @pytest.mark.django_db
 @patch('api.services.scrapers.CodeforcesScraper')
 @patch('api.api.classify_problem')
-def test_predict_problem_success(mock_classify, mock_scraper_class, api_client, setup_problem):
+def test_predict_problem_success(mock_classify, mock_scraper_class, prediction_api_client, setup_problem):
     """
     Cenário: O problema ainda não possui os dados preditivos no banco de dados.
     Resultado Esperado: A API deve chamar o scraper, submeter à IA, gravar os dados
@@ -43,7 +47,7 @@ def test_predict_problem_success(mock_classify, mock_scraper_class, api_client, 
         "reasoning": "Test reasoning"
     }
     
-    response = api_client.post(f"/api/problems/{setup_problem.id}/predict")
+    response = prediction_api_client.post(f"/api/problems/{setup_problem.id}/predict")
     
     assert response.status_code == 200
     data = response.json()
@@ -56,10 +60,11 @@ def test_predict_problem_success(mock_classify, mock_scraper_class, api_client, 
     assert setup_problem.platform_metadata["ai_tags"] == ["math", "greedy"]
     assert setup_problem.platform_metadata["ai_reasoning"] == "Test reasoning"
 
+
 @pytest.mark.django_db
 @patch('api.services.scrapers.CodeforcesScraper')
 @patch('api.api.classify_problem')
-def test_predict_problem_cached(mock_classify, mock_scraper_class, api_client, setup_problem):
+def test_predict_problem_cached(mock_classify, mock_scraper_class, prediction_api_client, setup_problem):
     """
     Cenário: O problema já possui os dados de predição em platform_metadata.
     Resultado Esperado: A API deve retornar os dados em cache imediatamente.
@@ -71,7 +76,7 @@ def test_predict_problem_cached(mock_classify, mock_scraper_class, api_client, s
     }
     setup_problem.save()
     
-    response = api_client.post(f"/api/problems/{setup_problem.id}/predict")
+    response = prediction_api_client.post(f"/api/problems/{setup_problem.id}/predict")
     
     assert response.status_code == 200
     data = response.json()
