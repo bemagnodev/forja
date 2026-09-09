@@ -1,18 +1,20 @@
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
+from django.conf import settings
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.http import urlsafe_base64_encode
 from django.utils.encoding import force_bytes
 from api.models import User
 
 class Command(BaseCommand):
-    help = 'Cria ou convida um usuário gerando um link seguro e temporário para ele definir a própria senha'
+    help = 'Cria um novo usuário e gera um link seguro e temporário para ele definir a própria senha'
 
     def add_arguments(self, parser):
-        parser.add_argument('username', type=str, help='Username do novo usuário ou membro existente')
+        parser.add_argument('username', type=str, help='Username do novo usuário')
         parser.add_argument('--cf_handle', type=str, default='', help='Handle do Codeforces (opcional)')
         parser.add_argument('--atcoder_handle', type=str, default='', help='Handle do AtCoder (opcional)')
         parser.add_argument('--email', type=str, default='', help='E-mail do usuário (opcional)')
-        parser.add_argument('--base_url', type=str, default='https://forja-cp.vercel.app', help='URL base do frontend (padrão: https://forja-cp.vercel.app)')
+        default_frontend_url = getattr(settings, 'FRONTEND_URL', 'https://forja-cp.vercel.app')
+        parser.add_argument('--base_url', type=str, default=default_frontend_url, help=f'URL base do frontend (padrão: {default_frontend_url})')
 
     def handle(self, *args, **options):
         username = options['username']
@@ -21,29 +23,22 @@ class Command(BaseCommand):
         email = options['email'] or ''
         base_url = options['base_url'].rstrip('/')
 
-        user, created = User.objects.get_or_create(
-            username=username,
-            defaults={
-                'email': email,
-                'cf_handle': cf_handle,
-                'atcoder_handle': atcoder_handle,
-            }
-        )
+        if User.objects.filter(username=username).exists():
+            raise CommandError(
+                f"O usuário '{username}' já existe. O comando 'invite_user' serve apenas para cadastrar novos membros. "
+                f"Para redefinir a senha de um usuário existente, utilize o comando 'reset_user_password'."
+            )
 
-        if created:
-            user.set_unusable_password()
-            user.save()
-            self.stdout.write(self.style.SUCCESS(f"✅ Usuário '{username}' criado no banco de dados!"))
-        else:
-            # Atualiza handles caso tenham sido passados
-            if cf_handle:
-                user.cf_handle = cf_handle
-            if atcoder_handle:
-                user.atcoder_handle = atcoder_handle
-            if email:
-                user.email = email
-            user.save()
-            self.stdout.write(self.style.WARNING(f"ℹ️ Usuário '{username}' já existe. Gerando novo link de definição de senha..."))
+        user = User.objects.create(
+            username=username,
+            email=email,
+            cf_handle=cf_handle,
+            atcoder_handle=atcoder_handle,
+            is_active=False,
+        )
+        user.set_unusable_password()
+        user.save()
+        self.stdout.write(self.style.SUCCESS(f"✅ Usuário '{username}' criado no banco de dados!"))
 
         # Gerar Token Criptográfico Seguro do Django
         token = default_token_generator.make_token(user)

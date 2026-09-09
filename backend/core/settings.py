@@ -108,16 +108,7 @@ else:
 
 AUTH_PASSWORD_VALIDATORS = [
     {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
+        'NAME': 'api.password_validation.SimpleComplexityPasswordValidator',
     },
 ]
 
@@ -160,3 +151,9 @@ NINJA_JWT = {
     'ROTATE_REFRESH_TOKENS': False,
     'BLACKLIST_AFTER_ROTATION': False,
 }
+
+# Frontend Base URL (para convites e links de redefinição de senha)
+FRONTEND_URL = os.environ.get('FRONTEND_URL', 'https://forja-cp.vercel.app').rstrip('/')
+
+# Prazo de expiração do token de redefinição/convite (3 dias)
+PASSWORD_RESET_TIMEOUT = 60 * 60 * 24 * 3

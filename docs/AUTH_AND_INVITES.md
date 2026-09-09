@@ -19,51 +19,89 @@ Este documento resume as melhorias arquiteturais de segurança, estabilização 
   - Quando o token expira (`HTTP 401`), o frontend intercepta o erro em background, chama `/api/token/refresh` usando o `refresh_token`, atualiza o `localStorage` e repete a requisição original de forma 100% transparente para o usuário.
   - O usuário não é mais deslogado no meio do uso.
 
-### 👥 Novo Sistema de Convite e Definição de Senha
-- **Comando de Gerenciamento (`invite_user`)**: Permite ao administrador convidar ou resetar a senha de membros gerando links criptográficos seguros e temporários.
-- **Endpoint Seguro (`/api/auth/set-password`)**: Valida o token nativo do Django e grava o hash da nova senha no banco.
-- **Interface Visual (`/set-password`)**: Página responsiva com feedback visual e integração ao tema visual da Forja.
-
-### 🧪 Suíte de Testes 100% Verde
-- **38 testes passando no `pytest`** cobrindo todos os módulos: FSM de tracking, predição IA com Gemini, scrapers de Codeforces/AtCoder/CSES, fila de estudos e autenticação.
+### 👥 Novo Sistema de Convite e Redefinição de Senha
+- **Comando de Convite (`invite_user`)**: Cria estritamente novos usuários no banco com `is_active=False` e senha inutilizável (`set_unusable_password()`). Caso o username já exista, falha com `CommandError` orientando o uso do comando de reset.
+- **Comando de Redefinição (`reset_user_password`)**: Gera um link de redefinição para usuários previamente cadastrados sem alterar seus dados, handles ou status, preservando a senha atual até o uso efetivo do link.
+- **Validade do Link**: Configurado explicitamente para 3 dias (`PASSWORD_RESET_TIMEOUT = 60 * 60 * 24 * 3`).
+- **Política de Senha da Forja**: Mínimo de 8 caracteres, contendo pelo menos uma letra, um dígito numérico e um caractere especial (espaço não conta).
+- **Endpoint Transacional (`/api/auth/set-password`)**: Valida o token nativo do Django com lock de linha (`select_for_update`) dentro de `transaction.atomic()`, grava a nova senha e ativa o usuário (`is_active=True`).
+- **Interface Visual (`/set-password`)**: Página responsiva com validação local espelhada, bloqueio de múltiplos envios e feedback integrado ao tema da Forja.
 
 ---
 
-## 2. Como Usar o Sistema de Convite de Usuários
+## 2. Como Usar o Sistema de Convite e Reset
 
-### Passo 1: Gerar o Link de Convite
-No terminal do seu computador (na pasta `backend`), execute o comando `invite_user`:
+### 2.1 Convidar Novo Membro (`invite_user`)
+Para registrar um novo membro da equipe:
 
 ```powershell
 cd backend
-.\.venv\Scripts\python.exe manage.py invite_user <username> --cf_handle <handle_cf> --atcoder_handle <handle_atcoder>
+.\.venv\Scripts\python.exe manage.py invite_user <username> --cf_handle <handle_cf> --atcoder_handle <handle_atcoder> --email <email>
 ```
 
-#### Exemplo Prático:
+#### Exemplo em Desenvolvimento Local:
 ```powershell
-.\.venv\Scripts\python.exe manage.py invite_user bernardomaia --cf_handle bernardomaia
+.\.venv\Scripts\python.exe manage.py invite_user novato --cf_handle novato_cf --base_url http://localhost:5173
 ```
 
-O terminal exibirá uma saída como esta:
+#### Exemplo em Produção / Render:
+```bash
+python manage.py invite_user novato --cf_handle novato_cf
+```
+
+O terminal exibirá uma saída com token fictício ilustrativo:
 ```text
-✅ Usuário 'bernardomaia' criado no banco de dados!
+✅ Usuário 'novato' criado no banco de dados!
 
 ======================================================================
 🔗 LINK DE CONVITE / DEFINIÇÃO DE SENHA GERADO COM SUCESSO:
 
-   https://forja-cp.vercel.app/set-password?uid=MQ&token=csm14e-b537c356b2cf77fa33d1b3799616d2b5
+   https://forja-cp.vercel.app/set-password?uid=TOKEN_FICTICIO_UID&token=TOKEN_FICTICIO_SECRET
 
 ======================================================================
 Copie e envie esse link para o membro da equipe.
-Esse link expira automaticamente e torna-se inválido após o uso.
+Esse link expira em 3 dias e torna-se inválido após o uso.
 ```
 
 ---
 
-### Passo 2: O Colega Define a Própria Senha
-1. Você envia o link gerado para o colega (via WhatsApp, Discord, etc.).
-2. Ele acessa a página e digita a senha escolhida com confirmação.
-3. Ao salvar, a conta é ativada imediatamente e ele é redirecionado para a tela de login.
+### 2.2 Redefinir Senha ou Reenviar Convite Pendente (`reset_user_password`)
+Para gerar um link para quem já possui registro no sistema:
+- **Usuário Ativo**: Gera o link de redefinição de senha. A senha atual permanece ativa até o uso do link.
+- **Usuário Inativo**: Regenera o link de convite pendente. Gerar o link **não ativa** a conta; a ativação ocorre somente ao consumir o link com sucesso em `/set-password`.
+
+```powershell
+cd backend
+.\.venv\Scripts\python.exe manage.py reset_user_password <username>
+```
+
+#### Exemplo com `--base_url` customizado:
+```powershell
+.\.venv\Scripts\python.exe manage.py reset_user_password novato --base_url http://localhost:5173
+```
+
+O terminal exibirá:
+```text
+ℹ️ Usuário 'novato' localizado.
+
+======================================================================
+🔗 LINK DE DEFINIÇÃO / REDEFINIÇÃO GERADO COM SUCESSO:
+
+   http://localhost:5173/set-password?uid=TOKEN_FICTICIO_UID&token=TOKEN_FICTICIO_SECRET
+
+======================================================================
+Copie e envie esse link para o membro da equipe.
+A senha atual continua ativa até que este link seja utilizado.
+(ou: A conta permanece inativa até que este link seja utilizado para definir a senha.)
+```
+
+---
+
+### 2.3 Ativação e Definição da Senha
+1. O administrador envia o link gerado para o colega.
+2. O usuário acessa `/set-password` e digita a nova senha respeitando a política (mínimo 8 caracteres, letra, número e símbolo).
+3. Ao enviar, a operação atômica grava a nova senha, define `is_active=True` (no caso de convite pendente) e invalida o token contra reuso.
+4. O usuário é redirecionado para o login.
 
 ---
 

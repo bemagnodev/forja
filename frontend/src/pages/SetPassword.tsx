@@ -40,15 +40,21 @@ export function SetPassword() {
       return;
     }
 
-    if (password.length < 6) {
+    const hasMinLength = password.length >= 8;
+    const hasLetter = /\p{L}/u.test(password);
+    const hasDigit = /\p{N}/u.test(password);
+    const hasSpecial = /[^\p{L}\p{N}\s]/u.test(password);
+
+    if (!hasMinLength || !hasLetter || !hasDigit || !hasSpecial) {
       toast({
-        title: "Senha Curta",
-        description: "A senha precisa ter pelo menos 6 caracteres.",
+        title: "Senha Fora do Padrão",
+        description: "Mínimo de 8 caracteres, com letra, número e símbolo.",
         type: "error",
       });
       return;
     }
 
+    if (loading) return;
     setLoading(true);
     try {
       await api.post('/auth/set-password', {
@@ -140,7 +146,7 @@ export function SetPassword() {
                   <input
                     type={showPassword ? 'text' : 'password'}
                     className="w-full rounded-xl border border-zinc-800 bg-zinc-900/80 px-4 py-3 pr-12 text-white outline-none placeholder:text-zinc-600 focus:border-red-500/70 focus:bg-zinc-900 focus:shadow-[0_0_15px_rgba(220,38,38,0.2)] transition-all"
-                    placeholder="Mínimo 6 caracteres"
+                    placeholder="Mínimo de 8 caracteres, com letra, número e símbolo."
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required

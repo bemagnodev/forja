@@ -37,23 +37,36 @@ class AuthResponseSchema(Schema):
     success: bool
     message: str
 
+from django.db import transaction
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
+
 @api.post("/auth/set-password", response={200: AuthResponseSchema, 400: AuthResponseSchema}, auth=None)
 def set_user_password(request, payload: SetPasswordSchema):
     """Permite ao usuário definir/trocar sua senha usando o link de convite seguro gerado pelo admin"""
     try:
         uid = force_str(urlsafe_base64_decode(payload.uid))
-        user = User.objects.get(pk=uid)
-    except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+    except (TypeError, ValueError, OverflowError):
         return 400, {"success": False, "message": "Link de convite inválido ou expirado."}
 
-    if not default_token_generator.check_token(user, payload.token):
-        return 400, {"success": False, "message": "O link de convite expirou ou já foi utilizado."}
+    with transaction.atomic():
+        try:
+            user = User.objects.select_for_update().get(pk=uid)
+        except User.DoesNotExist:
+            return 400, {"success": False, "message": "Link de convite inválido ou expirado."}
 
-    if len(payload.password) < 6:
-        return 400, {"success": False, "message": "A senha deve conter no mínimo 6 caracteres."}
+        if not default_token_generator.check_token(user, payload.token):
+            return 400, {"success": False, "message": "O link de convite expirou ou já foi utilizado."}
 
-    user.set_password(payload.password)
-    user.save()
+        try:
+            validate_password(payload.password, user=user)
+        except ValidationError as e:
+            return 400, {"success": False, "message": " ".join(e.messages)}
+
+        user.set_password(payload.password)
+        if not user.is_active:
+            user.is_active = True
+        user.save()
 
     return 200, {"success": True, "message": f"Senha de '{user.username}' definida com sucesso!"}
 
