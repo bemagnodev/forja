@@ -78,7 +78,42 @@ React + TypeScript <-> Django Ninja API <-> PostgreSQL
 
 - **Frontend:** React, TypeScript, Vite, TanStack Query, Tailwind CSS, DnD Kit
 - **Backend:** Python, Django, Django Ninja, JWT, pytest
-- **Data:** PostgreSQL in production, SQLite for local development
+- **Data:** PostgreSQL em produção, SQLite para desenvolvimento e testes locais
+
+## Desenvolvimento Backend
+
+### 1. Requisitos e Ambiente
+
+- **Versão recomendada do Python:** 3.12 (Python 3.12.10)
+- **Ambiente virtual oficial:** `backend\.venv`
+
+### 2. Configuração e Ativação (PowerShell)
+
+```powershell
+cd backend
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+```
+
+### 3. Validação do Django
+
+Para checar a integridade da aplicação localmente:
+
+```powershell
+python manage.py check
+```
+
+_Nota:_ Comandos normais do Django (`manage.py runserver`, `migrate`, etc.) utilizam o banco de dados configurado no arquivo `backend\.env`.
+
+### 4. Execução de Testes
+
+Os testes automatizados utilizam um ambiente SQLite totalmente isolado em memória (`core.settings_test`), garantindo que a suíte nunca acesse ou afete o banco de produção/Supabase:
+
+```powershell
+python -m pytest
+```
 
 ## Roadmap
 
