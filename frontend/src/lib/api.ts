@@ -50,6 +50,7 @@ api.interceptors.response.use(
           failedQueue.push({ resolve, reject });
         })
           .then((token) => {
+            originalRequest._retry = true;
             originalRequest.headers.Authorization = `Bearer ${token}`;
             return api(originalRequest);
           })

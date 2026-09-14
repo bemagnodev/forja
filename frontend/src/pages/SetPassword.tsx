@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
@@ -16,8 +16,18 @@ export function SetPassword() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
 
+  const loadingRef = React.useRef(false);
+
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  // Redireciona para /login 2,5 s após o sucesso; cancela o timer se o
+  // componente for desmontado antes do prazo (evita vazamento em testes).
+  useEffect(() => {
+    if (!success) return;
+    const timerId = setTimeout(() => navigate('/login'), 2500);
+    return () => clearTimeout(timerId);
+  }, [success, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,7 +64,8 @@ export function SetPassword() {
       return;
     }
 
-    if (loading) return;
+    if (loading || loadingRef.current) return;
+    loadingRef.current = true;
     setLoading(true);
     try {
       await api.post('/auth/set-password', {
@@ -69,18 +80,16 @@ export function SetPassword() {
         description: "Sua senha foi cadastrada com sucesso. Redirecionando para o login...",
         type: "success",
       });
-
-      setTimeout(() => {
-        navigate('/login');
-      }, 2500);
-    } catch (err: any) {
-      const errorMsg = err.response?.data?.message || "O link expirou ou já foi utilizado.";
+    } catch (err: unknown) {
+      const errorResponse = (err as { response?: { data?: { message?: string } } })?.response;
+      const errorMsg = errorResponse?.data?.message || "O link expirou ou já foi utilizado.";
       toast({
         title: "Erro ao Definir Senha",
         description: errorMsg,
         type: "error",
       });
     } finally {
+      loadingRef.current = false;
       setLoading(false);
     }
   };
@@ -141,9 +150,10 @@ export function SetPassword() {
           ) : (
             <form onSubmit={handleSubmit} className="space-y-5">
               <div className="space-y-2 relative">
-                <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Nova Senha</label>
+                <label htmlFor="new-password" className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Nova Senha</label>
                 <div className="relative">
                   <input
+                    id="new-password"
                     type={showPassword ? 'text' : 'password'}
                     className="w-full rounded-xl border border-zinc-800 bg-zinc-900/80 px-4 py-3 pr-12 text-white outline-none placeholder:text-zinc-600 focus:border-red-500/70 focus:bg-zinc-900 focus:shadow-[0_0_15px_rgba(220,38,38,0.2)] transition-all"
                     placeholder="Mínimo de 8 caracteres, com letra, número e símbolo."
@@ -153,6 +163,7 @@ export function SetPassword() {
                   />
                   <button
                     type="button"
+                    aria-label={showPassword ? "Ocultar senha" : "Exibir senha"}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition-colors"
                     onClick={() => setShowPassword(!showPassword)}
                   >
@@ -162,8 +173,9 @@ export function SetPassword() {
               </div>
 
               <div className="space-y-2 relative">
-                <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Confirmar Nova Senha</label>
+                <label htmlFor="confirm-password" className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Confirmar Nova Senha</label>
                 <input
+                  id="confirm-password"
                   type={showPassword ? 'text' : 'password'}
                   className="w-full rounded-xl border border-zinc-800 bg-zinc-900/80 px-4 py-3 text-white outline-none placeholder:text-zinc-600 focus:border-red-500/70 focus:bg-zinc-900 focus:shadow-[0_0_15px_rgba(220,38,38,0.2)] transition-all"
                   placeholder="Repita a nova senha"

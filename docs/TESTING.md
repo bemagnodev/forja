@@ -188,3 +188,40 @@ Resultado esperado:
 - [ ] `manage.py check` não relata erros de configuração.
 - [ ] `git diff --check` não retorna erros de espaçamento/whitespace.
 - [ ] Nenhum `.env`, token, chave de API ou banco de dados foi incluído.
+
+---
+
+## 15. Guia de Testes do Frontend
+
+### Tecnologias Utilizadas
+O frontend utiliza **Vitest** como test runner principal, acompanhado de **React Testing Library**, `@testing-library/jest-dom` para matchers customizados e `@testing-library/user-event` para simulação realista de interações do usuário no ambiente `jsdom`.
+
+### Localização Co-localizada
+Os testes de frontend são co-localizados junto ao arquivo testado:
+- Componentes: `src/components/ProtectedRoute.test.tsx` (ao lado de `ProtectedRoute.tsx`).
+- Páginas: `src/pages/Login.test.tsx` (ao lado de `Login.tsx`).
+- Contextos e Libs: `src/contexts/AuthContext.test.tsx`, `src/lib/api.test.ts`.
+
+### Boas Práticas e Regras de Implementação
+1. **Simulação de Usuário**: Prefira sempre `userEvent` sobre `fireEvent` para representar melhor o comportamento real de navegação e preenchimento do formulário.
+2. **Isolamento e Limpeza**: Em todo teste (via `beforeEach`), limpe explicitamente o `localStorage`, restaure os mocks (`vi.restoreAllMocks()` / `vi.clearAllMocks()`) e restaure timers reais se fake timers foram utilizados.
+3. **Proibição de Requisições HTTP Reais**: Mocke as fronteiras de API (`api.post`, `api.defaults.adapter`, `axios.post`) ou instâncias do Axios. Nenhuma chamada HTTP externa deve ser realizada durante os testes.
+4. **Níveis de Teste**:
+   - **Teste de Componente / Unidade**: Valida comportamentos de componentes isolados ou hooks (ex: `PriorityBadge`, `AuthContext`).
+   - **Integração Frontend**: Valida a interação entre formulários, contextos, interceptadores Axios e roteamento via `MemoryRouter` (ex: `Login`, `SetPassword`, `api.test.ts`).
+   - **Futuro E2E**: Testes ponta-a-ponta (Playwright/Cypress) que validam todo o stack integrado com navegador real. Não fazem parte da suíte atual do Vitest.
+
+### Comandos de Execução
+
+```bash
+# Na pasta frontend:
+
+# 1. Executar a suíte completa do frontend (modo CI / run único)
+npm test
+
+# 2. Executar os testes em modo watch durante desenvolvimento
+npm run test:watch
+
+# 3. Executar um arquivo de teste específico
+npx vitest run src/pages/Login.test.tsx
+```

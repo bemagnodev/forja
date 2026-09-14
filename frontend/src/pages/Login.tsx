@@ -22,7 +22,7 @@ export function Login() {
       const resp = await api.post('/token/pair', { username, password });
       login(resp.data.access, resp.data.refresh);
       navigate('/dashboard');
-    } catch (err) {
+    } catch {
       toast({
         title: "Acesso Negado",
         description: "Credenciais inválidas. As portas da Forja permanecem fechadas.",
@@ -80,8 +80,9 @@ export function Login() {
         <div className="bg-zinc-950/80 backdrop-blur-xl border border-zinc-800/80 rounded-2xl p-6 shadow-2xl relative">
           <form onSubmit={handleLogin} className="space-y-5">
             <div className="space-y-2">
-              <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Usuário</label>
+              <label htmlFor="username" className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Usuário</label>
               <input
+                id="username"
                 type="text"
                 className="w-full rounded-xl border border-zinc-800 bg-zinc-900/80 px-4 py-3 text-white outline-none placeholder:text-zinc-600 focus:border-red-500/70 focus:bg-zinc-900 focus:shadow-[0_0_15px_rgba(220,38,38,0.2)] transition-all"
                 placeholder="Ex: membro1"
@@ -91,9 +92,10 @@ export function Login() {
               />
             </div>
             <div className="space-y-2 relative">
-              <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Senha</label>
+              <label htmlFor="password" className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Senha</label>
               <div className="relative">
                 <input
+                  id="password"
                   type={showPassword ? 'text' : 'password'}
                   className="w-full rounded-xl border border-zinc-800 bg-zinc-900/80 px-4 py-3 pr-12 text-white outline-none placeholder:text-zinc-600 focus:border-red-500/70 focus:bg-zinc-900 focus:shadow-[0_0_15px_rgba(220,38,38,0.2)] transition-all"
                   placeholder="••••••••"
@@ -103,6 +105,7 @@ export function Login() {
                 />
                 <button
                   type="button"
+                  aria-label={showPassword ? "Ocultar senha" : "Exibir senha"}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition-colors"
                   onClick={() => setShowPassword(!showPassword)}
                 >
