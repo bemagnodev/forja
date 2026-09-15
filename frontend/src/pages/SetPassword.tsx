@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Eye, EyeOff, CheckCircle2 } from 'lucide-react';
 import { useToast } from '@/components/ui/toast';
 
+import { EmberBackground } from '@/components/effects/EmberBackground';
+
 export function SetPassword() {
   const [searchParams] = useSearchParams();
   const uid = searchParams.get('uid') || '';
@@ -94,43 +96,11 @@ export function SetPassword() {
     }
   };
 
-  const embers = Array.from({ length: 50 }).map((_, i) => {
-    const size = Math.random() * 5 + 2;
-    const left = Math.random() * 100;
-    const duration = Math.random() * 4 + 4;
-    const delay = Math.random() * 5;
-    return (
-      <div
-        key={i}
-        className="absolute bottom-[-20px] rounded-full blur-[1px] mix-blend-screen opacity-0"
-        style={{
-          width: `${size}px`,
-          height: `${size}px`,
-          left: `${left}%`,
-          background: `radial-gradient(circle, #dc143c 0%, rgba(220, 20, 60, 0.4) 50%, transparent 100%)`,
-          animation: `floatUp ${duration}s linear ${delay}s infinite`,
-        }}
-      />
-    );
-  });
-
   return (
     <div className="flex min-h-screen w-full flex-col items-center justify-center bg-black text-foreground relative overflow-hidden">
-      <style>{`
-        @keyframes floatUp {
-          0% { transform: translateY(0) scale(1) rotate(0deg); opacity: 0; }
-          10% { opacity: 0.8; }
-          80% { opacity: 0.8; }
-          100% { transform: translateY(-100vh) scale(0) rotate(360deg); opacity: 0; }
-        }
-      `}</style>
-      
-      {/* Background Embers */}
-      <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
-        <div className="absolute bottom-0 w-full h-[50vh] bg-gradient-to-t from-black via-[#dc143c]/10 to-transparent" />
-        {embers}
-      </div>
-      
+      {/* Background Embers compartilhado */}
+      <EmberBackground />
+
       <div className="z-10 w-full max-w-sm px-4 relative">
         <div className="flex flex-col items-center mb-10">
           <img src="/logos/sword.png" alt="A Forja Logo" className="w-16 h-16 object-contain mb-4 relative z-10" />
