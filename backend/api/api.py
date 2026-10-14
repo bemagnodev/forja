@@ -591,7 +591,7 @@ def sync_codeforces(request):
 
     return {
         "success": True,
-        "message": "Sincronização iniciada em segundo plano. Os dados aparecerão em breve.",
+        "message": "Sincronização iniciada. Os dados serão atualizados em instantes.",
         "handle": user.cf_handle,
         "changes": 0,
     }
@@ -607,7 +607,7 @@ def sync_atcoder(request):
 
     return {
         "success": True,
-        "message": "Sincronização iniciada em segundo plano. Os dados aparecerão em breve.",
+        "message": "Sincronização iniciada. Os dados serão atualizados em instantes.",
         "handle": user.atcoder_handle,
         "changes": 0,
     }

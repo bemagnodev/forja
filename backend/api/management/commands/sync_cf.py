@@ -4,6 +4,7 @@ from django.utils import timezone
 from django.core.management.base import BaseCommand
 from api.models import User, Problem, Submission, UserProblemTracking, PlatformChoices, ContestParticipation, Contest
 from api.services.codeforces_client import CodeforcesClient
+from api.services.codeforces_gym_service import ensure_codeforces_gym_metadata
 
 class Command(BaseCommand):
     help = 'Sincroniza as submissões vitais do Codeforces, abastecendo o Tracking via motor FSM Dual-State.'
@@ -41,6 +42,8 @@ class Command(BaseCommand):
             is_synced = False
             
             all_sub_data = []
+            synced_gyms = set()
+            had_failures = False
 
             while not is_synced:
                 submissions = client.get_user_submissions(user.cf_handle, from_idx=from_idx, count=count)
@@ -74,9 +77,6 @@ class Command(BaseCommand):
                 if verdict == 'TESTING':
                     continue
                     
-                if epoch_sec > max_epoch:
-                    max_epoch = epoch_sec
-            
                 prob_data = sub_data.get('problem', {})
                 contest_id_num = prob_data.get('contestId')
                 index = prob_data.get('index', '')
@@ -90,59 +90,44 @@ class Command(BaseCommand):
                 is_gym = int(contest_id) >= 100000
                 platform_type = PlatformChoices.CF_GYM if is_gym else PlatformChoices.CF_OFFICIAL
 
-                # Fetch DINÂMICO de Gyms e suas Questões
+                # Sincronização e garantia de metadados de Gyms e catálogo completo de problemas
                 if is_gym:
-                    c_exists = Contest.objects.filter(platform_id=contest_id).exists()
-                    if not c_exists:
-                        self.stdout.write(f"    > Contest Gym {contest_id} não encontrado. Buscando dados completos...")
-                        gym_data = client.get_gym_standings(contest_id)
-                        if gym_data:
-                            c_meta = gym_data.get('contest', {})
-                            c_start = None
-                            if c_meta.get('startTimeSeconds'):
-                                c_start = datetime.fromtimestamp(c_meta.get('startTimeSeconds'), tz=timezone.UTC)
-                                
-                            c_obj, _ = Contest.objects.update_or_create(
-                                platform=PlatformChoices.CF_GYM,
-                                platform_id=contest_id,
-                                defaults={
-                                    'name': c_meta.get('name', f"Gym {contest_id}"),
-                                    'start_time': c_start,
-                                    'duration_seconds': c_meta.get('durationSeconds', 0)
-                                }
-                            )
-                            
-                            for p_meta in gym_data.get('problems', []):
-                                p_id = f"{contest_id}{p_meta.get('index', '')}"
-                                p_name = p_meta.get('name', '')
-                                p_title = f"{p_meta.get('index', '')}. {p_name}" if p_name else p_id
-                                
-                                Problem.objects.update_or_create(
-                                    platform=PlatformChoices.CF_GYM,
-                                    platform_id=p_id,
-                                    defaults={
-                                        'title': p_title,
-                                        'contest': c_obj,
-                                        'platform_metadata': {
-                                            'rating': p_meta.get('rating'),
-                                            'tags': p_meta.get('tags', [])
-                                        }
-                                    }
-                                )
+                    if contest_id not in synced_gyms:
+                        self.stdout.write(f"    > Assegurando metadados e problemas do Gym {contest_id}...")
+                        gym_res = ensure_codeforces_gym_metadata(contest_id, client=client)
+                        if gym_res and gym_res.contest:
+                            synced_gyms.add(contest_id)
+                        else:
+                            local_contest = Contest.objects.filter(platform=PlatformChoices.CF_GYM, platform_id=contest_id).first()
+                            has_local_data = local_contest and local_contest.problems.exists()
+                            if not has_local_data:
+                                self.stdout.write(self.style.WARNING(f"    [!] Falha ao obter metadados do Gym {contest_id}. Submissão {sub_id} adiada para o próximo sync."))
+                                had_failures = True
+                                continue
+                            else:
+                                self.stdout.write(self.style.WARNING(f"    [!] Não foi possível atualizar Gym {contest_id} pela API. Utilizando dados locais existentes."))
+                                synced_gyms.add(contest_id)
 
-                cont_obj = Contest.objects.filter(platform_id=contest_id).first()
+                cont_obj = Contest.objects.filter(platform=platform_type, platform_id=contest_id).first()
 
-                # 1. Problem 
-                problem, _ = Problem.objects.get_or_create(
+                # 1. Problem - Preserva metadados existentes (rating/tags do catálogo e IA) se a submissão vier sem eles
+                existing_prob = Problem.objects.filter(platform=platform_type, platform_id=platform_id).first()
+                existing_meta = existing_prob.platform_metadata if (existing_prob and existing_prob.platform_metadata) else {}
+
+                sub_rating = prob_data.get('rating')
+                sub_tags = prob_data.get('tags', [])
+
+                merged_meta = dict(existing_meta)
+                merged_meta['rating'] = sub_rating if sub_rating is not None else existing_meta.get('rating')
+                merged_meta['tags'] = sub_tags if sub_tags else existing_meta.get('tags', [])
+
+                problem, _ = Problem.objects.update_or_create(
                     platform=platform_type,
                     platform_id=platform_id,
                     defaults={
                         'title': title,
                         'contest': cont_obj,
-                        'platform_metadata': {
-                            'rating': prob_data.get('rating'),
-                            'tags': prob_data.get('tags', [])
-                        }
+                        'platform_metadata': merged_meta
                     }
                 )
 
@@ -178,28 +163,22 @@ class Command(BaseCommand):
                 
                 if is_contest_effort and problem.contest:
                     is_virtual_participation = p_type == Submission.ParticipantType.VIRTUAL
-                    participation = ContestParticipation.objects.filter(
+                    participation, _ = ContestParticipation.objects.get_or_create(
                         user=user, 
-                        contest=problem.contest
-                    ).first()
-                    created = False
-                    if not participation:
-                        participation = ContestParticipation.objects.create(
+                        contest=problem.contest,
+                        defaults={
+                            'participation_date': creation_dt,
+                            'is_virtual': is_virtual_participation
+                        }
+                    )
+                    # Garante Tracking UNATTEMPTED para todas as questões do Contest
+                    all_problems_in_contest = Problem.objects.filter(contest=problem.contest)
+                    for p_in_contest in all_problems_in_contest:
+                        UserProblemTracking.objects.get_or_create(
                             user=user,
-                            contest=problem.contest,
-                            participation_date=creation_dt,
-                            is_virtual=is_virtual_participation
+                            problem=p_in_contest,
+                            defaults={'system_status': UserProblemTracking.SystemStatus.UNATTEMPTED, 'review_status': UserProblemTracking.ReviewStatus.PENDING_TRIAGE}
                         )
-                        created = True
-                    if created:
-                        # Espalha Unattempted para todas as outras questões do Contest
-                        all_problems_in_contest = Problem.objects.filter(contest=problem.contest)
-                        for p_in_contest in all_problems_in_contest:
-                            UserProblemTracking.objects.get_or_create(
-                                user=user, 
-                                problem=p_in_contest,
-                                defaults={'system_status': UserProblemTracking.SystemStatus.UNATTEMPTED, 'review_status': UserProblemTracking.ReviewStatus.PENDING_TRIAGE}
-                            )
 
                 # 3. UserProblemTracking (Máquina de Estado com Defesa Upsolve)
                 tracking, _ = UserProblemTracking.objects.get_or_create(
@@ -242,9 +221,16 @@ class Command(BaseCommand):
                     tracking.save()
                     inserts += 1
 
-            # Garantia Atômica Manual do Watermark 
-            if max_epoch > 0:
+                # Atualiza watermark somente após o processamento com sucesso da submissão
+                if epoch_sec > max_epoch:
+                    max_epoch = epoch_sec
+
+            # Retenção do Watermark: somente avança se todas as submissões necessárias do lote foram processadas sem falha.
+            # Nota: sem transação de banco em volta de todo o lote, o watermark não avança para prevenir perda de reprocessamento.
+            if max_epoch > 0 and not had_failures:
                 user.cf_last_sync_time = max_epoch
                 user.save()
+            elif had_failures:
+                self.stdout.write(self.style.WARNING(f"  [!] Watermark retido em {user.cf_last_sync_time} para {user.username} devido a falhas durante a sincronização."))
 
             self.stdout.write(self.style.SUCCESS(f"Finalizado {user.username}! ({inserts} alterações mapeadas no CF)"))

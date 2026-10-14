@@ -4,9 +4,7 @@ import { api } from "@/lib/api";
 import {
   Anvil,
   ListChecks,
-  TrendingUp,
   SlidersHorizontal,
-  Trophy,
   BookMarked,
   UserRound,
   ChevronRight,
@@ -132,9 +130,10 @@ export function Sidebar() {
           setState("error");
           setMessage(data.message);
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
+        const errorMsg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || "Erro de conexão";
         setState("error");
-        setMessage(err.response?.data?.message || "Erro de conexão");
+        setMessage(errorMsg);
       }
       // Reseta para idle após 4 segundos
       setTimeout(() => {
@@ -229,10 +228,10 @@ export function Sidebar() {
           {syncStateCf === "error" && (
             <AlertCircle className="w-4 h-4 shrink-0 text-red-400" strokeWidth={1.75} />
           )}
-          <span className="flex-1 truncate text-left">
+          <span className="flex-1 truncate text-left" title={syncMessageCf || (syncStateCf === "success" ? "Sincronização iniciada. Os dados serão atualizados em instantes." : "")}>
             {syncStateCf === "idle" && "Sincronizar CF"}
             {syncStateCf === "loading" && "Sincronizando..."}
-            {syncStateCf === "success" && (syncMessageCf || "Concluído!")}
+            {syncStateCf === "success" && (syncMessageCf || "Sincronização iniciada. Os dados serão atualizados em instantes.")}
             {syncStateCf === "error" && (syncMessageCf || "Erro!")}
           </span>
         </button>
@@ -264,10 +263,10 @@ export function Sidebar() {
           {syncStateAt === "error" && (
             <AlertCircle className="w-4 h-4 shrink-0 text-red-400" strokeWidth={1.75} />
           )}
-          <span className="flex-1 truncate text-left">
+          <span className="flex-1 truncate text-left" title={syncMessageAt || (syncStateAt === "success" ? "Sincronização iniciada. Os dados serão atualizados em instantes." : "")}>
             {syncStateAt === "idle" && "Sincronizar AtCoder"}
             {syncStateAt === "loading" && "Sincronizando..."}
-            {syncStateAt === "success" && (syncMessageAt || "Concluído!")}
+            {syncStateAt === "success" && (syncMessageAt || "Sincronização iniciada. Os dados serão atualizados em instantes.")}
             {syncStateAt === "error" && (syncMessageAt || "Erro!")}
           </span>
         </button>
