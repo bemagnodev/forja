@@ -6,19 +6,12 @@ from api.models import Contest, Problem, ContestParticipation, User, Team, Platf
 
 
 @pytest.mark.django_db(transaction=True)
-def test_migration_0009_scenario_a_complete_and_empty_duplicate():
+def test_migration_0008_to_0009_complete_and_empty_duplicate():
     """
-    Cenário A: Contest completo + duplicado vazio.
-    Antes da migration:
-      - 2 Contests com (platform, platform_id) idênticos.
-      - 1 Contest completo com Problems e ContestParticipation.
-      - 1 Contest vazio com 0 Problems e 0 ContestParticipation.
-    Depois da migration:
-      - O ID do registro completo deve continuar existindo;
-      - O vazio deve ser removido;
-      - Problems continuam ligados ao ID completo;
-      - ContestParticipation continua ligada ao ID completo;
-      - Constraint impede nova duplicidade.
+    Testa a transição de 0008 para 0009:
+    - Comprova escolha canônica;
+    - Exclusão estritamente do contest vazio;
+    - Preservação dos relacionamentos (Problems e ContestParticipation).
     """
     executor = MigrationExecutor(connection)
     migrate_from = [('api', '0008_alter_queueitem_priority')]
@@ -36,7 +29,7 @@ def test_migration_0009_scenario_a_complete_and_empty_duplicate():
     # Cria usuário
     user = OldUser.objects.create(username="mig_user_a")
 
-    # Cria contest canônico/completo (ID 3956 na simulação)
+    # Cria contest canônico/completo (ID 3956)
     complete_contest = OldContest.objects.create(
         id=3956,
         platform='CF_GYM',
@@ -90,13 +83,47 @@ def test_migration_0009_scenario_a_complete_and_empty_duplicate():
     part_reloaded = NewParticipation.objects.get(id=part.id)
     assert part_reloaded.contest_id == 3956
 
-    # Tentativa de criar duplicata agora deve falhar por violação de constraint
+
+@pytest.mark.django_db(transaction=True)
+def test_migration_0009_to_0010_adds_constraints_and_rejects_duplicates():
+    """
+    Testa a transição de 0009 para 0010:
+    - Comprova criação das três constraints;
+    - Rejeição de novas duplicidades de Contest por (platform, platform_id);
+    - Rejeição de novas duplicidades de ContestParticipation por (user, contest).
+    """
+    executor = MigrationExecutor(connection)
+    migrate_from = [('api', '0009_consolidate_contests_and_add_constraints')]
+    migrate_to = [('api', '0010_add_contest_and_participation_constraints')]
+
+    executor.migrate(migrate_from)
+    executor.loader.build_graph()
+    executor.migrate(migrate_to)
+
+    new_apps = executor.loader.project_state(migrate_to).apps
+    NewContest = new_apps.get_model('api', 'Contest')
+    NewUser = new_apps.get_model('api', 'User')
+    NewParticipation = new_apps.get_model('api', 'ContestParticipation')
+
+    # 1. Constraint de Contest
+    NewContest.objects.create(
+        platform='CF_GYM',
+        platform_id="202020",
+        name="Unique Contest"
+    )
     with pytest.raises(IntegrityError):
         NewContest.objects.create(
             platform='CF_GYM',
-            platform_id="101375",
-            name="Attempted Duplicate"
+            platform_id="202020",
+            name="Duplicate Contest"
         )
+
+    # 2. Constraint de ContestParticipation por User
+    c = NewContest.objects.get(platform='CF_GYM', platform_id="202020")
+    u = NewUser.objects.create(username="unique_part_user")
+    NewParticipation.objects.create(user=u, contest=c)
+    with pytest.raises(IntegrityError):
+        NewParticipation.objects.create(user=u, contest=c)
 
 
 @pytest.mark.django_db(transaction=True)
@@ -106,7 +133,7 @@ def test_migration_0009_scenario_b_both_duplicates_have_data_aborts():
     Se ambos os Contests possuírem Problems ou Participações:
       - A migration DEVE abortar com erro explícito;
       - Não deve escolher silenciosamente um canônico;
-      - Não deve excluir nem mover dados parcialmente.
+      - Não deve excluir nem mover dados parcialmente (rollback integral).
     """
     executor = MigrationExecutor(connection)
     migrate_from = [('api', '0008_alter_queueitem_priority')]
@@ -208,6 +235,32 @@ def test_migration_0009_scenario_c_duplicate_participations_aborts():
     OldParticipation.objects.filter(id__in=[7001, 7002]).delete()
     OldContest.objects.filter(id=6001).delete()
     executor.migrate(migrate_to)
+
+
+def test_migrations_structural_separation_prevents_postgres_pending_trigger_events():
+    """
+    Garante que a migration 0009 contém APENAS RunPython (sem AddConstraint)
+    e a migration 0010 contém APENAS AddConstraint (sem RunPython).
+    Isso evita o erro 'cannot ALTER TABLE because it has pending trigger events' no PostgreSQL.
+    """
+    import importlib
+    from django.db.migrations import RunPython, AddConstraint
+
+    mod_0009 = importlib.import_module("api.migrations.0009_consolidate_contests_and_add_constraints")
+    mod_0010 = importlib.import_module("api.migrations.0010_add_contest_and_participation_constraints")
+
+    Migration0009 = mod_0009.Migration
+    Migration0010 = mod_0010.Migration
+
+    # 0009 não pode ter AddConstraint
+    assert any(isinstance(op, RunPython) for op in Migration0009.operations)
+    assert not any(isinstance(op, AddConstraint) for op in Migration0009.operations), \
+        "Migration 0009 não pode conter AddConstraint para não disparar 'pending trigger events' no PostgreSQL!"
+
+    # 0010 não pode ter RunPython e deve ter AddConstraint
+    assert any(isinstance(op, AddConstraint) for op in Migration0010.operations)
+    assert not any(isinstance(op, RunPython) for op in Migration0010.operations), \
+        "Migration 0010 não pode conter RunPython!"
 
 
 @pytest.mark.django_db

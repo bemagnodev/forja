@@ -170,6 +170,7 @@ Ao investigar e corrigir anomalias ou inconsistências de dados originadas em pr
 5. **Auditoria Prévia Obrigatória**: Novas constraints (`UniqueConstraint`, `CheckConstraint`) só devem ser criadas após auditoria minuciosa em modo somente leitura (`read-only`) dos dados existentes.
 6. **Estratégia Fail-Closed**: Toda migration de saneamento de dados deve abortar com erro explícito (`raise RuntimeError`) se encontrar registros inesperados ou ambíguos. Nunca tome decisões destrutivas silenciosas em dados de usuários.
 7. **Isolamento Absoluto**: Nenhum comando de teste ou migration de teste deve conectar ou ser executado diretamente contra o Supabase ou o banco de produção. Todo teste roda contra o banco SQLite em memória (`core.settings_test`).
+8. **Compatibilidade com PostgreSQL e Triggers (`Pending Trigger Events`)**: No PostgreSQL, executar operações DML (ex: `delete()`, `update()`) em uma tabela e, na mesma transação, tentar aplicar operações DDL na mesma tabela (`ALTER TABLE ... ADD CONSTRAINT`) gera o erro `cannot ALTER TABLE because it has pending trigger events` (diferente do SQLite, que tolera). Portanto, data migrations de consolidação/limpeza (`RunPython`) e schema migrations que adicionam constraints (`AddConstraint`) devem sempre ser divididas em migrations consecutivas separadas, ambas com `atomic = True`.
 
 ---
 
