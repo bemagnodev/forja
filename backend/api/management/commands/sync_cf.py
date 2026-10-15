@@ -42,7 +42,10 @@ class Command(BaseCommand):
             is_synced = False
             
             all_sub_data = []
+            attempted_gyms = set()
             synced_gyms = set()
+            unavailable_gyms = set()
+            transient_failed_gyms = set()
             had_failures = False
 
             while not is_synced:
@@ -92,21 +95,36 @@ class Command(BaseCommand):
 
                 # Sincronização e garantia de metadados de Gyms e catálogo completo de problemas
                 if is_gym:
-                    if contest_id not in synced_gyms:
+                    if contest_id not in attempted_gyms:
+                        attempted_gyms.add(contest_id)
                         self.stdout.write(f"    > Assegurando metadados e problemas do Gym {contest_id}...")
                         gym_res = ensure_codeforces_gym_metadata(contest_id, client=client)
-                        if gym_res and gym_res.contest:
+                        if gym_res.is_success:
                             synced_gyms.add(contest_id)
-                        else:
-                            local_contest = Contest.objects.filter(platform=PlatformChoices.CF_GYM, platform_id=contest_id).first()
-                            has_local_data = local_contest and local_contest.problems.exists()
-                            if not has_local_data:
-                                self.stdout.write(self.style.WARNING(f"    [!] Falha ao obter metadados do Gym {contest_id}. Submissão {sub_id} adiada para o próximo sync."))
-                                had_failures = True
-                                continue
-                            else:
-                                self.stdout.write(self.style.WARNING(f"    [!] Não foi possível atualizar Gym {contest_id} pela API. Utilizando dados locais existentes."))
-                                synced_gyms.add(contest_id)
+                        elif gym_res.is_permanent_failure:
+                            unavailable_gyms.add(contest_id)
+                        elif gym_res.is_transient_failure:
+                            transient_failed_gyms.add(contest_id)
+
+                    # Se foi falha transitória e não há dados locais com catálogo, adia submissão e retém watermark
+                    if contest_id in transient_failed_gyms:
+                        local_contest = Contest.objects.filter(platform=PlatformChoices.CF_GYM, platform_id=contest_id).first()
+                        has_local_data = local_contest and local_contest.problems.exists()
+                        if not has_local_data:
+                            self.stdout.write(self.style.WARNING(f"    [!] Falha transitória ao obter metadados do Gym {contest_id}. Submissão {sub_id} adiada para o próximo sync."))
+                            had_failures = True
+                            continue
+
+                    # Se for permanentemente indisponível/privado, aplica fallback provisório para não travar o sync
+                    if contest_id in unavailable_gyms:
+                        cont_obj = Contest.objects.filter(platform=PlatformChoices.CF_GYM, platform_id=contest_id).first()
+                        if not cont_obj:
+                            cont_obj = Contest.objects.create(
+                                platform=PlatformChoices.CF_GYM,
+                                platform_id=contest_id,
+                                name=f"Gym {contest_id}",
+                                duration_seconds=0
+                            )
 
                 cont_obj = Contest.objects.filter(platform=platform_type, platform_id=contest_id).first()
 

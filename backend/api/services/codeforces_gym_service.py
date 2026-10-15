@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Optional
 from django.utils import timezone
 from api.models import Contest, Problem, PlatformChoices
-from api.services.codeforces_client import CodeforcesClient
+from api.services.codeforces_client import CodeforcesClient, CFResult, CFErrorType
 
 logger = logging.getLogger(__name__)
 
@@ -13,38 +13,53 @@ logger = logging.getLogger(__name__)
 class GymSyncResult:
     """
     Estrutura de resultado da sincronização de metadados e catálogo de um Gym.
-    Contém a instância de Contest e contadores precisos de criação e atualização.
+    Contém a instância de Contest, contadores precisos e status do erro caso haja falha.
     Implementa __bool__ para permitir verificações idiomáticas 'if result:'.
     """
     contest: Optional[Contest]
     contest_created: bool = False
     problems_created: int = 0
     problems_updated: int = 0
+    error_type: CFErrorType = CFErrorType.NONE
+    error_message: str = ""
+
+    @property
+    def is_success(self) -> bool:
+        return self.contest is not None and self.error_type == CFErrorType.NONE
+
+    @property
+    def is_permanent_failure(self) -> bool:
+        return self.error_type == CFErrorType.PERMANENT
+
+    @property
+    def is_transient_failure(self) -> bool:
+        return self.error_type == CFErrorType.TRANSIENT
 
     def __bool__(self) -> bool:
         return self.contest is not None
 
 
-def ensure_codeforces_gym_metadata(contest_id: str, client: Optional[CodeforcesClient] = None) -> Optional[GymSyncResult]:
+def ensure_codeforces_gym_metadata(contest_id: str, client: Optional[CodeforcesClient] = None) -> GymSyncResult:
     """
     Garante os metadados e o catálogo de problemas completo de um Codeforces Gym.
-    Localiza o contest por (platform, platform_id), cria ou atualiza os metadados existentes,
+    Localiza o contest canônico por (platform, platform_id), cria ou atualiza os metadados existentes,
     e cria ou atualiza o catálogo de problemas retornado pela API oficial do Codeforces.
-    Retorna GymSyncResult com métricas confiáveis ou None em caso de falha de obtenção.
+    Protegido contra MultipleObjectsReturned caso existam registros duplicados no banco.
     """
     if client is None:
         client = CodeforcesClient(timeout=30)
 
     try:
-        data = client.get_gym_standings(str(contest_id))
+        cf_res = client.get_gym_standings_result(str(contest_id))
     except Exception as e:
         logger.exception("Erro ao consultar dados do Gym %s: %s", contest_id, e)
-        return None
+        return GymSyncResult(contest=None, error_type=CFErrorType.TRANSIENT, error_message=str(e))
 
-    if not data:
-        logger.warning("Não foi possível obter dados para o Gym %s (pode ser privado ou inexistente).", contest_id)
-        return None
+    if not cf_res.is_success:
+        logger.warning("Não foi possível obter dados para o Gym %s (tipo: %s, msg: %s).", contest_id, cf_res.error_type, cf_res.error_message)
+        return GymSyncResult(contest=None, error_type=cf_res.error_type, error_message=cf_res.error_message)
 
+    data = cf_res.data
     cf_contest = data.get('contest', {})
     cf_problems = data.get('problems', [])
 
@@ -56,15 +71,29 @@ def ensure_codeforces_gym_metadata(contest_id: str, client: Optional[CodeforcesC
     if start_epoch:
         start_time = datetime.fromtimestamp(start_epoch, tz=timezone.UTC)
 
-    contest, contest_created = Contest.objects.update_or_create(
+    # Localização determinística para evitar quebras por MultipleObjectsReturned caso haja duplicidades históricas
+    existing_contests = Contest.objects.filter(
         platform=PlatformChoices.CF_GYM,
-        platform_id=str(contest_id),
-        defaults={
-            'name': name,
-            'start_time': start_time,
-            'duration_seconds': duration,
-        }
-    )
+        platform_id=str(contest_id)
+    ).order_by('-duration_seconds', '-id')
+
+    contest = existing_contests.first()
+    contest_created = False
+
+    if contest:
+        contest.name = name
+        contest.start_time = start_time
+        contest.duration_seconds = duration
+        contest.save()
+    else:
+        contest = Contest.objects.create(
+            platform=PlatformChoices.CF_GYM,
+            platform_id=str(contest_id),
+            name=name,
+            start_time=start_time,
+            duration_seconds=duration,
+        )
+        contest_created = True
 
     problems_created = 0
     problems_updated = 0
@@ -75,26 +104,40 @@ def ensure_codeforces_gym_metadata(contest_id: str, client: Optional[CodeforcesC
         prob_name = p.get('name', '')
         title = f"{index}. {prob_name}" if prob_name else problem_id
 
-        _, p_created = Problem.objects.update_or_create(
+        existing_probs = Problem.objects.filter(
             platform=PlatformChoices.CF_GYM,
-            platform_id=problem_id,
-            defaults={
-                'title': title,
-                'contest': contest,
-                'platform_metadata': {
-                    'rating': p.get('rating'),
-                    'tags': p.get('tags', []),
-                }
-            }
-        )
-        if p_created:
-            problems_created += 1
-        else:
+            platform_id=problem_id
+        ).order_by('-id')
+        problem = existing_probs.first()
+
+        metadata = {
+            'rating': p.get('rating'),
+            'tags': p.get('tags', []),
+        }
+
+        if problem:
+            problem.title = title
+            problem.contest = contest
+            current_meta = dict(problem.platform_metadata or {})
+            current_meta['rating'] = metadata['rating'] if metadata['rating'] is not None else current_meta.get('rating')
+            current_meta['tags'] = metadata['tags'] if metadata['tags'] else current_meta.get('tags', [])
+            problem.platform_metadata = current_meta
+            problem.save()
             problems_updated += 1
+        else:
+            Problem.objects.create(
+                platform=PlatformChoices.CF_GYM,
+                platform_id=problem_id,
+                title=title,
+                contest=contest,
+                platform_metadata=metadata
+            )
+            problems_created += 1
 
     return GymSyncResult(
         contest=contest,
         contest_created=contest_created,
         problems_created=problems_created,
         problems_updated=problems_updated,
+        error_type=CFErrorType.NONE
     )

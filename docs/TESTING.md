@@ -159,6 +159,18 @@ Resultado esperado:
 3. **REFACTOR**: Refatorar o código mantendo os testes passando.
 4. **Validação**: Executar o teste direcionado e em seguida a suíte completa.
 
+### 12.1. Tratamento de Bugs de Produção e Migrations
+
+Ao investigar e corrigir anomalias ou inconsistências de dados originadas em produção:
+
+1. **Reprodução Inicial em RED**: Antes de qualquer alteração de código ou schema, reproduza o bug por meio de um teste automatizado RED isolado e registre a evidência da falha.
+2. **Correção Mínima em GREEN**: Implemente estritamente o reparo necessário para fazer o teste passar.
+3. **Testes de Regressão**: Mantenha o teste de reprodução na suíte como proteção permanente contra regressões.
+4. **Data Migrations com `MigrationExecutor`**: Migrations que alteram, consolidam ou removem registros existentes devem possuir testes que executam a transição real de schema (`migrate_from` -> `migrate_to`) usando `django.db.migrations.executor.MigrationExecutor`. Não basta testar o estado pós-migration.
+5. **Auditoria Prévia Obrigatória**: Novas constraints (`UniqueConstraint`, `CheckConstraint`) só devem ser criadas após auditoria minuciosa em modo somente leitura (`read-only`) dos dados existentes.
+6. **Estratégia Fail-Closed**: Toda migration de saneamento de dados deve abortar com erro explícito (`raise RuntimeError`) se encontrar registros inesperados ou ambíguos. Nunca tome decisões destrutivas silenciosas em dados de usuários.
+7. **Isolamento Absoluto**: Nenhum comando de teste ou migration de teste deve conectar ou ser executado diretamente contra o Supabase ou o banco de produção. Todo teste roda contra o banco SQLite em memória (`core.settings_test`).
+
 ---
 
 ## 13. Comandos Úteis

@@ -3,12 +3,104 @@ import time
 import hashlib
 import secrets
 import os
+import re
+import logging
+from enum import Enum
+from dataclasses import dataclass
 from typing import List, Dict, Any, Optional
+from urllib.parse import urlsplit, parse_qsl, urlencode, urlunsplit
+
+logger = logging.getLogger(__name__)
+
+
+def sanitize_sensitive_url(url_or_message: str) -> str:
+    """
+    Substitui os valores dos query params sensíveis (apiKey, apiSig, secret)
+    por '[REDACTED]' para evitar vazamento em logs ou rastros de erro.
+    """
+    if not url_or_message:
+        return ""
+
+    # 1. Regex de substituição nos query params conhecidos
+    pattern = r'((?:apiKey|apiSig|secret)=)[^&\s]+'
+    sanitized = re.sub(pattern, r'\1[REDACTED]', str(url_or_message), flags=re.IGNORECASE)
+    return sanitized
+
+
+class CFErrorType(str, Enum):
+    NONE = "NONE"
+    PERMANENT = "PERMANENT"
+    TRANSIENT = "TRANSIENT"
+
+
+@dataclass
+class CFResult:
+    """
+    Representação tipada do retorno de consultas à API do Codeforces.
+    Permite aos serviços distinguir facilmente sucessos, erros permanentes
+    (como Gym privado ou 400 Bad Request) e falhas transitórias (como 5xx e Timeout).
+    """
+    data: Optional[Any] = None
+    status_code: Optional[int] = None
+    error_type: CFErrorType = CFErrorType.NONE
+    error_message: str = ""
+
+    @property
+    def is_success(self) -> bool:
+        return self.error_type == CFErrorType.NONE and self.data is not None
+
+    @property
+    def is_permanent(self) -> bool:
+        return self.error_type == CFErrorType.PERMANENT
+
+    @property
+    def is_transient(self) -> bool:
+        return self.error_type == CFErrorType.TRANSIENT
+
+    def __bool__(self) -> bool:
+        return self.is_success
+
+
+def _classify_error_comment(comment: str, status_code: Optional[int] = None) -> CFErrorType:
+    """
+    Centraliza a classificação de mensagens e status de erro da API do Codeforces.
+    Categorias:
+    - PERMANENT: contest privado ou inexistente ('not visible', 'not found', 'wrong contest id', status 403, 404).
+    - TRANSIENT: rate limit, falhas de autenticação/assinatura (erro de config/tempo), falhas 5xx, timeouts
+                 ou qualquer erro desconhecido (para evitar fallback precoce ou avanço incorreto de watermark).
+    """
+    comment_lower = (comment or "").lower()
+
+    # 1. Rate limit (pode vir como 429, 400 ou em JSON com 200) -> TRANSIENT
+    if any(term in comment_lower for term in ["limit exceeded", "rate limit", "too many requests"]):
+        return CFErrorType.TRANSIENT
+
+    # 2. Erros de autenticação, chaves ou dessincronização de horário -> TRANSIENT (não criar fallback de contest)
+    if any(term in comment_lower for term in [
+        "invalid api key", "wrong apisig", "incorrect signature", "time is out of sync", "invalid time",
+        "apikey", "apisig"
+    ]) and not any(perm in comment_lower for perm in ["is not visible", "contest not found", "wrong contest id"]):
+        return CFErrorType.TRANSIENT
+
+    # 3. Contest privado ou inexistente -> PERMANENT
+    if any(term in comment_lower for term in [
+        "is not visible", "not found", "contest not found", "wrong contest id", "no such contest", "handle not found"
+    ]) or status_code in [403, 404]:
+        return CFErrorType.PERMANENT
+
+    # 4. Falhas transitórias explícitas de infraestrutura
+    if status_code in [429, 500, 502, 503, 504]:
+        return CFErrorType.TRANSIENT
+
+    # 5. Erros desconhecidos/genéricos -> TRANSIENT (conservador: não cria fallback e retém watermark)
+    return CFErrorType.TRANSIENT
+
 
 class CodeforcesClient:
     """
     Cliente HTTP isolado para consumir a API oficial do Codeforces.
     Suporta autenticação automática via SHA-512 se CF_API_KEY for definida.
+    Garante sanitização total de logs e tipagem de falhas (permanente vs transitória).
     """
     BASE_URL = "https://codeforces.com/api"
 
@@ -19,11 +111,13 @@ class CodeforcesClient:
         self.api_key = api_key if api_key is not None else os.environ.get('CF_API_KEY')
         self.api_secret = api_secret if api_secret is not None else os.environ.get('CF_API_SECRET')
 
-    def _make_request(self, endpoint: str, params: dict = None) -> Any:
+    def _make_request_result(self, endpoint: str, params: dict = None) -> CFResult:
         url = f"{self.BASE_URL}/{endpoint}"
         
         if params is None:
             params = {}
+        else:
+            params = dict(params)
             
         if self.api_key and self.api_secret:
             params['apiKey'] = self.api_key
@@ -46,14 +140,44 @@ class CodeforcesClient:
             response.raise_for_status()
             data = response.json()
             if data.get('status') == 'OK':
-                time.sleep(self.sleep_time)  
-                return data.get('result')
+                time.sleep(self.sleep_time)
+                return CFResult(data=data.get('result'), status_code=response.status_code, error_type=CFErrorType.NONE)
             else:
-                print(f"[CodeforcesClient] O endpoint {endpoint} retornou Failed: {data.get('comment')}")
-                return None
+                comment = data.get('comment', '')
+                sanitized_comment = sanitize_sensitive_url(comment)
+                print(f"[CodeforcesClient] O endpoint {endpoint} retornou Failed: {sanitized_comment}")
+
+                err_type = _classify_error_comment(comment, status_code=response.status_code)
+                return CFResult(status_code=response.status_code, error_type=err_type, error_message=sanitized_comment)
+
+        except requests.HTTPError as e:
+            status = e.response.status_code if e.response is not None else None
+            sanitized_err = sanitize_sensitive_url(str(e))
+
+            # Tenta extrair comment do JSON de erro da API do Codeforces
+            comment = ""
+            if e.response is not None:
+                try:
+                    err_json = e.response.json()
+                    comment = err_json.get('comment', '')
+                except Exception:
+                    comment = e.response.text or ""
+
+            sanitized_comment = sanitize_sensitive_url(comment)
+            log_detail = f"{sanitized_err} | comment: {sanitized_comment}" if sanitized_comment else sanitized_err
+            print(f"[CodeforcesClient] Erro de rede ou timeout acessando {endpoint}: {log_detail}")
+
+            err_type = _classify_error_comment(comment, status_code=status)
+            return CFResult(status_code=status, error_type=err_type, error_message=sanitized_comment or sanitized_err)
+
         except requests.RequestException as e:
-            print(f"[CodeforcesClient] Erro de rede ou timeout acessando {endpoint}: {e}")
-            return None
+            sanitized_err = sanitize_sensitive_url(str(e))
+            print(f"[CodeforcesClient] Erro de rede ou timeout acessando {endpoint}: {sanitized_err}")
+            return CFResult(status_code=None, error_type=CFErrorType.TRANSIENT, error_message=sanitized_err)
+
+    def _make_request(self, endpoint: str, params: dict = None) -> Any:
+        res = self._make_request_result(endpoint, params=params)
+        return res.data
 
     def get_contests(self) -> List[Dict[str, Any]]:
         """ Retorna uma lista com metadata de todos os contests """
@@ -73,9 +197,12 @@ class CodeforcesClient:
         result = self._make_request("user.status", params)
         return result if result else []
 
+    def get_gym_standings_result(self, contest_id: str) -> CFResult:
+        """Retorna CFResult com metadados e catálogo do Gym ou classificação do erro."""
+        params = {"contestId": contest_id, "from": 1, "count": 1, "showUnofficial": True}
+        return self._make_request_result("contest.standings", params)
+
     def get_gym_standings(self, contest_id: str) -> Optional[Dict[str, Any]]:
         """Retorna metadata do Gym contest E a lista de todos os seus problemas."""
-        params = {"contestId": contest_id, "from": 1, "count": 1, "showUnofficial": True}
-        result = self._make_request("contest.standings", params)
-        return result
-
+        res = self.get_gym_standings_result(contest_id)
+        return res.data

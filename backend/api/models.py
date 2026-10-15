@@ -38,6 +38,14 @@ class Contest(models.Model):
     start_time = models.DateTimeField(null=True, blank=True)
     duration_seconds = models.IntegerField(null=True, blank=True)
 
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['platform', 'platform_id'],
+                name='unique_contest_platform_and_id'
+            )
+        ]
+
     def __str__(self):
         return f"[{self.get_platform_display()}] {self.name}"
 
@@ -95,7 +103,20 @@ class ContestParticipation(models.Model):
     rank = models.IntegerField(null=True, blank=True, help_text="Ranking final do usuário/equipe")
     #TODO futuro pós mvp: add possibilidade de usuario adicionar novos contest (ex; atcoder)  a contest participation
 
-    
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user', 'contest'],
+                condition=models.Q(user__isnull=False),
+                name='unique_user_contest_participation'
+            ),
+            models.UniqueConstraint(
+                fields=['team', 'contest'],
+                condition=models.Q(team__isnull=False),
+                name='unique_team_contest_participation'
+            ),
+        ]
+
     def __str__(self):
         participant = self.team.name if self.team else self.user.username
         return f"{participant} in {self.contest.name}"

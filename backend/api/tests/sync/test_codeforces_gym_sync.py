@@ -400,12 +400,12 @@ def test_sync_cf_gym_metadata_failure_preserves_watermark():
         status=200
     )
 
-    # Falha na API do Codeforces ao buscar contest.standings
+    # Falha transitória na API do Codeforces ao buscar contest.standings (ex: 500 Internal Server Error)
     responses.add(
         responses.GET,
         'https://codeforces.com/api/contest.standings',
-        json={'status': 'FAILED', 'comment': 'Contest is not visible'},
-        status=200
+        status=500,
+        body="Internal Server Error"
     )
 
     call_command('sync_cf')
@@ -533,3 +533,227 @@ def test_sync_cf_submission_preserves_catalog_metadata_rating_and_tags():
     prob_a = Problem.objects.get(platform=PlatformChoices.CF_GYM, platform_id="106682A")
     assert prob_a.platform_metadata.get('rating') == 1600, "Rating do catálogo foi apagado pelo sync da submissão!"
     assert prob_a.platform_metadata.get('tags') == ['dp', 'greedy'], "Tags do catálogo foram apagadas pelo sync da submissão!"
+
+
+@pytest.mark.django_db
+@responses.activate
+def test_sync_cf_attempts_gym_only_once_per_run_even_with_multiple_submissions():
+    """
+    Parte 2: Uma tentativa por Gym em cada execução.
+    Dado um histórico com múltiplas submissões apontando para o mesmo Gym inacessível (ex: HTTP 400).
+    Esperado:
+    - contest.standings é chamado exatamente UMA vez para aquele Gym;
+    - as submissões seguintes daquele mesmo Gym não repetem a chamada à API;
+    - outro Gym acessível ainda pode ser consultado normalmente.
+    """
+    user = User.objects.create(username="repeat_user", cf_handle="repeat_handle")
+
+    # Três submissões do Gym inacessível 109999 e uma do Gym acessível 106682
+    responses.add(
+        responses.GET,
+        'https://codeforces.com/api/user.status',
+        json={
+            'status': 'OK',
+            'result': [
+                {
+                    'id': 101,
+                    'verdict': 'OK',
+                    'creationTimeSeconds': 1760003000,
+                    'problem': {'contestId': 106682, 'index': 'A', 'name': 'Accessible A'},
+                    'author': {'participantType': 'CONTESTANT'}
+                },
+                {
+                    'id': 102,
+                    'verdict': 'OK',
+                    'creationTimeSeconds': 1760002000,
+                    'problem': {'contestId': 109999, 'index': 'B', 'name': 'Private B'},
+                    'author': {'participantType': 'CONTESTANT'}
+                },
+                {
+                    'id': 103,
+                    'verdict': 'WRONG_ANSWER',
+                    'creationTimeSeconds': 1760001500,
+                    'problem': {'contestId': 109999, 'index': 'A', 'name': 'Private A'},
+                    'author': {'participantType': 'CONTESTANT'}
+                },
+                {
+                    'id': 104,
+                    'verdict': 'OK',
+                    'creationTimeSeconds': 1760001000,
+                    'problem': {'contestId': 109999, 'index': 'A', 'name': 'Private A'},
+                    'author': {'participantType': 'CONTESTANT'}
+                },
+            ]
+        },
+        status=200
+    )
+    responses.add(
+        responses.GET,
+        'https://codeforces.com/api/user.status',
+        json={'status': 'OK', 'result': []},
+        status=200
+    )
+
+    # Mock do Gym 109999 inacessível (HTTP 400)
+    responses.add(
+        responses.GET,
+        'https://codeforces.com/api/contest.standings',
+        status=400,
+        body="Contest is not visible"
+    )
+
+    # Mock do Gym 106682 acessível
+    responses.add(
+        responses.GET,
+        'https://codeforces.com/api/contest.standings',
+        json=create_gym_standings_mock(contest_id="106682"),
+        status=200
+    )
+
+    call_command('sync_cf', force_full=True)
+
+    # Verifica quantas chamadas foram feitas para contest.standings
+    standings_calls = [c for c in responses.calls if "contest.standings" in c.request.url]
+    calls_109999 = [c for c in standings_calls if "contestId=109999" in c.request.url]
+    calls_106682 = [c for c in standings_calls if "contestId=106682" in c.request.url]
+
+    assert len(calls_109999) == 1, f"O Gym inacessível foi chamado {len(calls_109999)} vezes! Deveria ter sido chamado exatamente 1 vez."
+    assert len(calls_106682) == 1, "O Gym acessível deveria ter sido chamado normalmente uma vez."
+
+
+@pytest.mark.django_db
+@responses.activate
+def test_sync_cf_transient_failure_retains_watermark():
+    """
+    Parte 3: Falha transitória (timeout/5xx) retém o watermark.
+    Não há dados locais para o Gym e a API retorna erro 500 (transitório).
+    A submissão não deve ser consumida definitivamente e o watermark deve ser retido.
+    """
+    user = User.objects.create(username="transient_user", cf_handle="transient_handle", cf_last_sync_time=1000)
+
+    responses.add(
+        responses.GET,
+        'https://codeforces.com/api/user.status',
+        json={
+            'status': 'OK',
+            'result': [
+                {
+                    'id': 201,
+                    'verdict': 'OK',
+                    'creationTimeSeconds': 1500,
+                    'problem': {'contestId': 105555, 'index': 'A', 'name': 'Problem A'},
+                    'author': {'participantType': 'CONTESTANT'}
+                }
+            ]
+        },
+        status=200
+    )
+    responses.add(
+        responses.GET,
+        'https://codeforces.com/api/user.status',
+        json={'status': 'OK', 'result': []},
+        status=200
+    )
+
+    # Erro transitório 500
+    responses.add(
+        responses.GET,
+        'https://codeforces.com/api/contest.standings',
+        status=500,
+        body="Internal Server Error"
+    )
+
+    call_command('sync_cf')
+
+    user.refresh_from_db()
+    assert user.cf_last_sync_time == 1000, "O watermark avançou indevidamente após falha transitória (500)!"
+
+
+@pytest.mark.django_db
+@responses.activate
+def test_sync_cf_private_gym_permanent_failure_fallback_and_dashboard_integration(api_client):
+    """
+    Parte 4: Fallback para Gym privado / permanentemente indisponível.
+    Quando user.status comprova submissões em um Gym privado (HTTP 400):
+    - Cria Contest provisório '(CF_GYM, 107777)' com nome 'Gym 107777';
+    - Cria apenas os problemas conhecidos pelas submissões (ex: A e B);
+    - Salva Submission;
+    - Cria ContestParticipation (CONTESTANT);
+    - Cria UserProblemTracking correspondente;
+    - Não congela o watermark (permite avanço já que o erro é permanente);
+    - O Gym aparece no endpoint /api/contests com catálogo parcial.
+    """
+    user = User.objects.get(username="mentor")
+    user.cf_handle = "private_gym_user"
+    user.cf_last_sync_time = 1000
+    user.save()
+
+    responses.add(
+        responses.GET,
+        'https://codeforces.com/api/user.status',
+        json={
+            'status': 'OK',
+            'result': [
+                {
+                    'id': 302,
+                    'verdict': 'OK',
+                    'creationTimeSeconds': 2000,
+                    'problem': {'contestId': 107777, 'index': 'B', 'name': 'Known Prob B'},
+                    'author': {'participantType': 'CONTESTANT'}
+                },
+                {
+                    'id': 301,
+                    'verdict': 'WRONG_ANSWER',
+                    'creationTimeSeconds': 1500,
+                    'problem': {'contestId': 107777, 'index': 'A', 'name': 'Known Prob A'},
+                    'author': {'participantType': 'CONTESTANT'}
+                }
+            ]
+        },
+        status=200
+    )
+    responses.add(
+        responses.GET,
+        'https://codeforces.com/api/user.status',
+        json={'status': 'OK', 'result': []},
+        status=200
+    )
+
+    # HTTP 400 permanente (Gym privado/não visível)
+    responses.add(
+        responses.GET,
+        'https://codeforces.com/api/contest.standings',
+        status=400,
+        body="Contest is not visible"
+    )
+
+    call_command('sync_cf')
+
+    user.refresh_from_db()
+    # 1. O watermark pôde avançar para 2000 (não congelou para sempre por causa de erro permanente)
+    assert user.cf_last_sync_time == 2000
+
+    # 2. Contest provisório foi criado com nome previsível
+    contest = Contest.objects.get(platform=PlatformChoices.CF_GYM, platform_id="107777")
+    assert contest.name == "Gym 107777"
+
+    # 3. Apenas os problemas conhecidos (A e B) foram criados (não inventou outros)
+    problems = Problem.objects.filter(contest=contest)
+    assert set(problems.values_list('platform_id', flat=True)) == {"107777A", "107777B"}
+
+    # 4. Participação foi registrada
+    assert ContestParticipation.objects.filter(user=user, contest=contest).exists()
+
+    # 5. Trackings foram criados
+    assert UserProblemTracking.objects.filter(user=user, problem__platform_id="107777B", system_status=UserProblemTracking.SystemStatus.SOLVED_LIVE).exists()
+    assert UserProblemTracking.objects.filter(user=user, problem__platform_id="107777A", system_status=UserProblemTracking.SystemStatus.PENDING_UPSOLVE).exists()
+
+    # 6. Aparece em /api/contests
+    resp = api_client.get("/api/contests")
+    assert resp.status_code == 200
+    data = resp.json()
+    item = next((c for c in data if c["contest_name"] == "Gym 107777"), None)
+    assert item is not None
+    assert item["progress"]["total"] == 2
+    assert item["progress"]["solved_live"] == 1
+    assert item["progress"]["pending_upsolve"] == 1
