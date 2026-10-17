@@ -748,12 +748,24 @@ def test_sync_cf_private_gym_permanent_failure_fallback_and_dashboard_integratio
     assert UserProblemTracking.objects.filter(user=user, problem__platform_id="107777B", system_status=UserProblemTracking.SystemStatus.SOLVED_LIVE).exists()
     assert UserProblemTracking.objects.filter(user=user, problem__platform_id="107777A", system_status=UserProblemTracking.SystemStatus.PENDING_UPSOLVE).exists()
 
-    # 6. Aparece em /api/contests
+    # 6. Opção B: O Gym provisório/privado é salvo no banco, mas omitido da listagem em /api/contests
+    # Criamos também um Gym público completo para comprovar que ele continua aparecendo normalmente
+    public_contest = Contest.objects.create(
+        platform=PlatformChoices.CF_GYM,
+        platform_id="106682",
+        name="2026 Argentinian Programming Tournament (TAP)",
+        duration_seconds=18000
+    )
+    ContestParticipation.objects.create(user=user, contest=public_contest)
+
     resp = api_client.get("/api/contests")
     assert resp.status_code == 200
     data = resp.json()
-    item = next((c for c in data if c["contest_name"] == "Gym 107777"), None)
-    assert item is not None
-    assert item["progress"]["total"] == 2
-    assert item["progress"]["solved_live"] == 1
-    assert item["progress"]["pending_upsolve"] == 1
+
+    # O Gym provisório com nome "Gym 107777" NÃO deve aparecer na listagem
+    item_private = next((c for c in data if c["contest_name"] == "Gym 107777"), None)
+    assert item_private is None, "Gym privado provisório não deveria aparecer na listagem de /api/contests!"
+
+    # O Gym público com metadados/nome real DEVE aparecer na listagem
+    item_public = next((c for c in data if c["contest_name"] == "2026 Argentinian Programming Tournament (TAP)"), None)
+    assert item_public is not None, "Gym público deveria continuar aparecendo em /api/contests!"

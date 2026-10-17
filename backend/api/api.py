@@ -735,10 +735,16 @@ def list_contest_participations(request):
     """Lista todos os contests que o usuário participou, com progresso dinâmico."""
     user = get_active_user(request)
 
+    from django.db.models import F, Value
+    from django.db.models.functions import Concat
+    from .models import PlatformChoices
+
     participations = list(
         ContestParticipation.objects
         .select_related('contest')
         .filter(user=user)
+        .annotate(provisional_name=Concat(Value('Gym '), F('contest__platform_id')))
+        .exclude(contest__platform=PlatformChoices.CF_GYM, contest__name=F('provisional_name'))
     )
 
     contest_ids = [p.contest_id for p in participations]
