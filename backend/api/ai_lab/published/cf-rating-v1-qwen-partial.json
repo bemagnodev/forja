@@ -1,0 +1,758 @@
+{
+  "comparison": {
+    "bands": [
+      {
+        "compared": 1,
+        "label": "800–1100",
+        "mae": {
+          "baseline-dev-grid100-v2": 800.0,
+          "gemini-35-lite-dev-v1-completed": 700.0,
+          "gpt-oss-120b-dev-v1": 400.0,
+          "qwen38-27b-dev-v1": 900.0
+        },
+        "total": 3
+      },
+      {
+        "compared": 1,
+        "label": "1200–1500",
+        "mae": {
+          "baseline-dev-grid100-v2": 100.0,
+          "gemini-35-lite-dev-v1-completed": 200.0,
+          "gpt-oss-120b-dev-v1": 0.0,
+          "qwen38-27b-dev-v1": 200.0
+        },
+        "total": 3
+      },
+      {
+        "compared": 0,
+        "label": "1600–1900",
+        "mae": {
+          "baseline-dev-grid100-v2": null,
+          "gemini-35-lite-dev-v1-completed": null,
+          "gpt-oss-120b-dev-v1": null,
+          "qwen38-27b-dev-v1": null
+        },
+        "total": 3
+      },
+      {
+        "compared": 0,
+        "label": "2000–2400",
+        "mae": {
+          "baseline-dev-grid100-v2": null,
+          "gemini-35-lite-dev-v1-completed": null,
+          "gpt-oss-120b-dev-v1": null,
+          "qwen38-27b-dev-v1": null
+        },
+        "total": 3
+      }
+    ],
+    "dataset": {
+      "hash": "036d8c489293c70e824d148ae1609ef2a37f1a6184c7f302089a896a6611505c",
+      "seed": 42,
+      "split": "development",
+      "total": 12,
+      "version": "cf-rating-v1"
+    },
+    "id": "cf-rating-v1-qwen-partial",
+    "intersections": {
+      "rating": [
+        "1629B",
+        "1690E"
+      ],
+      "tags": [
+        "1629B"
+      ]
+    },
+    "label": "Qwen · teste parcial por limite de saída",
+    "problems": [
+      {
+        "key": "1629B",
+        "predictions": {
+          "baseline-dev-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "gemini-35-lite-dev-v1-completed": {
+            "rating": 1500,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "greedy",
+              "math",
+              "number theory"
+            ],
+            "tags_status": "valid"
+          },
+          "gpt-oss-120b-dev-v1": {
+            "rating": 1200,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "greedy",
+              "math"
+            ],
+            "tags_status": "valid"
+          },
+          "qwen38-27b-dev-v1": {
+            "rating": 1700,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "constructive algorithms",
+              "greedy",
+              "math"
+            ],
+            "tags_status": "valid"
+          }
+        },
+        "reference": {
+          "rating": 800,
+          "tags": [
+            "greedy",
+            "math",
+            "number theory"
+          ]
+        }
+      },
+      {
+        "key": "1690E",
+        "predictions": {
+          "baseline-dev-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "gemini-35-lite-dev-v1-completed": {
+            "rating": 1300,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "greedy",
+              "sortings"
+            ],
+            "tags_status": "valid"
+          },
+          "gpt-oss-120b-dev-v1": {
+            "rating": 1500,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "invalid_output"
+          },
+          "qwen38-27b-dev-v1": {
+            "rating": 1300,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "binary search",
+              "greedy",
+              "sortings"
+            ],
+            "tags_status": "valid"
+          }
+        },
+        "reference": {
+          "rating": 1500,
+          "tags": [
+            "binary search",
+            "greedy",
+            "math",
+            "two pointers"
+          ]
+        }
+      },
+      {
+        "key": "1941B",
+        "predictions": {
+          "baseline-dev-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "gemini-35-lite-dev-v1-completed": {
+            "rating": 1100,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "greedy",
+              "implementation"
+            ],
+            "tags_status": "valid"
+          },
+          "gpt-oss-120b-dev-v1": {
+            "rating": 1400,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "greedy",
+              "implementation",
+              "math"
+            ],
+            "tags_status": "valid"
+          },
+          "qwen38-27b-dev-v1": {
+            "rating": null,
+            "rating_status": "transport_error",
+            "responded": false,
+            "tags": null,
+            "tags_status": "transport_error"
+          }
+        },
+        "reference": {
+          "rating": 1000,
+          "tags": [
+            "brute force",
+            "dp",
+            "greedy",
+            "math"
+          ]
+        }
+      },
+      {
+        "key": "895B",
+        "predictions": {
+          "baseline-dev-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "gemini-35-lite-dev-v1-completed": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "binary search",
+              "sortings",
+              "two pointers"
+            ],
+            "tags_status": "valid"
+          },
+          "gpt-oss-120b-dev-v1": {
+            "rating": 1500,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "binary search",
+              "implementation",
+              "sortings",
+              "two pointers"
+            ],
+            "tags_status": "valid"
+          },
+          "qwen38-27b-dev-v1": {
+            "rating_status": "pending",
+            "responded": false,
+            "tags_status": "pending"
+          }
+        },
+        "reference": {
+          "rating": 1700,
+          "tags": [
+            "binary search",
+            "math",
+            "sortings",
+            "two pointers"
+          ]
+        }
+      },
+      {
+        "key": "2005D",
+        "predictions": {
+          "baseline-dev-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "gemini-35-lite-dev-v1-completed": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "brute force",
+              "number theory"
+            ],
+            "tags_status": "valid"
+          },
+          "gpt-oss-120b-dev-v1": {
+            "rating": 1400,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "greedy",
+              "implementation",
+              "math"
+            ],
+            "tags_status": "valid"
+          },
+          "qwen38-27b-dev-v1": {
+            "rating_status": "pending",
+            "responded": false,
+            "tags_status": "pending"
+          }
+        },
+        "reference": {
+          "rating": 2400,
+          "tags": [
+            "binary search",
+            "brute force",
+            "data structures",
+            "divide and conquer",
+            "implementation",
+            "number theory"
+          ]
+        }
+      },
+      {
+        "key": "520A",
+        "predictions": {
+          "baseline-dev-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "gemini-35-lite-dev-v1-completed": {
+            "rating": 800,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "implementation",
+              "strings"
+            ],
+            "tags_status": "valid"
+          },
+          "gpt-oss-120b-dev-v1": {
+            "rating": 800,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "implementation",
+              "strings"
+            ],
+            "tags_status": "valid"
+          },
+          "qwen38-27b-dev-v1": {
+            "rating_status": "pending",
+            "responded": false,
+            "tags_status": "pending"
+          }
+        },
+        "reference": {
+          "rating": 800,
+          "tags": [
+            "implementation",
+            "strings"
+          ]
+        }
+      },
+      {
+        "key": "573A",
+        "predictions": {
+          "baseline-dev-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "gemini-35-lite-dev-v1-completed": {
+            "rating": 1000,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "greedy",
+              "implementation",
+              "number theory"
+            ],
+            "tags_status": "valid"
+          },
+          "gpt-oss-120b-dev-v1": {
+            "rating": 900,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "implementation",
+              "math"
+            ],
+            "tags_status": "valid"
+          },
+          "qwen38-27b-dev-v1": {
+            "rating_status": "pending",
+            "responded": false,
+            "tags_status": "pending"
+          }
+        },
+        "reference": {
+          "rating": 1300,
+          "tags": [
+            "implementation",
+            "math",
+            "number theory"
+          ]
+        }
+      },
+      {
+        "key": "1849E",
+        "predictions": {
+          "baseline-dev-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "gemini-35-lite-dev-v1-completed": {
+            "rating": 1300,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "combinatorics",
+              "data structures",
+              "divide and conquer"
+            ],
+            "tags_status": "valid"
+          },
+          "gpt-oss-120b-dev-v1": {
+            "rating": 1500,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "data structures",
+              "divide and conquer"
+            ],
+            "tags_status": "valid"
+          },
+          "qwen38-27b-dev-v1": {
+            "rating_status": "pending",
+            "responded": false,
+            "tags_status": "pending"
+          }
+        },
+        "reference": {
+          "rating": 2300,
+          "tags": [
+            "binary search",
+            "data structures",
+            "divide and conquer",
+            "dp",
+            "dsu",
+            "two pointers"
+          ]
+        }
+      },
+      {
+        "key": "1270B",
+        "predictions": {
+          "baseline-dev-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "gemini-35-lite-dev-v1-completed": {
+            "rating": 1000,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "constructive algorithms",
+              "greedy"
+            ],
+            "tags_status": "valid"
+          },
+          "gpt-oss-120b-dev-v1": {
+            "rating": 1200,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "greedy",
+              "implementation",
+              "two pointers"
+            ],
+            "tags_status": "valid"
+          },
+          "qwen38-27b-dev-v1": {
+            "rating_status": "pending",
+            "responded": false,
+            "tags_status": "pending"
+          }
+        },
+        "reference": {
+          "rating": 1200,
+          "tags": [
+            "constructive algorithms",
+            "greedy",
+            "math"
+          ]
+        }
+      },
+      {
+        "key": "1537D",
+        "predictions": {
+          "baseline-dev-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "gemini-35-lite-dev-v1-completed": {
+            "rating": 1300,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "games",
+              "math",
+              "number theory"
+            ],
+            "tags_status": "valid"
+          },
+          "gpt-oss-120b-dev-v1": {
+            "rating": 1500,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "games",
+              "math",
+              "number theory"
+            ],
+            "tags_status": "valid"
+          },
+          "qwen38-27b-dev-v1": {
+            "rating_status": "pending",
+            "responded": false,
+            "tags_status": "pending"
+          }
+        },
+        "reference": {
+          "rating": 1700,
+          "tags": [
+            "games",
+            "math",
+            "number theory"
+          ]
+        }
+      },
+      {
+        "key": "106C",
+        "predictions": {
+          "baseline-dev-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "gemini-35-lite-dev-v1-completed": {
+            "rating": 1100,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "brute force",
+              "greedy",
+              "implementation"
+            ],
+            "tags_status": "valid"
+          },
+          "gpt-oss-120b-dev-v1": {
+            "rating": 1500,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "dp",
+              "greedy",
+              "implementation"
+            ],
+            "tags_status": "valid"
+          },
+          "qwen38-27b-dev-v1": {
+            "rating_status": "pending",
+            "responded": false,
+            "tags_status": "pending"
+          }
+        },
+        "reference": {
+          "rating": 1700,
+          "tags": [
+            "dp"
+          ]
+        }
+      },
+      {
+        "key": "1620G",
+        "predictions": {
+          "baseline-dev-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "gemini-35-lite-dev-v1-completed": {
+            "rating": 2200,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "bitmasks",
+              "combinatorics",
+              "dp"
+            ],
+            "tags_status": "valid"
+          },
+          "gpt-oss-120b-dev-v1": {
+            "rating": 2000,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "bitmasks",
+              "combinatorics",
+              "dp",
+              "strings"
+            ],
+            "tags_status": "valid"
+          },
+          "qwen38-27b-dev-v1": {
+            "rating_status": "pending",
+            "responded": false,
+            "tags_status": "pending"
+          }
+        },
+        "reference": {
+          "rating": 2400,
+          "tags": [
+            "bitmasks",
+            "combinatorics",
+            "dp"
+          ]
+        }
+      }
+    ],
+    "prompt": {
+      "hash": "5576561769e942d91809d84b8f5f302d3e675bf382be34c83ac6ffa8a9a5bb59"
+    },
+    "runs": [
+      {
+        "generation_attempts": 0,
+        "historical_failures": {},
+        "id": "baseline-dev-grid100-v2",
+        "label": "Baseline · mediana",
+        "metrics": {
+          "latency_median": 0.0,
+          "mae": 450.0,
+          "pending": 0,
+          "rating_coverage": 1.0,
+          "rating_failure_rate": 0.0,
+          "rating_failures": {},
+          "rating_valid": 12,
+          "responded": 12,
+          "tags_coverage": null,
+          "tags_failure_rate": null,
+          "tags_failures": {},
+          "tags_micro_f1": null,
+          "tags_valid": null,
+          "within_200": 0.5
+        },
+        "model": "development-median-grid100-half-up-v2",
+        "provider": "baseline"
+      },
+      {
+        "generation_attempts": 14,
+        "historical_failures": {
+          "authentication": 2
+        },
+        "id": "gemini-35-lite-dev-v1-completed",
+        "label": "Gemini 3.5 Flash-Lite",
+        "metrics": {
+          "latency_median": 1.2106543499994586,
+          "mae": 450.0,
+          "pending": 0,
+          "rating_coverage": 1.0,
+          "rating_failure_rate": 0.0,
+          "rating_failures": {},
+          "rating_valid": 12,
+          "responded": 12,
+          "tags_coverage": 1.0,
+          "tags_failure_rate": 0.0,
+          "tags_failures": {},
+          "tags_micro_f1": 1.0,
+          "tags_valid": 12,
+          "within_200": 0.5
+        },
+        "model": "gemini-3.5-flash-lite",
+        "provider": "gemini"
+      },
+      {
+        "generation_attempts": 12,
+        "historical_failures": {},
+        "id": "gpt-oss-120b-dev-v1",
+        "label": "GPT-OSS 120B",
+        "metrics": {
+          "latency_median": 0.8739975999978924,
+          "mae": 200.0,
+          "pending": 0,
+          "rating_coverage": 1.0,
+          "rating_failure_rate": 0.0,
+          "rating_failures": {},
+          "rating_valid": 12,
+          "responded": 12,
+          "tags_coverage": 0.9166666666666666,
+          "tags_failure_rate": 0.08333333333333333,
+          "tags_failures": {
+            "invalid_output": 1
+          },
+          "tags_micro_f1": 0.8,
+          "tags_valid": 11,
+          "within_200": 0.5
+        },
+        "model": "openai/gpt-oss-120b",
+        "provider": "groq"
+      },
+      {
+        "generation_attempts": 6,
+        "historical_failures": {
+          "rate_limit": 4
+        },
+        "id": "qwen38-27b-dev-v1",
+        "label": "Qwen 3.8 27B (preview)",
+        "metrics": {
+          "latency_median": 3.457752950000213,
+          "mae": 550.0,
+          "pending": 9,
+          "rating_coverage": 0.16666666666666666,
+          "rating_failure_rate": 0.08333333333333333,
+          "rating_failures": {
+            "transport_error": 1
+          },
+          "rating_valid": 2,
+          "responded": 2,
+          "tags_coverage": 0.16666666666666666,
+          "tags_failure_rate": 0.08333333333333333,
+          "tags_failures": {
+            "transport_error": 1
+          },
+          "tags_micro_f1": 0.6666666666666666,
+          "tags_valid": 2,
+          "within_200": 0.5
+        },
+        "model": "qwen/qwen3.8-27b",
+        "provider": "groq"
+      }
+    ],
+    "split": "development",
+    "version": "cf-rating-v1"
+  },
+  "content_hash": "1472dc031f0fb04f3838744ff5b0ffafe95f2b95fa17d935378f091b03c216a1",
+  "schema_version": 1
+}
