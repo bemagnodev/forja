@@ -24,6 +24,39 @@ api = NinjaAPI(
 
 api.add_router("/token", obtain_pair_router, auth=None)
 
+
+# Saved AI Lab experiments: these endpoints never scrape or call a model.
+def _ai_lab_read(reader, *args):
+    from pathlib import Path
+    from django.conf import settings
+    from ninja.errors import HttpError
+
+    root = Path(getattr(settings, "AI_LAB_RESULTS_ROOT", settings.BASE_DIR / "var" / "ai_lab"))
+    try:
+        if not getattr(settings, "AI_LAB_USE_PRIVATE_RESULTS", False):
+            from .ai_lab.results import list_snapshots, read_snapshot
+            root = Path(getattr(settings, "AI_LAB_PUBLISHED_ROOT", Path(__file__).parent / "ai_lab" / "published"))
+            return read_snapshot(root, *args) if args else list_snapshots(root)
+        return reader(root, *args)
+    except (OSError, ValueError, KeyError, TypeError):
+        raise HttpError(503, "Resultados indisponíveis ou incompatíveis") from None
+    except LookupError:
+        raise HttpError(404, "Benchmark não encontrado") from None
+
+
+@api.get("/ai-lab/benchmarks", response=dict)
+def ai_lab_benchmarks(request):
+    from .ai_lab.results import list_benchmarks
+
+    return {"benchmarks": _ai_lab_read(list_benchmarks)}
+
+
+@api.get("/ai-lab/benchmarks/{benchmark_id}", response=dict)
+def ai_lab_benchmark(request, benchmark_id: str):
+    from .ai_lab.results import read_benchmark
+
+    return _ai_lab_read(read_benchmark, benchmark_id)
+
 # === AUTH & CONVITES ===
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.http import urlsafe_base64_decode

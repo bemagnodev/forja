@@ -210,3 +210,6 @@ __marimo__/
 .agents/
 .agent/
 skills-lock.json
+
+# Private AI Lab catalogs, statements, local databases and experiment outputs
+/backend/var/ai_lab/
