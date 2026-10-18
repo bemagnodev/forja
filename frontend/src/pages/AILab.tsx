@@ -11,6 +11,7 @@ import { api } from "@/lib/api";
 import { PlatformIcon } from "@/components/queue/PlatformIcon";
 import { getRatingColor } from "@/lib/ratings";
 import { AxiosError } from "axios";
+import { BenchmarkResults } from "@/components/ai-lab/BenchmarkResults";
 
 // Tipagens locais
 interface ProblemSearchItem {
@@ -36,6 +37,7 @@ const SUPPORTED_MODELS = [
 ];
 
 export function AILab() {
+  const [tab, setTab] = useState<"benchmark" | "explore">("explore");
   const [platform, setPlatform] = useState<string>("CODEFORCES");
   const [model, setModel] = useState<string>("gemini-3.1-flash-lite-preview");
   const [searchQuery, setSearchQuery] = useState("");
@@ -88,7 +90,23 @@ export function AILab() {
       title="AI Playground"
       description="Teste a engine de IA de classificação e avalie acurácia dos modelos."
     >
-      <div className="max-w-6xl w-full space-y-8 pb-12">
+      <div role="tablist" aria-label="AI Playground" className="mb-6 flex gap-2 border-b border-white/10 pb-3">
+        {([['explore', 'Explorar'], ['benchmark', 'Benchmark']] as const).map(([value, label]) =>
+          <button key={value} id={`ai-lab-tab-${value}`} role="tab" aria-selected={tab === value}
+            aria-controls={`ai-lab-panel-${value}`} tabIndex={tab === value ? 0 : -1}
+            onClick={() => setTab(value)} onKeyDown={event => {
+              if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+                const next = tab === "benchmark" ? "explore" : "benchmark";
+                setTab(next); document.getElementById(`ai-lab-tab-${next}`)?.focus();
+              }
+            }}
+            className={`rounded-lg px-4 py-2 text-sm font-medium ${tab === value ? "bg-white/10 text-white" : "text-white/40 hover:text-white/80"}`}>
+            {label}
+          </button>)}
+      </div>
+      {tab === "benchmark" ? <div id="ai-lab-panel-benchmark" role="tabpanel" aria-labelledby="ai-lab-tab-benchmark" className="max-w-6xl pb-12">
+        <BenchmarkResults />
+      </div> : <div id="ai-lab-panel-explore" role="tabpanel" aria-labelledby="ai-lab-tab-explore" className="max-w-6xl w-full space-y-8 pb-12">
         {/* Formulário de Configuração */}
         <div className="bg-white/[0.02] border border-white/[0.06] rounded-2xl p-6 space-y-6">
           <div className="flex items-center gap-2 pb-4 border-b border-white/[0.06]">
@@ -390,7 +408,7 @@ export function AILab() {
             )}
           </div>
         )}
-      </div>
+      </div>}
     </PageLayout>
   );
 }
