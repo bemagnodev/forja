@@ -3,7 +3,7 @@ import { render, screen, within, waitFor, cleanup } from "@testing-library/react
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { api } from "@/lib/api";
-import { BenchmarkResults } from "./BenchmarkResults";
+import { BenchmarkResults, type BenchmarkProblem } from "./BenchmarkResults";
 
 vi.mock("@/lib/api", () => ({ api: { get: vi.fn() } }));
 
@@ -47,6 +47,19 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("Benchmark salvo", () => {
+  it("distingue tags inválidas de uma tarefa não aplicável no detalhe", async () => {
+    const problems: BenchmarkProblem[] = structuredClone(result.problems);
+    const invalid = { ...structuredClone(result), problems };
+    invalid.problems[0].predictions.gemini.tags = null;
+    invalid.problems[0].predictions.gemini.tags_status = "invalid_output";
+    vi.mocked(api.get).mockImplementation(async (url) => ({ data: url === "/ai-lab/benchmarks"
+      ? { benchmarks: [{ id: "pilot", label: "Piloto sintético" }] }
+      : invalid }) as Awaited<ReturnType<typeof api.get>>);
+    mount();
+    await userEvent.setup().click(await screen.findByRole("button", { name: /Oficial 1000, estimado 1100/ }));
+    expect(screen.getByText(/Tags estimadas:/)).toHaveTextContent("saída inválida");
+  });
+
   it("mostra qualidade, cobertura e falhas históricas sem chamar IA", async () => {
     mount();
     const row = await within(await screen.findByRole("table", { name: "Comparação de qualidade e cobertura dos modelos" })).findByRole("row", { name: /Gemini sintético/ });
