@@ -9,6 +9,20 @@ from .catalog import MODELS
 from .dataset import content_hash, require_frozen, validate_version
 from .metrics import compare_runs, compare_by_band
 
+# Explicitly reviewed instructions, not permission to publish arbitrary run config.
+REVIEWED_PROMPTS = {
+    "classification_v1": {
+        "label": "Classificação direta",
+        "description": "Zero-shot: classificação sem exemplos, com instruções diretas.",
+        "hash": "5576561769e942d91809d84b8f5f302d3e675bf382be34c83ac6ffa8a9a5bb59",
+    },
+    "classification_v2": {
+        "label": "Classificação com rubrica",
+        "description": "Rubric prompting: critérios explícitos e referências de dificuldade. Também é zero-shot, sem exemplos.",
+        "hash": "00530909483497aca36c87770e3c85874d7602b2602e3a1212dc8e8980f7515b",
+    },
+}
+
 
 def _identifier(value):
     if not isinstance(value, str) or not re.fullmatch(r"[a-zA-Z0-9_-]{1,64}", value):
@@ -89,7 +103,8 @@ def read_benchmark(root: Path, benchmark_id: str) -> dict:
                 raise ValueError("Prompt hash mismatch")
             prompt_hashes.add(config["prompt_hash"])
         loaded[run_id] = run
-    if len(prompt_hashes) > 1:
+    multiple_prompts = len(prompt_hashes) > 1
+    if multiple_prompts and entry.get("compare_prompts") is not True:
         raise ValueError("Compare one prompt at a time")
     references = {item["key"]: item["reference"] for item in manifest["items"]}
     report = compare_runs(references, {key: run["predictions"] for key, run in loaded.items()})
@@ -101,6 +116,13 @@ def read_benchmark(root: Path, benchmark_id: str) -> dict:
                      "label": "Baseline · mediana" if config["provider"] == "baseline" else MODELS.get(config["model"], {}).get("label", config["model"]),
                      "metrics": report["runs"][run_id], "generation_attempts": attempts,
                      "historical_failures": failures})
+        if config["provider"] != "baseline":
+            runs[-1].update(prompt_hash=config["prompt_hash"], prompt_version=config.get("prompt_version"))
+            strategy = REVIEWED_PROMPTS.get(config.get("prompt_version"))
+            if strategy:
+                runs[-1]["strategy_label"] = strategy["label"]
+            if multiple_prompts:
+                runs[-1]["label"] += " · " + (strategy["label"] if strategy else config.get("prompt_version") or config["prompt_hash"][:8])
     problems = []
     fields = ("rating", "rating_status", "tags", "tags_status", "justification", "responded", "duration", "error")
     for key, reference in references.items():
@@ -110,9 +132,25 @@ def read_benchmark(root: Path, benchmark_id: str) -> dict:
             predictions[run_id] = ({field: prediction.get(field) for field in fields} if prediction else {
                 "rating_status": "pending", "tags_status": "pending", "responded": False})
         problems.append({"key": key, "reference": reference, "predictions": predictions})
-    return {**listing[benchmark_id], "dataset": {"version": version, "split": split,
+    presentation = {}
+    if "selection_note" in entry:
+        if not isinstance(entry["selection_note"], str):
+            raise ValueError("Invalid selection note")
+        presentation["selection_note"] = entry["selection_note"]
+    if entry.get("publish_prompts") is True:
+        prompts = {}
+        for run in loaded.values():
+            config = run["configuration"]
+            if config["provider"] == "baseline":
+                continue
+            reviewed = REVIEWED_PROMPTS.get(config.get("prompt_version"))
+            if reviewed is None or config["prompt_hash"] != reviewed["hash"]:
+                raise ValueError("Publication requires an explicitly reviewed prompt")
+            prompts.setdefault(config["prompt_hash"], {**reviewed, "version": config["prompt_version"], "text": config["prompt"]})
+        presentation["prompts"] = list(prompts.values())
+    return {**listing[benchmark_id], **presentation, "dataset": {"version": version, "split": split,
             "hash": manifest["hash"], "seed": manifest["seed"], "total": len(keys)},
-            "prompt": {"hash": next(iter(prompt_hashes), None)}, "runs": runs, "problems": problems,
+            "prompt": {"hash": next(iter(prompt_hashes), None) if not multiple_prompts else None}, "runs": runs, "problems": problems,
             "bands": compare_by_band(references, {key: run["predictions"] for key, run in loaded.items()}),
             "intersections": {"rating": report["rating_intersection"], "tags": report["tags_intersection"]}}
 
@@ -124,14 +162,14 @@ def _pick(value, fields):
 def export_snapshot(root: Path, benchmark_id: str, output: Path, *, include_justifications=False) -> None:
     """Explicit export, never inference. Review the resulting file before publishing."""
     source = read_benchmark(root, benchmark_id)
-    data = _pick(source, ("id", "label", "version", "split"))
+    data = _pick(source, ("id", "label", "version", "split", "selection_note", "prompts"))
     data["dataset"] = _pick(source["dataset"], ("version", "split", "hash", "seed", "total"))
     data["prompt"] = _pick(source["prompt"], ("hash",))
     data["intersections"] = _pick(source["intersections"], ("rating", "tags"))
     metrics = ("mae", "within_200", "tags_micro_f1", "pending", "responded", "latency_median",
                "rating_valid", "rating_coverage", "rating_failure_rate", "rating_failures",
                "tags_valid", "tags_coverage", "tags_failure_rate", "tags_failures")
-    data["runs"] = [{**_pick(run, ("id", "label", "provider", "model", "generation_attempts", "historical_failures")),
+    data["runs"] = [{**_pick(run, ("id", "label", "provider", "model", "prompt_hash", "prompt_version", "strategy_label", "generation_attempts", "historical_failures")),
                      "metrics": _pick(run["metrics"], metrics)} for run in source["runs"]]
     data["bands"] = [{**_pick(band, ("label", "total", "compared")),
                       "mae": {run["id"]: band["mae"][run["id"]] for run in data["runs"]}}
@@ -151,6 +189,9 @@ def export_snapshot(root: Path, benchmark_id: str, output: Path, *, include_just
 
 def read_snapshot(root: Path, benchmark_id: str) -> dict:
     _identifier(benchmark_id)
+    selected = _published_ids(root)
+    if selected is not None and benchmark_id not in selected:
+        raise LookupError("Benchmark outside published selection")
     if not (root / f"{benchmark_id}.json").exists():
         raise LookupError("Unknown benchmark")
     try:
@@ -165,5 +206,22 @@ def read_snapshot(root: Path, benchmark_id: str) -> dict:
 
 
 def list_snapshots(root: Path) -> list[dict]:
-    return [_pick(read_snapshot(root, path.stem), ("id", "label", "version", "split"))
-            for path in sorted(root.glob("*.json"))]
+    selected = _published_ids(root)
+    if selected is None:  # Legacy snapshot folders remain readable without a manifest.
+        selected = [path.stem for path in sorted(root.glob("*.json"))]
+    return [_pick(read_snapshot(root, identifier), ("id", "label", "version", "split")) for identifier in selected]
+
+
+def _published_ids(root: Path):
+    if not (root / "index.json").exists():
+        return None
+    index = _read(root, "index.json")
+    if not isinstance(index, dict):
+        raise ValueError("Invalid published index")
+    ids = index.get("benchmarks")
+    if not isinstance(ids, list):
+        raise ValueError("Published index must list benchmark identifiers")
+    ids = [_identifier(identifier) for identifier in ids]
+    if len(ids) != len(set(ids)):
+        raise ValueError("Duplicate published benchmark")
+    return ids

@@ -1,0 +1,430 @@
+{
+  "comparison": {
+    "bands": [
+      {
+        "compared": 0,
+        "label": "800–1100",
+        "mae": {
+          "baseline-dev-grid100-v2": null,
+          "gemini38-flash-dev-v1": null
+        },
+        "total": 3
+      },
+      {
+        "compared": 0,
+        "label": "1200–1500",
+        "mae": {
+          "baseline-dev-grid100-v2": null,
+          "gemini38-flash-dev-v1": null
+        },
+        "total": 3
+      },
+      {
+        "compared": 0,
+        "label": "1600–1900",
+        "mae": {
+          "baseline-dev-grid100-v2": null,
+          "gemini38-flash-dev-v1": null
+        },
+        "total": 3
+      },
+      {
+        "compared": 0,
+        "label": "2000–2400",
+        "mae": {
+          "baseline-dev-grid100-v2": null,
+          "gemini38-flash-dev-v1": null
+        },
+        "total": 3
+      }
+    ],
+    "dataset": {
+      "hash": "036d8c489293c70e824d148ae1609ef2a37f1a6184c7f302089a896a6611505c",
+      "seed": 42,
+      "split": "development",
+      "total": 12,
+      "version": "cf-rating-v1"
+    },
+    "id": "cf-rating-v1-gemini38-interrupted",
+    "intersections": {
+      "rating": [],
+      "tags": []
+    },
+    "label": "Gemini 3.8 Flash · interrompido por erro de servidor",
+    "problems": [
+      {
+        "key": "1629B",
+        "predictions": {
+          "baseline-dev-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "gemini38-flash-dev-v1": {
+            "rating": null,
+            "rating_status": "transport_error",
+            "responded": false,
+            "tags": null,
+            "tags_status": "transport_error"
+          }
+        },
+        "reference": {
+          "rating": 800,
+          "tags": [
+            "greedy",
+            "math",
+            "number theory"
+          ]
+        }
+      },
+      {
+        "key": "1690E",
+        "predictions": {
+          "baseline-dev-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "gemini38-flash-dev-v1": {
+            "rating": null,
+            "rating_status": "transport_error",
+            "responded": false,
+            "tags": null,
+            "tags_status": "transport_error"
+          }
+        },
+        "reference": {
+          "rating": 1500,
+          "tags": [
+            "binary search",
+            "greedy",
+            "math",
+            "two pointers"
+          ]
+        }
+      },
+      {
+        "key": "1941B",
+        "predictions": {
+          "baseline-dev-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "gemini38-flash-dev-v1": {
+            "rating_status": "pending",
+            "responded": false,
+            "tags_status": "pending"
+          }
+        },
+        "reference": {
+          "rating": 1000,
+          "tags": [
+            "brute force",
+            "dp",
+            "greedy",
+            "math"
+          ]
+        }
+      },
+      {
+        "key": "895B",
+        "predictions": {
+          "baseline-dev-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "gemini38-flash-dev-v1": {
+            "rating_status": "pending",
+            "responded": false,
+            "tags_status": "pending"
+          }
+        },
+        "reference": {
+          "rating": 1700,
+          "tags": [
+            "binary search",
+            "math",
+            "sortings",
+            "two pointers"
+          ]
+        }
+      },
+      {
+        "key": "2005D",
+        "predictions": {
+          "baseline-dev-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "gemini38-flash-dev-v1": {
+            "rating_status": "pending",
+            "responded": false,
+            "tags_status": "pending"
+          }
+        },
+        "reference": {
+          "rating": 2400,
+          "tags": [
+            "binary search",
+            "brute force",
+            "data structures",
+            "divide and conquer",
+            "implementation",
+            "number theory"
+          ]
+        }
+      },
+      {
+        "key": "520A",
+        "predictions": {
+          "baseline-dev-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "gemini38-flash-dev-v1": {
+            "rating_status": "pending",
+            "responded": false,
+            "tags_status": "pending"
+          }
+        },
+        "reference": {
+          "rating": 800,
+          "tags": [
+            "implementation",
+            "strings"
+          ]
+        }
+      },
+      {
+        "key": "573A",
+        "predictions": {
+          "baseline-dev-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "gemini38-flash-dev-v1": {
+            "rating_status": "pending",
+            "responded": false,
+            "tags_status": "pending"
+          }
+        },
+        "reference": {
+          "rating": 1300,
+          "tags": [
+            "implementation",
+            "math",
+            "number theory"
+          ]
+        }
+      },
+      {
+        "key": "1849E",
+        "predictions": {
+          "baseline-dev-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "gemini38-flash-dev-v1": {
+            "rating_status": "pending",
+            "responded": false,
+            "tags_status": "pending"
+          }
+        },
+        "reference": {
+          "rating": 2300,
+          "tags": [
+            "binary search",
+            "data structures",
+            "divide and conquer",
+            "dp",
+            "dsu",
+            "two pointers"
+          ]
+        }
+      },
+      {
+        "key": "1270B",
+        "predictions": {
+          "baseline-dev-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "gemini38-flash-dev-v1": {
+            "rating_status": "pending",
+            "responded": false,
+            "tags_status": "pending"
+          }
+        },
+        "reference": {
+          "rating": 1200,
+          "tags": [
+            "constructive algorithms",
+            "greedy",
+            "math"
+          ]
+        }
+      },
+      {
+        "key": "1537D",
+        "predictions": {
+          "baseline-dev-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "gemini38-flash-dev-v1": {
+            "rating_status": "pending",
+            "responded": false,
+            "tags_status": "pending"
+          }
+        },
+        "reference": {
+          "rating": 1700,
+          "tags": [
+            "games",
+            "math",
+            "number theory"
+          ]
+        }
+      },
+      {
+        "key": "106C",
+        "predictions": {
+          "baseline-dev-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "gemini38-flash-dev-v1": {
+            "rating_status": "pending",
+            "responded": false,
+            "tags_status": "pending"
+          }
+        },
+        "reference": {
+          "rating": 1700,
+          "tags": [
+            "dp"
+          ]
+        }
+      },
+      {
+        "key": "1620G",
+        "predictions": {
+          "baseline-dev-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "gemini38-flash-dev-v1": {
+            "rating_status": "pending",
+            "responded": false,
+            "tags_status": "pending"
+          }
+        },
+        "reference": {
+          "rating": 2400,
+          "tags": [
+            "bitmasks",
+            "combinatorics",
+            "dp"
+          ]
+        }
+      }
+    ],
+    "prompt": {
+      "hash": "5576561769e942d91809d84b8f5f302d3e675bf382be34c83ac6ffa8a9a5bb59"
+    },
+    "runs": [
+      {
+        "generation_attempts": 0,
+        "historical_failures": {},
+        "id": "baseline-dev-grid100-v2",
+        "label": "Baseline · mediana",
+        "metrics": {
+          "latency_median": 0.0,
+          "mae": null,
+          "pending": 0,
+          "rating_coverage": 1.0,
+          "rating_failure_rate": 0.0,
+          "rating_failures": {},
+          "rating_valid": 12,
+          "responded": 12,
+          "tags_coverage": null,
+          "tags_failure_rate": null,
+          "tags_failures": {},
+          "tags_micro_f1": null,
+          "tags_valid": null,
+          "within_200": null
+        },
+        "model": "development-median-grid100-half-up-v2",
+        "provider": "baseline"
+      },
+      {
+        "generation_attempts": 2,
+        "historical_failures": {
+          "server_error": 2
+        },
+        "id": "gemini38-flash-dev-v1",
+        "label": "Gemini 3.8 Flash",
+        "metrics": {
+          "latency_median": null,
+          "mae": null,
+          "pending": 10,
+          "rating_coverage": 0.0,
+          "rating_failure_rate": 0.16666666666666666,
+          "rating_failures": {
+            "transport_error": 2
+          },
+          "rating_valid": 0,
+          "responded": 0,
+          "tags_coverage": 0.0,
+          "tags_failure_rate": 0.16666666666666666,
+          "tags_failures": {
+            "transport_error": 2
+          },
+          "tags_micro_f1": null,
+          "tags_valid": 0,
+          "within_200": null
+        },
+        "model": "gemini-3.8-flash",
+        "provider": "gemini"
+      }
+    ],
+    "split": "development",
+    "version": "cf-rating-v1"
+  },
+  "content_hash": "90d2b6ee23af0086af5a980b3a60135e3b7adab8c15385d4071209c3b6ca2c3a",
+  "schema_version": 1
+}

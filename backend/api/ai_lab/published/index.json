@@ -1,0 +1,7 @@
+{
+  "benchmarks": [
+    "cf60-prompt-a-models-v1",
+    "cf60-prompt-b-models-v1",
+    "cf60-best-model-prompts-ab-v1"
+  ]
+}

@@ -1,0 +1,2618 @@
+{
+  "comparison": {
+    "bands": [
+      {
+        "compared": 15,
+        "label": "800–1100",
+        "mae": {
+          "cf60-baseline-grid100-v2": 620.0,
+          "cf60-gpt20-a-v1-continued": 193.33333333333334,
+          "cf60-gpt20-b-v1-continued2": 113.33333333333333
+        },
+        "total": 15
+      },
+      {
+        "compared": 15,
+        "label": "1200–1500",
+        "mae": {
+          "cf60-baseline-grid100-v2": 273.3333333333333,
+          "cf60-gpt20-a-v1-continued": 306.6666666666667,
+          "cf60-gpt20-b-v1-continued2": 373.3333333333333
+        },
+        "total": 15
+      },
+      {
+        "compared": 15,
+        "label": "1600–1900",
+        "mae": {
+          "cf60-baseline-grid100-v2": 100.0,
+          "cf60-gpt20-a-v1-continued": 413.3333333333333,
+          "cf60-gpt20-b-v1-continued2": 453.3333333333333
+        },
+        "total": 15
+      },
+      {
+        "compared": 12,
+        "label": "2000–2400",
+        "mae": {
+          "cf60-baseline-grid100-v2": 591.6666666666666,
+          "cf60-gpt20-a-v1-continued": 875.0,
+          "cf60-gpt20-b-v1-continued2": 825.0
+        },
+        "total": 15
+      }
+    ],
+    "dataset": {
+      "hash": "7ea7ea0585d6a6c74877fe2f9c96ac6f70a521589bb4c395f84bb0a3f1315400",
+      "seed": 42,
+      "split": "final",
+      "total": 60,
+      "version": "cf-rating-v1"
+    },
+    "id": "cf60-gpt20-prompts-ab-v1",
+    "intersections": {
+      "rating": [
+        "1009A",
+        "1063B",
+        "110B",
+        "1139B",
+        "1141C",
+        "1165F1",
+        "1184A2",
+        "1204D2",
+        "1225D",
+        "125B",
+        "1277B",
+        "1279C",
+        "1290A",
+        "1311B",
+        "1342B",
+        "1369E",
+        "1424G",
+        "1426C",
+        "142A",
+        "144A",
+        "1477A",
+        "1509B",
+        "1579G",
+        "1650D",
+        "1659A",
+        "1705C",
+        "1834A",
+        "1851G",
+        "1858D",
+        "1927G",
+        "195A",
+        "1996G",
+        "2014E",
+        "2089B1",
+        "2179D",
+        "2184D",
+        "2207E2",
+        "24B",
+        "259A",
+        "291C",
+        "373B",
+        "381B",
+        "386B",
+        "400B",
+        "430A",
+        "439D",
+        "530F",
+        "550A",
+        "558B",
+        "59B",
+        "711C",
+        "734C",
+        "754A",
+        "898F",
+        "89A",
+        "903A",
+        "96A"
+      ],
+      "tags": [
+        "1009A",
+        "1139B",
+        "1141C",
+        "1165F1",
+        "1184A2",
+        "1204D2",
+        "1225D",
+        "125B",
+        "1277B",
+        "1279C",
+        "1290A",
+        "1311B",
+        "1342B",
+        "1369E",
+        "1424G",
+        "1426C",
+        "142A",
+        "144A",
+        "1477A",
+        "1509B",
+        "1579G",
+        "1650D",
+        "1659A",
+        "1705C",
+        "1834A",
+        "1858D",
+        "1927G",
+        "195A",
+        "1996G",
+        "2179D",
+        "2184D",
+        "2207E2",
+        "259A",
+        "291C",
+        "373B",
+        "381B",
+        "386B",
+        "400B",
+        "430A",
+        "530F",
+        "550A",
+        "558B",
+        "59B",
+        "711C",
+        "754A",
+        "898F",
+        "89A",
+        "903A",
+        "96A"
+      ]
+    },
+    "label": "Codeforces 60 · GPT-OSS 20B · Prompt A versus B",
+    "problems": [
+      {
+        "key": "96A",
+        "predictions": {
+          "cf60-baseline-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "cf60-gpt20-a-v1-continued": {
+            "rating": 800,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "strings"
+            ],
+            "tags_status": "valid"
+          },
+          "cf60-gpt20-b-v1-continued2": {
+            "rating": 800,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "strings"
+            ],
+            "tags_status": "valid"
+          }
+        },
+        "reference": {
+          "rating": 900,
+          "tags": [
+            "implementation",
+            "strings"
+          ]
+        }
+      },
+      {
+        "key": "1204D2",
+        "predictions": {
+          "cf60-baseline-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "cf60-gpt20-a-v1-continued": {
+            "rating": 2000,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "constructive algorithms",
+              "strings"
+            ],
+            "tags_status": "valid"
+          },
+          "cf60-gpt20-b-v1-continued2": {
+            "rating": 2000,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "dp",
+              "greedy",
+              "strings"
+            ],
+            "tags_status": "valid"
+          }
+        },
+        "reference": {
+          "rating": 2100,
+          "tags": [
+            "data structures",
+            "greedy",
+            "math",
+            "strings"
+          ]
+        }
+      },
+      {
+        "key": "711C",
+        "predictions": {
+          "cf60-baseline-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "cf60-gpt20-a-v1-continued": {
+            "rating": 1400,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "dp"
+            ],
+            "tags_status": "valid"
+          },
+          "cf60-gpt20-b-v1-continued2": {
+            "rating": 1400,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "dp",
+              "greedy",
+              "implementation"
+            ],
+            "tags_status": "valid"
+          }
+        },
+        "reference": {
+          "rating": 1700,
+          "tags": [
+            "dp"
+          ]
+        }
+      },
+      {
+        "key": "2184D",
+        "predictions": {
+          "cf60-baseline-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "cf60-gpt20-a-v1-continued": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "dp",
+              "greedy",
+              "math"
+            ],
+            "tags_status": "valid"
+          },
+          "cf60-gpt20-b-v1-continued2": {
+            "rating": 1200,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "greedy",
+              "math"
+            ],
+            "tags_status": "valid"
+          }
+        },
+        "reference": {
+          "rating": 1600,
+          "tags": [
+            "combinatorics",
+            "dp",
+            "math"
+          ]
+        }
+      },
+      {
+        "key": "1705C",
+        "predictions": {
+          "cf60-baseline-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "cf60-gpt20-a-v1-continued": {
+            "rating": 1400,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "binary search",
+              "strings"
+            ],
+            "tags_status": "valid"
+          },
+          "cf60-gpt20-b-v1-continued2": {
+            "rating": 1200,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "data structures",
+              "greedy"
+            ],
+            "tags_status": "valid"
+          }
+        },
+        "reference": {
+          "rating": 1400,
+          "tags": [
+            "brute force",
+            "implementation"
+          ]
+        }
+      },
+      {
+        "key": "1996G",
+        "predictions": {
+          "cf60-baseline-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "cf60-gpt20-a-v1-continued": {
+            "rating": 800,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "implementation"
+            ],
+            "tags_status": "valid"
+          },
+          "cf60-gpt20-b-v1-continued2": {
+            "rating": 1200,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "graphs",
+              "greedy"
+            ],
+            "tags_status": "valid"
+          }
+        },
+        "reference": {
+          "rating": 2200,
+          "tags": [
+            "brute force",
+            "data structures",
+            "graphs",
+            "greedy",
+            "hashing"
+          ]
+        }
+      },
+      {
+        "key": "59B",
+        "predictions": {
+          "cf60-baseline-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "cf60-gpt20-a-v1-continued": {
+            "rating": 800,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "greedy"
+            ],
+            "tags_status": "valid"
+          },
+          "cf60-gpt20-b-v1-continued2": {
+            "rating": 800,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "greedy",
+              "implementation",
+              "math"
+            ],
+            "tags_status": "valid"
+          }
+        },
+        "reference": {
+          "rating": 1200,
+          "tags": [
+            "implementation",
+            "number theory"
+          ]
+        }
+      },
+      {
+        "key": "1927G",
+        "predictions": {
+          "cf60-baseline-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "cf60-gpt20-a-v1-continued": {
+            "rating": 1200,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "dp",
+              "greedy"
+            ],
+            "tags_status": "valid"
+          },
+          "cf60-gpt20-b-v1-continued2": {
+            "rating": 1200,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "brute force",
+              "dp"
+            ],
+            "tags_status": "valid"
+          }
+        },
+        "reference": {
+          "rating": 2300,
+          "tags": [
+            "data structures",
+            "dp",
+            "greedy",
+            "math"
+          ]
+        }
+      },
+      {
+        "key": "2089B1",
+        "predictions": {
+          "cf60-baseline-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "cf60-gpt20-a-v1-continued": {
+            "rating": 1400,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "greedy",
+              "math"
+            ],
+            "tags_status": "valid"
+          },
+          "cf60-gpt20-b-v1-continued2": {
+            "rating": 1200,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "invalid_output"
+          }
+        },
+        "reference": {
+          "rating": 1900,
+          "tags": [
+            "binary search",
+            "data structures",
+            "flows",
+            "greedy",
+            "two pointers"
+          ]
+        }
+      },
+      {
+        "key": "381B",
+        "predictions": {
+          "cf60-baseline-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "cf60-gpt20-a-v1-continued": {
+            "rating": 1700,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "dp",
+              "greedy"
+            ],
+            "tags_status": "valid"
+          },
+          "cf60-gpt20-b-v1-continued2": {
+            "rating": 800,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "combinatorics",
+              "greedy"
+            ],
+            "tags_status": "valid"
+          }
+        },
+        "reference": {
+          "rating": 1100,
+          "tags": [
+            "greedy",
+            "implementation",
+            "sortings"
+          ]
+        }
+      },
+      {
+        "key": "291C",
+        "predictions": {
+          "cf60-baseline-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "cf60-gpt20-a-v1-continued": {
+            "rating": 1400,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "bitmasks",
+              "hashing"
+            ],
+            "tags_status": "valid"
+          },
+          "cf60-gpt20-b-v1-continued2": {
+            "rating": 1200,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "bitmasks",
+              "brute force",
+              "greedy"
+            ],
+            "tags_status": "valid"
+          }
+        },
+        "reference": {
+          "rating": 1600,
+          "tags": [
+            "*special",
+            "bitmasks",
+            "brute force",
+            "implementation"
+          ]
+        }
+      },
+      {
+        "key": "1579G",
+        "predictions": {
+          "cf60-baseline-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "cf60-gpt20-a-v1-continued": {
+            "rating": 1200,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "dp",
+              "greedy"
+            ],
+            "tags_status": "valid"
+          },
+          "cf60-gpt20-b-v1-continued2": {
+            "rating": 1200,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "dp",
+              "greedy"
+            ],
+            "tags_status": "valid"
+          }
+        },
+        "reference": {
+          "rating": 2200,
+          "tags": [
+            "dp"
+          ]
+        }
+      },
+      {
+        "key": "89A",
+        "predictions": {
+          "cf60-baseline-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "cf60-gpt20-a-v1-continued": {
+            "rating": 1500,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "greedy",
+              "math"
+            ],
+            "tags_status": "valid"
+          },
+          "cf60-gpt20-b-v1-continued2": {
+            "rating": 1700,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "greedy",
+              "number theory"
+            ],
+            "tags_status": "valid"
+          }
+        },
+        "reference": {
+          "rating": 1800,
+          "tags": [
+            "greedy"
+          ]
+        }
+      },
+      {
+        "key": "1184A2",
+        "predictions": {
+          "cf60-baseline-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "cf60-gpt20-a-v1-continued": {
+            "rating": 1400,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "number theory"
+            ],
+            "tags_status": "valid"
+          },
+          "cf60-gpt20-b-v1-continued2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "combinatorics",
+              "math",
+              "number theory"
+            ],
+            "tags_status": "valid"
+          }
+        },
+        "reference": {
+          "rating": 2100,
+          "tags": [
+            "brute force",
+            "number theory"
+          ]
+        }
+      },
+      {
+        "key": "1477A",
+        "predictions": {
+          "cf60-baseline-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "cf60-gpt20-a-v1-continued": {
+            "rating": 800,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "implementation",
+              "math"
+            ],
+            "tags_status": "valid"
+          },
+          "cf60-gpt20-b-v1-continued2": {
+            "rating": 800,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "implementation",
+              "math"
+            ],
+            "tags_status": "valid"
+          }
+        },
+        "reference": {
+          "rating": 1800,
+          "tags": [
+            "constructive algorithms",
+            "math",
+            "number theory"
+          ]
+        }
+      },
+      {
+        "key": "734C",
+        "predictions": {
+          "cf60-baseline-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "cf60-gpt20-a-v1-continued": {
+            "rating": 1700,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "binary search",
+              "greedy",
+              "implementation"
+            ],
+            "tags_status": "valid"
+          },
+          "cf60-gpt20-b-v1-continued2": {
+            "rating": 1200,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "invalid_output"
+          }
+        },
+        "reference": {
+          "rating": 1600,
+          "tags": [
+            "binary search",
+            "dp",
+            "greedy",
+            "two pointers"
+          ]
+        }
+      },
+      {
+        "key": "1509B",
+        "predictions": {
+          "cf60-baseline-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "cf60-gpt20-a-v1-continued": {
+            "rating": 1100,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "greedy",
+              "strings"
+            ],
+            "tags_status": "valid"
+          },
+          "cf60-gpt20-b-v1-continued2": {
+            "rating": 1200,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "greedy",
+              "strings"
+            ],
+            "tags_status": "valid"
+          }
+        },
+        "reference": {
+          "rating": 1100,
+          "tags": [
+            "greedy"
+          ]
+        }
+      },
+      {
+        "key": "467D",
+        "predictions": {
+          "cf60-baseline-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "cf60-gpt20-a-v1-continued": {
+            "rating": 1400,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "dp",
+              "graphs"
+            ],
+            "tags_status": "valid"
+          },
+          "cf60-gpt20-b-v1-continued2": {
+            "rating": null,
+            "rating_status": "transport_error",
+            "responded": false,
+            "tags": null,
+            "tags_status": "transport_error"
+          }
+        },
+        "reference": {
+          "rating": 2400,
+          "tags": [
+            "dfs and similar",
+            "dp",
+            "graphs",
+            "hashing",
+            "strings"
+          ]
+        }
+      },
+      {
+        "key": "1139B",
+        "predictions": {
+          "cf60-baseline-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "cf60-gpt20-a-v1-continued": {
+            "rating": 1400,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "greedy",
+              "implementation"
+            ],
+            "tags_status": "valid"
+          },
+          "cf60-gpt20-b-v1-continued2": {
+            "rating": 1000,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "greedy"
+            ],
+            "tags_status": "valid"
+          }
+        },
+        "reference": {
+          "rating": 1000,
+          "tags": [
+            "greedy",
+            "implementation"
+          ]
+        }
+      },
+      {
+        "key": "2014E",
+        "predictions": {
+          "cf60-baseline-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "cf60-gpt20-a-v1-continued": {
+            "rating": 1400,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "invalid_output"
+          },
+          "cf60-gpt20-b-v1-continued2": {
+            "rating": 1800,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "invalid_output"
+          }
+        },
+        "reference": {
+          "rating": 1800,
+          "tags": [
+            "dfs and similar",
+            "graphs",
+            "shortest paths"
+          ]
+        }
+      },
+      {
+        "key": "754A",
+        "predictions": {
+          "cf60-baseline-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "cf60-gpt20-a-v1-continued": {
+            "rating": 800,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "greedy",
+              "implementation"
+            ],
+            "tags_status": "valid"
+          },
+          "cf60-gpt20-b-v1-continued2": {
+            "rating": 800,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "greedy"
+            ],
+            "tags_status": "valid"
+          }
+        },
+        "reference": {
+          "rating": 1200,
+          "tags": [
+            "constructive algorithms",
+            "greedy",
+            "implementation"
+          ]
+        }
+      },
+      {
+        "key": "1426C",
+        "predictions": {
+          "cf60-baseline-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "cf60-gpt20-a-v1-continued": {
+            "rating": 1400,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "greedy"
+            ],
+            "tags_status": "valid"
+          },
+          "cf60-gpt20-b-v1-continued2": {
+            "rating": 1200,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "greedy",
+              "math"
+            ],
+            "tags_status": "valid"
+          }
+        },
+        "reference": {
+          "rating": 1100,
+          "tags": [
+            "binary search",
+            "constructive algorithms",
+            "math"
+          ]
+        }
+      },
+      {
+        "key": "430A",
+        "predictions": {
+          "cf60-baseline-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "cf60-gpt20-a-v1-continued": {
+            "rating": 1200,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "dp",
+              "graphs"
+            ],
+            "tags_status": "valid"
+          },
+          "cf60-gpt20-b-v1-continued2": {
+            "rating": 1200,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "constructive algorithms",
+              "greedy"
+            ],
+            "tags_status": "valid"
+          }
+        },
+        "reference": {
+          "rating": 1600,
+          "tags": [
+            "constructive algorithms",
+            "sortings"
+          ]
+        }
+      },
+      {
+        "key": "24B",
+        "predictions": {
+          "cf60-baseline-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "cf60-gpt20-a-v1-continued": {
+            "rating": 900,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "invalid_output"
+          },
+          "cf60-gpt20-b-v1-continued2": {
+            "rating": 800,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "invalid_output"
+          }
+        },
+        "reference": {
+          "rating": 1500,
+          "tags": [
+            "implementation"
+          ]
+        }
+      },
+      {
+        "key": "1063B",
+        "predictions": {
+          "cf60-baseline-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "cf60-gpt20-a-v1-continued": {
+            "rating": 1400,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "invalid_output"
+          },
+          "cf60-gpt20-b-v1-continued2": {
+            "rating": 1200,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "graphs",
+              "shortest paths"
+            ],
+            "tags_status": "valid"
+          }
+        },
+        "reference": {
+          "rating": 1800,
+          "tags": [
+            "graphs",
+            "shortest paths"
+          ]
+        }
+      },
+      {
+        "key": "195A",
+        "predictions": {
+          "cf60-baseline-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "cf60-gpt20-a-v1-continued": {
+            "rating": 800,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "implementation",
+              "math"
+            ],
+            "tags_status": "valid"
+          },
+          "cf60-gpt20-b-v1-continued2": {
+            "rating": 900,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "math"
+            ],
+            "tags_status": "valid"
+          }
+        },
+        "reference": {
+          "rating": 1000,
+          "tags": [
+            "binary search",
+            "brute force",
+            "math"
+          ]
+        }
+      },
+      {
+        "key": "1834A",
+        "predictions": {
+          "cf60-baseline-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "cf60-gpt20-a-v1-continued": {
+            "rating": 800,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "greedy",
+              "implementation"
+            ],
+            "tags_status": "valid"
+          },
+          "cf60-gpt20-b-v1-continued2": {
+            "rating": 800,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "greedy"
+            ],
+            "tags_status": "valid"
+          }
+        },
+        "reference": {
+          "rating": 800,
+          "tags": [
+            "greedy",
+            "math"
+          ]
+        }
+      },
+      {
+        "key": "1141C",
+        "predictions": {
+          "cf60-baseline-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "cf60-gpt20-a-v1-continued": {
+            "rating": 800,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "constructive algorithms",
+              "implementation"
+            ],
+            "tags_status": "valid"
+          },
+          "cf60-gpt20-b-v1-continued2": {
+            "rating": 800,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "constructive algorithms",
+              "math"
+            ],
+            "tags_status": "valid"
+          }
+        },
+        "reference": {
+          "rating": 1500,
+          "tags": [
+            "math"
+          ]
+        }
+      },
+      {
+        "key": "1659A",
+        "predictions": {
+          "cf60-baseline-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "cf60-gpt20-a-v1-continued": {
+            "rating": 800,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "constructive algorithms",
+              "greedy",
+              "strings"
+            ],
+            "tags_status": "valid"
+          },
+          "cf60-gpt20-b-v1-continued2": {
+            "rating": 1100,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "constructive algorithms",
+              "greedy",
+              "strings"
+            ],
+            "tags_status": "valid"
+          }
+        },
+        "reference": {
+          "rating": 1000,
+          "tags": [
+            "constructive algorithms",
+            "greedy",
+            "implementation",
+            "math"
+          ]
+        }
+      },
+      {
+        "key": "1009A",
+        "predictions": {
+          "cf60-baseline-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "cf60-gpt20-a-v1-continued": {
+            "rating": 800,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "greedy",
+              "implementation"
+            ],
+            "tags_status": "valid"
+          },
+          "cf60-gpt20-b-v1-continued2": {
+            "rating": 800,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "greedy",
+              "implementation"
+            ],
+            "tags_status": "valid"
+          }
+        },
+        "reference": {
+          "rating": 800,
+          "tags": [
+            "implementation"
+          ]
+        }
+      },
+      {
+        "key": "530F",
+        "predictions": {
+          "cf60-baseline-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "cf60-gpt20-a-v1-continued": {
+            "rating": 900,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "graphs",
+              "implementation"
+            ],
+            "tags_status": "valid"
+          },
+          "cf60-gpt20-b-v1-continued2": {
+            "rating": 800,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "brute force",
+              "graphs"
+            ],
+            "tags_status": "valid"
+          }
+        },
+        "reference": {
+          "rating": 2100,
+          "tags": [
+            "*special"
+          ]
+        }
+      },
+      {
+        "key": "1165F1",
+        "predictions": {
+          "cf60-baseline-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "cf60-gpt20-a-v1-continued": {
+            "rating": 800,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "binary search",
+              "greedy"
+            ],
+            "tags_status": "valid"
+          },
+          "cf60-gpt20-b-v1-continued2": {
+            "rating": 800,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "binary search",
+              "greedy",
+              "implementation"
+            ],
+            "tags_status": "valid"
+          }
+        },
+        "reference": {
+          "rating": 2000,
+          "tags": [
+            "binary search",
+            "greedy"
+          ]
+        }
+      },
+      {
+        "key": "1225D",
+        "predictions": {
+          "cf60-baseline-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "cf60-gpt20-a-v1-continued": {
+            "rating": 1200,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "hashing",
+              "implementation",
+              "math"
+            ],
+            "tags_status": "valid"
+          },
+          "cf60-gpt20-b-v1-continued2": {
+            "rating": 1400,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "hashing",
+              "math"
+            ],
+            "tags_status": "valid"
+          }
+        },
+        "reference": {
+          "rating": 1800,
+          "tags": [
+            "hashing",
+            "math",
+            "number theory"
+          ]
+        }
+      },
+      {
+        "key": "2179D",
+        "predictions": {
+          "cf60-baseline-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "cf60-gpt20-a-v1-continued": {
+            "rating": 1200,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "bitmasks",
+              "constructive algorithms"
+            ],
+            "tags_status": "valid"
+          },
+          "cf60-gpt20-b-v1-continued2": {
+            "rating": 1200,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "bitmasks",
+              "constructive algorithms",
+              "greedy"
+            ],
+            "tags_status": "valid"
+          }
+        },
+        "reference": {
+          "rating": 1300,
+          "tags": [
+            "bitmasks",
+            "constructive algorithms",
+            "greedy",
+            "math"
+          ]
+        }
+      },
+      {
+        "key": "2207E2",
+        "predictions": {
+          "cf60-baseline-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "cf60-gpt20-a-v1-continued": {
+            "rating": 1900,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "combinatorics",
+              "dp"
+            ],
+            "tags_status": "valid"
+          },
+          "cf60-gpt20-b-v1-continued2": {
+            "rating": 2000,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "combinatorics",
+              "dp",
+              "math"
+            ],
+            "tags_status": "valid"
+          }
+        },
+        "reference": {
+          "rating": 2400,
+          "tags": [
+            "combinatorics",
+            "constructive algorithms",
+            "math"
+          ]
+        }
+      },
+      {
+        "key": "373B",
+        "predictions": {
+          "cf60-baseline-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "cf60-gpt20-a-v1-continued": {
+            "rating": 800,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "binary search",
+              "math"
+            ],
+            "tags_status": "valid"
+          },
+          "cf60-gpt20-b-v1-continued2": {
+            "rating": 800,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "greedy"
+            ],
+            "tags_status": "valid"
+          }
+        },
+        "reference": {
+          "rating": 1600,
+          "tags": [
+            "binary search",
+            "implementation",
+            "math"
+          ]
+        }
+      },
+      {
+        "key": "259A",
+        "predictions": {
+          "cf60-baseline-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "cf60-gpt20-a-v1-continued": {
+            "rating": 800,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "brute force",
+              "strings"
+            ],
+            "tags_status": "valid"
+          },
+          "cf60-gpt20-b-v1-continued2": {
+            "rating": 800,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "strings"
+            ],
+            "tags_status": "valid"
+          }
+        },
+        "reference": {
+          "rating": 1000,
+          "tags": [
+            "brute force",
+            "strings"
+          ]
+        }
+      },
+      {
+        "key": "1342B",
+        "predictions": {
+          "cf60-baseline-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "cf60-gpt20-a-v1-continued": {
+            "rating": 1400,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "constructive algorithms",
+              "greedy",
+              "strings"
+            ],
+            "tags_status": "valid"
+          },
+          "cf60-gpt20-b-v1-continued2": {
+            "rating": 800,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "constructive algorithms",
+              "strings"
+            ],
+            "tags_status": "valid"
+          }
+        },
+        "reference": {
+          "rating": 1100,
+          "tags": [
+            "constructive algorithms",
+            "strings"
+          ]
+        }
+      },
+      {
+        "key": "1290A",
+        "predictions": {
+          "cf60-baseline-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "cf60-gpt20-a-v1-continued": {
+            "rating": 1400,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "brute force",
+              "greedy"
+            ],
+            "tags_status": "valid"
+          },
+          "cf60-gpt20-b-v1-continued2": {
+            "rating": 1200,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "greedy",
+              "implementation",
+              "strings"
+            ],
+            "tags_status": "valid"
+          }
+        },
+        "reference": {
+          "rating": 1600,
+          "tags": [
+            "brute force",
+            "data structures",
+            "implementation"
+          ]
+        }
+      },
+      {
+        "key": "386B",
+        "predictions": {
+          "cf60-baseline-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "cf60-gpt20-a-v1-continued": {
+            "rating": 800,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "two pointers"
+            ],
+            "tags_status": "valid"
+          },
+          "cf60-gpt20-b-v1-continued2": {
+            "rating": 800,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "greedy",
+              "sortings",
+              "two pointers"
+            ],
+            "tags_status": "valid"
+          }
+        },
+        "reference": {
+          "rating": 1400,
+          "tags": [
+            "binary search",
+            "brute force",
+            "implementation"
+          ]
+        }
+      },
+      {
+        "key": "898F",
+        "predictions": {
+          "cf60-baseline-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "cf60-gpt20-a-v1-continued": {
+            "rating": 1400,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "math",
+              "strings"
+            ],
+            "tags_status": "valid"
+          },
+          "cf60-gpt20-b-v1-continued2": {
+            "rating": 1400,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "strings"
+            ],
+            "tags_status": "valid"
+          }
+        },
+        "reference": {
+          "rating": 2300,
+          "tags": [
+            "brute force",
+            "hashing",
+            "math"
+          ]
+        }
+      },
+      {
+        "key": "1277B",
+        "predictions": {
+          "cf60-baseline-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "cf60-gpt20-a-v1-continued": {
+            "rating": 1200,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "greedy",
+              "math"
+            ],
+            "tags_status": "valid"
+          },
+          "cf60-gpt20-b-v1-continued2": {
+            "rating": 1100,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "hashing",
+              "implementation"
+            ],
+            "tags_status": "valid"
+          }
+        },
+        "reference": {
+          "rating": 1200,
+          "tags": [
+            "greedy",
+            "number theory"
+          ]
+        }
+      },
+      {
+        "key": "125B",
+        "predictions": {
+          "cf60-baseline-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "cf60-gpt20-a-v1-continued": {
+            "rating": 800,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "implementation",
+              "strings"
+            ],
+            "tags_status": "valid"
+          },
+          "cf60-gpt20-b-v1-continued2": {
+            "rating": 800,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "implementation",
+              "strings"
+            ],
+            "tags_status": "valid"
+          }
+        },
+        "reference": {
+          "rating": 1000,
+          "tags": [
+            "implementation"
+          ]
+        }
+      },
+      {
+        "key": "903A",
+        "predictions": {
+          "cf60-baseline-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "cf60-gpt20-a-v1-continued": {
+            "rating": 800,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "brute force",
+              "math"
+            ],
+            "tags_status": "valid"
+          },
+          "cf60-gpt20-b-v1-continued2": {
+            "rating": 800,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "brute force",
+              "math"
+            ],
+            "tags_status": "valid"
+          }
+        },
+        "reference": {
+          "rating": 900,
+          "tags": [
+            "greedy",
+            "implementation"
+          ]
+        }
+      },
+      {
+        "key": "1369E",
+        "predictions": {
+          "cf60-baseline-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "cf60-gpt20-a-v1-continued": {
+            "rating": 1400,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "graphs",
+              "greedy"
+            ],
+            "tags_status": "valid"
+          },
+          "cf60-gpt20-b-v1-continued2": {
+            "rating": 1000,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "graphs",
+              "implementation"
+            ],
+            "tags_status": "valid"
+          }
+        },
+        "reference": {
+          "rating": 2400,
+          "tags": [
+            "data structures",
+            "dfs and similar",
+            "greedy",
+            "implementation",
+            "sortings"
+          ]
+        }
+      },
+      {
+        "key": "524D",
+        "predictions": {
+          "cf60-baseline-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "cf60-gpt20-a-v1-continued": {
+            "rating": null,
+            "rating_status": "transport_error",
+            "responded": false,
+            "tags": null,
+            "tags_status": "transport_error"
+          },
+          "cf60-gpt20-b-v1-continued2": {
+            "rating": 1100,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "data structures",
+              "greedy"
+            ],
+            "tags_status": "valid"
+          }
+        },
+        "reference": {
+          "rating": 2100,
+          "tags": [
+            "greedy",
+            "two pointers"
+          ]
+        }
+      },
+      {
+        "key": "1851G",
+        "predictions": {
+          "cf60-baseline-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "cf60-gpt20-a-v1-continued": {
+            "rating": 1400,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "invalid_output"
+          },
+          "cf60-gpt20-b-v1-continued2": {
+            "rating": 2000,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "dsu",
+              "graphs",
+              "greedy"
+            ],
+            "tags_status": "valid"
+          }
+        },
+        "reference": {
+          "rating": 2000,
+          "tags": [
+            "binary search",
+            "data structures",
+            "dsu",
+            "graphs",
+            "implementation",
+            "sortings",
+            "trees",
+            "two pointers"
+          ]
+        }
+      },
+      {
+        "key": "144A",
+        "predictions": {
+          "cf60-baseline-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "cf60-gpt20-a-v1-continued": {
+            "rating": 800,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "greedy",
+              "implementation"
+            ],
+            "tags_status": "valid"
+          },
+          "cf60-gpt20-b-v1-continued2": {
+            "rating": 800,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "greedy",
+              "implementation"
+            ],
+            "tags_status": "valid"
+          }
+        },
+        "reference": {
+          "rating": 800,
+          "tags": [
+            "implementation"
+          ]
+        }
+      },
+      {
+        "key": "110B",
+        "predictions": {
+          "cf60-baseline-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "cf60-gpt20-a-v1-continued": {
+            "rating": 800,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "constructive algorithms",
+              "greedy",
+              "implementation"
+            ],
+            "tags_status": "valid"
+          },
+          "cf60-gpt20-b-v1-continued2": {
+            "rating": 1200,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "invalid_output"
+          }
+        },
+        "reference": {
+          "rating": 1100,
+          "tags": [
+            "constructive algorithms",
+            "strings"
+          ]
+        }
+      },
+      {
+        "key": "1279C",
+        "predictions": {
+          "cf60-baseline-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "cf60-gpt20-a-v1-continued": {
+            "rating": 1400,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "data structures",
+              "greedy"
+            ],
+            "tags_status": "valid"
+          },
+          "cf60-gpt20-b-v1-continued2": {
+            "rating": 1200,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "data structures",
+              "greedy"
+            ],
+            "tags_status": "valid"
+          }
+        },
+        "reference": {
+          "rating": 1400,
+          "tags": [
+            "data structures",
+            "implementation"
+          ]
+        }
+      },
+      {
+        "key": "1858D",
+        "predictions": {
+          "cf60-baseline-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "cf60-gpt20-a-v1-continued": {
+            "rating": 1400,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "dp",
+              "two pointers"
+            ],
+            "tags_status": "valid"
+          },
+          "cf60-gpt20-b-v1-continued2": {
+            "rating": 1200,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "greedy",
+              "two pointers"
+            ],
+            "tags_status": "valid"
+          }
+        },
+        "reference": {
+          "rating": 2200,
+          "tags": [
+            "brute force",
+            "data structures",
+            "dp",
+            "greedy",
+            "two pointers"
+          ]
+        }
+      },
+      {
+        "key": "730C",
+        "predictions": {
+          "cf60-baseline-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "cf60-gpt20-a-v1-continued": {
+            "rating": 1800,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "binary search",
+              "graphs",
+              "greedy"
+            ],
+            "tags_status": "valid"
+          },
+          "cf60-gpt20-b-v1-continued2": {
+            "rating": null,
+            "rating_status": "transport_error",
+            "responded": false,
+            "tags": null,
+            "tags_status": "transport_error"
+          }
+        },
+        "reference": {
+          "rating": 2100,
+          "tags": [
+            "binary search",
+            "dfs and similar"
+          ]
+        }
+      },
+      {
+        "key": "558B",
+        "predictions": {
+          "cf60-baseline-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "cf60-gpt20-a-v1-continued": {
+            "rating": 1200,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "data structures",
+              "two pointers"
+            ],
+            "tags_status": "valid"
+          },
+          "cf60-gpt20-b-v1-continued2": {
+            "rating": 1200,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "greedy",
+              "two pointers"
+            ],
+            "tags_status": "valid"
+          }
+        },
+        "reference": {
+          "rating": 1300,
+          "tags": [
+            "implementation"
+          ]
+        }
+      },
+      {
+        "key": "439D",
+        "predictions": {
+          "cf60-baseline-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "cf60-gpt20-a-v1-continued": {
+            "rating": 1200,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "greedy",
+              "math"
+            ],
+            "tags_status": "valid"
+          },
+          "cf60-gpt20-b-v1-continued2": {
+            "rating": 1200,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "invalid_output"
+          }
+        },
+        "reference": {
+          "rating": 1700,
+          "tags": [
+            "binary search",
+            "sortings",
+            "ternary search",
+            "two pointers"
+          ]
+        }
+      },
+      {
+        "key": "550A",
+        "predictions": {
+          "cf60-baseline-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "cf60-gpt20-a-v1-continued": {
+            "rating": 800,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "strings"
+            ],
+            "tags_status": "valid"
+          },
+          "cf60-gpt20-b-v1-continued2": {
+            "rating": 800,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "greedy",
+              "strings"
+            ],
+            "tags_status": "valid"
+          }
+        },
+        "reference": {
+          "rating": 1500,
+          "tags": [
+            "brute force",
+            "dp",
+            "greedy",
+            "implementation",
+            "strings"
+          ]
+        }
+      },
+      {
+        "key": "1650D",
+        "predictions": {
+          "cf60-baseline-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "cf60-gpt20-a-v1-continued": {
+            "rating": 800,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "greedy",
+              "implementation"
+            ],
+            "tags_status": "valid"
+          },
+          "cf60-gpt20-b-v1-continued2": {
+            "rating": 800,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "constructive algorithms",
+              "greedy",
+              "implementation"
+            ],
+            "tags_status": "valid"
+          }
+        },
+        "reference": {
+          "rating": 1300,
+          "tags": [
+            "brute force",
+            "constructive algorithms",
+            "implementation",
+            "math"
+          ]
+        }
+      },
+      {
+        "key": "1424G",
+        "predictions": {
+          "cf60-baseline-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "cf60-gpt20-a-v1-continued": {
+            "rating": 1000,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "implementation",
+              "sortings"
+            ],
+            "tags_status": "valid"
+          },
+          "cf60-gpt20-b-v1-continued2": {
+            "rating": 800,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "greedy",
+              "sortings"
+            ],
+            "tags_status": "valid"
+          }
+        },
+        "reference": {
+          "rating": 1300,
+          "tags": [
+            "data structures",
+            "sortings"
+          ]
+        }
+      },
+      {
+        "key": "142A",
+        "predictions": {
+          "cf60-baseline-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "cf60-gpt20-a-v1-continued": {
+            "rating": 1100,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "brute force",
+              "math"
+            ],
+            "tags_status": "valid"
+          },
+          "cf60-gpt20-b-v1-continued2": {
+            "rating": 1200,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "brute force",
+              "math"
+            ],
+            "tags_status": "valid"
+          }
+        },
+        "reference": {
+          "rating": 1600,
+          "tags": [
+            "brute force",
+            "math"
+          ]
+        }
+      },
+      {
+        "key": "1311B",
+        "predictions": {
+          "cf60-baseline-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "cf60-gpt20-a-v1-continued": {
+            "rating": 1000,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "sortings"
+            ],
+            "tags_status": "valid"
+          },
+          "cf60-gpt20-b-v1-continued2": {
+            "rating": 800,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "greedy",
+              "implementation",
+              "sortings"
+            ],
+            "tags_status": "valid"
+          }
+        },
+        "reference": {
+          "rating": 1200,
+          "tags": [
+            "dfs and similar",
+            "sortings"
+          ]
+        }
+      },
+      {
+        "key": "400B",
+        "predictions": {
+          "cf60-baseline-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "cf60-gpt20-a-v1-continued": {
+            "rating": 1200,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "greedy",
+              "sortings"
+            ],
+            "tags_status": "valid"
+          },
+          "cf60-gpt20-b-v1-continued2": {
+            "rating": 1200,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "greedy",
+              "sortings"
+            ],
+            "tags_status": "valid"
+          }
+        },
+        "reference": {
+          "rating": 1200,
+          "tags": [
+            "brute force",
+            "implementation",
+            "schedules"
+          ]
+        }
+      }
+    ],
+    "prompt": {
+      "hash": null
+    },
+    "runs": [
+      {
+        "generation_attempts": 0,
+        "historical_failures": {},
+        "id": "cf60-baseline-grid100-v2",
+        "label": "Baseline · mediana",
+        "metrics": {
+          "latency_median": 0.0,
+          "mae": 385.96491228070175,
+          "pending": 0,
+          "rating_coverage": 1.0,
+          "rating_failure_rate": 0.0,
+          "rating_failures": {},
+          "rating_valid": 60,
+          "responded": 60,
+          "tags_coverage": null,
+          "tags_failure_rate": null,
+          "tags_failures": {},
+          "tags_micro_f1": null,
+          "tags_valid": null,
+          "within_200": 0.3508771929824561
+        },
+        "model": "development-median-grid100-half-up-v2",
+        "provider": "baseline"
+      },
+      {
+        "generation_attempts": 78,
+        "historical_failures": {
+          "provider_error": 1,
+          "rate_limit": 18
+        },
+        "id": "cf60-gpt20-a-v1-continued",
+        "label": "GPT-OSS 20B · classification_v1",
+        "metrics": {
+          "latency_median": 1.168208599992795,
+          "mae": 424.56140350877195,
+          "pending": 0,
+          "rating_coverage": 0.9833333333333333,
+          "rating_failure_rate": 0.016666666666666666,
+          "rating_failures": {
+            "transport_error": 1
+          },
+          "rating_valid": 59,
+          "responded": 59,
+          "tags_coverage": 0.9166666666666666,
+          "tags_failure_rate": 0.08333333333333333,
+          "tags_failures": {
+            "invalid_output": 4,
+            "transport_error": 1
+          },
+          "tags_micro_f1": 0.46788990825688076,
+          "tags_valid": 55,
+          "within_200": 0.38596491228070173
+        },
+        "model": "openai/gpt-oss-20b",
+        "prompt_hash": "5576561769e942d91809d84b8f5f302d3e675bf382be34c83ac6ffa8a9a5bb59",
+        "prompt_version": "classification_v1",
+        "provider": "groq"
+      },
+      {
+        "generation_attempts": 86,
+        "historical_failures": {
+          "provider_error": 2,
+          "rate_limit": 26
+        },
+        "id": "cf60-gpt20-b-v1-continued2",
+        "label": "GPT-OSS 20B · classification_v2",
+        "metrics": {
+          "latency_median": 1.3114927499991609,
+          "mae": 421.05263157894734,
+          "pending": 0,
+          "rating_coverage": 0.9666666666666667,
+          "rating_failure_rate": 0.03333333333333333,
+          "rating_failures": {
+            "transport_error": 2
+          },
+          "rating_valid": 58,
+          "responded": 58,
+          "tags_coverage": 0.8666666666666667,
+          "tags_failure_rate": 0.13333333333333333,
+          "tags_failures": {
+            "invalid_output": 6,
+            "transport_error": 2
+          },
+          "tags_micro_f1": 0.47368421052631576,
+          "tags_valid": 52,
+          "within_200": 0.40350877192982454
+        },
+        "model": "openai/gpt-oss-20b",
+        "prompt_hash": "00530909483497aca36c87770e3c85874d7602b2602e3a1212dc8e8980f7515b",
+        "prompt_version": "classification_v2",
+        "provider": "groq"
+      }
+    ],
+    "split": "final",
+    "version": "cf-rating-v1"
+  },
+  "content_hash": "43e2874a0e2d59ee8045b639d0b476184348301b69da2b81aee0582f6e499ce7",
+  "schema_version": 1
+}

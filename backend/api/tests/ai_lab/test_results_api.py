@@ -4,6 +4,104 @@ import json
 import pytest
 
 
+def test_published_index_curates_order_and_hides_other_files(showcase, tmp_path):
+    from api.ai_lab.results import export_snapshot, list_snapshots, read_snapshot
+    from api.ai_lab.runner import save_json
+    root, _ = showcase
+    published = tmp_path / "published"
+    export_snapshot(root, "pilot-v1", published / "pilot-v1.json")
+    index = json.loads((root / "showcase.json").read_text(encoding="utf-8"))
+    index["benchmarks"].append({**index["benchmarks"][0], "id": "z-first"})
+    save_json(root / "showcase.json", index)
+    export_snapshot(root, "z-first", published / "z-first.json")
+    (published / "irrelevant.json").write_text("broken archive", encoding="utf-8")
+    save_json(published / "index.json", {"benchmarks": ["z-first", "pilot-v1"]})
+    assert [r["id"] for r in list_snapshots(published)] == ["z-first", "pilot-v1"]
+    with pytest.raises(LookupError):
+        read_snapshot(published, "irrelevant")
+    save_json(published / "index.json", {"benchmarks": []})
+    assert list_snapshots(published) == []
+    with pytest.raises(LookupError):
+        read_snapshot(published, "pilot-v1")
+
+
+@pytest.mark.parametrize("ids", [["pilot-v1", "pilot-v1"], ["../archive"], "pilot-v1"])
+def test_published_index_rejects_invalid_selection(ids, tmp_path):
+    from api.ai_lab.results import list_snapshots
+    from api.ai_lab.runner import save_json
+    save_json(tmp_path / "index.json", {"benchmarks": ids})
+    with pytest.raises(ValueError):
+        list_snapshots(tmp_path)
+
+
+def test_reviewed_prompt_export_uses_recorded_text_and_deduplicates(showcase, tmp_path, monkeypatch):
+    from api.ai_lab.results import export_snapshot, read_snapshot
+    from api.ai_lab.runner import save_json
+    root, _ = showcase
+    path = root / "runs/model-a/run.json"
+    run = json.loads(path.read_text(encoding="utf-8"))
+    run["configuration"]["prompt_version"] = "classification_v1"
+    recorded = run["configuration"]["prompt"]
+    save_json(path, run)
+    save_json(root / "runs/model-b/run.json", run)
+    index = json.loads((root / "showcase.json").read_text(encoding="utf-8"))
+    entry = index["benchmarks"][0]
+    entry.update(publish_prompts=True, selection_note="Critério revisado")
+    entry["runs"].append("model-b")
+    save_json(root / "showcase.json", index)
+    monkeypatch.setattr("api.ai_lab.classification.load_prompt", lambda *a: pytest.fail("Use recorded prompt"))
+    output = tmp_path / "public/pilot-v1.json"
+    export_snapshot(root, "pilot-v1", output)
+    data = read_snapshot(output.parent, "pilot-v1")
+    assert len(data["prompts"]) == 1
+    prompt = data["prompts"][0]
+    assert prompt["text"] == recorded and "{taxonomy}" not in prompt["text"]
+    assert prompt["hash"] == run["configuration"]["prompt_hash"]
+    assert prompt["label"] == "Classificação direta"
+    assert data["selection_note"] == "Critério revisado"
+    assert "PRIVATE" not in output.read_text(encoding="utf-8")
+
+
+@pytest.mark.parametrize("version,text", [("classification_v3", "PRIVATE-EXAMPLES"),
+                                         ("classification_v1", "modified unreviewed prompt")])
+def test_prompt_publication_requires_reviewed_version_and_hash(showcase, version, text):
+    from api.ai_lab.results import read_benchmark
+    from api.ai_lab.dataset import content_hash
+    from api.ai_lab.runner import save_json
+    root, _ = showcase
+    path = root / "runs/model-a/run.json"
+    run = json.loads(path.read_text(encoding="utf-8"))
+    run["configuration"].update(prompt_version=version, prompt=text, prompt_hash=content_hash(text))
+    save_json(path, run)
+    index = json.loads((root / "showcase.json").read_text(encoding="utf-8"))
+    index["benchmarks"][0]["publish_prompts"] = True
+    save_json(root / "showcase.json", index)
+    with pytest.raises(ValueError, match="reviewed prompt"):
+        read_benchmark(root, "pilot-v1")
+
+
+def test_prompt_comparison_is_explicit_and_labels_each_configuration(showcase):
+    from api.ai_lab.results import read_benchmark
+    from api.ai_lab.dataset import content_hash
+    from api.ai_lab.runner import save_json
+    root, _ = showcase
+    run = json.loads((root / "runs/model-a/run.json").read_text())
+    run["configuration"].update(prompt="synthetic examples", prompt_hash=content_hash("synthetic examples"),
+                                prompt_version="classification_v2")
+    save_json(root / "runs/model-b/run.json", run)
+    index = json.loads((root / "showcase.json").read_text())
+    index["benchmarks"][0]["runs"].append("model-b")
+    save_json(root / "showcase.json", index)
+    with pytest.raises(ValueError, match="prompt"):
+        read_benchmark(root, "pilot-v1")
+    index["benchmarks"][0]["compare_prompts"] = True
+    save_json(root / "showcase.json", index)
+    result = read_benchmark(root, "pilot-v1")
+    assert "Classificação com rubrica" in result["runs"][-1]["label"]
+    assert result["runs"][-1]["strategy_label"] == "Classificação com rubrica"
+    assert result["prompt"]["hash"] is None
+
+
 @pytest.fixture
 def showcase(tmp_path, reviewed_manifest, settings):
     from api.ai_lab.classification import baseline_predictions, load_prompt

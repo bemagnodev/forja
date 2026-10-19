@@ -1,0 +1,815 @@
+{
+  "comparison": {
+    "bands": [
+      {
+        "compared": 3,
+        "label": "800–1100",
+        "mae": {
+          "baseline-dev-grid100-v2": 733.3333333333334,
+          "gemini-35-lite-dev-v1-completed": 266.6666666666667,
+          "gpt-oss-120b-dev-v1": 266.6666666666667,
+          "gpt-oss-20b-dev-v1": 333.3333333333333
+        },
+        "total": 3
+      },
+      {
+        "compared": 3,
+        "label": "1200–1500",
+        "mae": {
+          "baseline-dev-grid100-v2": 266.6666666666667,
+          "gemini-35-lite-dev-v1-completed": 233.33333333333334,
+          "gpt-oss-120b-dev-v1": 133.33333333333334,
+          "gpt-oss-20b-dev-v1": 333.3333333333333
+        },
+        "total": 3
+      },
+      {
+        "compared": 3,
+        "label": "1600–1900",
+        "mae": {
+          "baseline-dev-grid100-v2": 100.0,
+          "gemini-35-lite-dev-v1-completed": 366.6666666666667,
+          "gpt-oss-120b-dev-v1": 200.0,
+          "gpt-oss-20b-dev-v1": 633.3333333333334
+        },
+        "total": 3
+      },
+      {
+        "compared": 2,
+        "label": "2000–2400",
+        "mae": {
+          "baseline-dev-grid100-v2": 750.0,
+          "gemini-35-lite-dev-v1-completed": 900.0,
+          "gpt-oss-120b-dev-v1": 900.0,
+          "gpt-oss-20b-dev-v1": 600.0
+        },
+        "total": 3
+      }
+    ],
+    "dataset": {
+      "hash": "036d8c489293c70e824d148ae1609ef2a37f1a6184c7f302089a896a6611505c",
+      "seed": 42,
+      "split": "development",
+      "total": 12,
+      "version": "cf-rating-v1"
+    },
+    "id": "cf-rating-v1-development",
+    "intersections": {
+      "rating": [
+        "106C",
+        "1270B",
+        "1537D",
+        "1629B",
+        "1690E",
+        "1849E",
+        "1941B",
+        "2005D",
+        "520A",
+        "573A",
+        "895B"
+      ],
+      "tags": [
+        "106C",
+        "1270B",
+        "1629B",
+        "1849E",
+        "1941B",
+        "2005D",
+        "520A",
+        "573A",
+        "895B"
+      ]
+    },
+    "label": "Experimento Codeforces 1",
+    "problems": [
+      {
+        "key": "1629B",
+        "predictions": {
+          "baseline-dev-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "gemini-35-lite-dev-v1-completed": {
+            "rating": 1500,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "greedy",
+              "math",
+              "number theory"
+            ],
+            "tags_status": "valid"
+          },
+          "gpt-oss-120b-dev-v1": {
+            "rating": 1200,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "greedy",
+              "math"
+            ],
+            "tags_status": "valid"
+          },
+          "gpt-oss-20b-dev-v1": {
+            "rating": 1400,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "math",
+              "number theory"
+            ],
+            "tags_status": "valid"
+          }
+        },
+        "reference": {
+          "rating": 800,
+          "tags": [
+            "greedy",
+            "math",
+            "number theory"
+          ]
+        }
+      },
+      {
+        "key": "1690E",
+        "predictions": {
+          "baseline-dev-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "gemini-35-lite-dev-v1-completed": {
+            "rating": 1300,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "greedy",
+              "sortings"
+            ],
+            "tags_status": "valid"
+          },
+          "gpt-oss-120b-dev-v1": {
+            "rating": 1500,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "invalid_output"
+          },
+          "gpt-oss-20b-dev-v1": {
+            "rating": 1400,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "greedy",
+              "sortings"
+            ],
+            "tags_status": "valid"
+          }
+        },
+        "reference": {
+          "rating": 1500,
+          "tags": [
+            "binary search",
+            "greedy",
+            "math",
+            "two pointers"
+          ]
+        }
+      },
+      {
+        "key": "1941B",
+        "predictions": {
+          "baseline-dev-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "gemini-35-lite-dev-v1-completed": {
+            "rating": 1100,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "greedy",
+              "implementation"
+            ],
+            "tags_status": "valid"
+          },
+          "gpt-oss-120b-dev-v1": {
+            "rating": 1400,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "greedy",
+              "implementation",
+              "math"
+            ],
+            "tags_status": "valid"
+          },
+          "gpt-oss-20b-dev-v1": {
+            "rating": 1400,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "greedy",
+              "implementation"
+            ],
+            "tags_status": "valid"
+          }
+        },
+        "reference": {
+          "rating": 1000,
+          "tags": [
+            "brute force",
+            "dp",
+            "greedy",
+            "math"
+          ]
+        }
+      },
+      {
+        "key": "895B",
+        "predictions": {
+          "baseline-dev-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "gemini-35-lite-dev-v1-completed": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "binary search",
+              "sortings",
+              "two pointers"
+            ],
+            "tags_status": "valid"
+          },
+          "gpt-oss-120b-dev-v1": {
+            "rating": 1500,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "binary search",
+              "implementation",
+              "sortings",
+              "two pointers"
+            ],
+            "tags_status": "valid"
+          },
+          "gpt-oss-20b-dev-v1": {
+            "rating": 1000,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "data structures",
+              "math"
+            ],
+            "tags_status": "valid"
+          }
+        },
+        "reference": {
+          "rating": 1700,
+          "tags": [
+            "binary search",
+            "math",
+            "sortings",
+            "two pointers"
+          ]
+        }
+      },
+      {
+        "key": "2005D",
+        "predictions": {
+          "baseline-dev-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "gemini-35-lite-dev-v1-completed": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "brute force",
+              "number theory"
+            ],
+            "tags_status": "valid"
+          },
+          "gpt-oss-120b-dev-v1": {
+            "rating": 1400,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "greedy",
+              "implementation",
+              "math"
+            ],
+            "tags_status": "valid"
+          },
+          "gpt-oss-20b-dev-v1": {
+            "rating": 1800,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "math",
+              "two pointers"
+            ],
+            "tags_status": "valid"
+          }
+        },
+        "reference": {
+          "rating": 2400,
+          "tags": [
+            "binary search",
+            "brute force",
+            "data structures",
+            "divide and conquer",
+            "implementation",
+            "number theory"
+          ]
+        }
+      },
+      {
+        "key": "520A",
+        "predictions": {
+          "baseline-dev-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "gemini-35-lite-dev-v1-completed": {
+            "rating": 800,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "implementation",
+              "strings"
+            ],
+            "tags_status": "valid"
+          },
+          "gpt-oss-120b-dev-v1": {
+            "rating": 800,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "implementation",
+              "strings"
+            ],
+            "tags_status": "valid"
+          },
+          "gpt-oss-20b-dev-v1": {
+            "rating": 800,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "implementation",
+              "strings"
+            ],
+            "tags_status": "valid"
+          }
+        },
+        "reference": {
+          "rating": 800,
+          "tags": [
+            "implementation",
+            "strings"
+          ]
+        }
+      },
+      {
+        "key": "573A",
+        "predictions": {
+          "baseline-dev-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "gemini-35-lite-dev-v1-completed": {
+            "rating": 1000,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "greedy",
+              "implementation",
+              "number theory"
+            ],
+            "tags_status": "valid"
+          },
+          "gpt-oss-120b-dev-v1": {
+            "rating": 900,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "implementation",
+              "math"
+            ],
+            "tags_status": "valid"
+          },
+          "gpt-oss-20b-dev-v1": {
+            "rating": 800,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "implementation",
+              "math"
+            ],
+            "tags_status": "valid"
+          }
+        },
+        "reference": {
+          "rating": 1300,
+          "tags": [
+            "implementation",
+            "math",
+            "number theory"
+          ]
+        }
+      },
+      {
+        "key": "1849E",
+        "predictions": {
+          "baseline-dev-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "gemini-35-lite-dev-v1-completed": {
+            "rating": 1300,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "combinatorics",
+              "data structures",
+              "divide and conquer"
+            ],
+            "tags_status": "valid"
+          },
+          "gpt-oss-120b-dev-v1": {
+            "rating": 1500,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "data structures",
+              "divide and conquer"
+            ],
+            "tags_status": "valid"
+          },
+          "gpt-oss-20b-dev-v1": {
+            "rating": 1700,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "data structures",
+              "divide and conquer"
+            ],
+            "tags_status": "valid"
+          }
+        },
+        "reference": {
+          "rating": 2300,
+          "tags": [
+            "binary search",
+            "data structures",
+            "divide and conquer",
+            "dp",
+            "dsu",
+            "two pointers"
+          ]
+        }
+      },
+      {
+        "key": "1270B",
+        "predictions": {
+          "baseline-dev-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "gemini-35-lite-dev-v1-completed": {
+            "rating": 1000,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "constructive algorithms",
+              "greedy"
+            ],
+            "tags_status": "valid"
+          },
+          "gpt-oss-120b-dev-v1": {
+            "rating": 1200,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "greedy",
+              "implementation",
+              "two pointers"
+            ],
+            "tags_status": "valid"
+          },
+          "gpt-oss-20b-dev-v1": {
+            "rating": 800,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "greedy",
+              "implementation"
+            ],
+            "tags_status": "valid"
+          }
+        },
+        "reference": {
+          "rating": 1200,
+          "tags": [
+            "constructive algorithms",
+            "greedy",
+            "math"
+          ]
+        }
+      },
+      {
+        "key": "1537D",
+        "predictions": {
+          "baseline-dev-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "gemini-35-lite-dev-v1-completed": {
+            "rating": 1300,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "games",
+              "math",
+              "number theory"
+            ],
+            "tags_status": "valid"
+          },
+          "gpt-oss-120b-dev-v1": {
+            "rating": 1500,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "games",
+              "math",
+              "number theory"
+            ],
+            "tags_status": "valid"
+          },
+          "gpt-oss-20b-dev-v1": {
+            "rating": 1400,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "invalid_output"
+          }
+        },
+        "reference": {
+          "rating": 1700,
+          "tags": [
+            "games",
+            "math",
+            "number theory"
+          ]
+        }
+      },
+      {
+        "key": "106C",
+        "predictions": {
+          "baseline-dev-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "gemini-35-lite-dev-v1-completed": {
+            "rating": 1100,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "brute force",
+              "greedy",
+              "implementation"
+            ],
+            "tags_status": "valid"
+          },
+          "gpt-oss-120b-dev-v1": {
+            "rating": 1500,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "dp",
+              "greedy",
+              "implementation"
+            ],
+            "tags_status": "valid"
+          },
+          "gpt-oss-20b-dev-v1": {
+            "rating": 800,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "dp"
+            ],
+            "tags_status": "valid"
+          }
+        },
+        "reference": {
+          "rating": 1700,
+          "tags": [
+            "dp"
+          ]
+        }
+      },
+      {
+        "key": "1620G",
+        "predictions": {
+          "baseline-dev-grid100-v2": {
+            "rating": 1600,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": null,
+            "tags_status": "not_applicable"
+          },
+          "gemini-35-lite-dev-v1-completed": {
+            "rating": 2200,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "bitmasks",
+              "combinatorics",
+              "dp"
+            ],
+            "tags_status": "valid"
+          },
+          "gpt-oss-120b-dev-v1": {
+            "rating": 2000,
+            "rating_status": "valid",
+            "responded": true,
+            "tags": [
+              "bitmasks",
+              "combinatorics",
+              "dp",
+              "strings"
+            ],
+            "tags_status": "valid"
+          },
+          "gpt-oss-20b-dev-v1": {
+            "rating": null,
+            "rating_status": "transport_error",
+            "responded": false,
+            "tags": null,
+            "tags_status": "transport_error"
+          }
+        },
+        "reference": {
+          "rating": 2400,
+          "tags": [
+            "bitmasks",
+            "combinatorics",
+            "dp"
+          ]
+        }
+      }
+    ],
+    "prompt": {
+      "hash": "5576561769e942d91809d84b8f5f302d3e675bf382be34c83ac6ffa8a9a5bb59"
+    },
+    "runs": [
+      {
+        "generation_attempts": 0,
+        "historical_failures": {},
+        "id": "baseline-dev-grid100-v2",
+        "label": "Baseline · mediana",
+        "metrics": {
+          "latency_median": 0.0,
+          "mae": 436.3636363636364,
+          "pending": 0,
+          "rating_coverage": 1.0,
+          "rating_failure_rate": 0.0,
+          "rating_failures": {},
+          "rating_valid": 12,
+          "responded": 12,
+          "tags_coverage": null,
+          "tags_failure_rate": null,
+          "tags_failures": {},
+          "tags_micro_f1": null,
+          "tags_valid": null,
+          "within_200": 0.36363636363636365
+        },
+        "model": "development-median-grid100-half-up-v2",
+        "provider": "baseline"
+      },
+      {
+        "generation_attempts": 14,
+        "historical_failures": {
+          "authentication": 2
+        },
+        "id": "gemini-35-lite-dev-v1-completed",
+        "label": "Gemini 3.5 Flash-Lite",
+        "metrics": {
+          "latency_median": 1.2106543499994586,
+          "mae": 400.0,
+          "pending": 0,
+          "rating_coverage": 1.0,
+          "rating_failure_rate": 0.0,
+          "rating_failures": {},
+          "rating_valid": 12,
+          "responded": 12,
+          "tags_coverage": 1.0,
+          "tags_failure_rate": 0.0,
+          "tags_failures": {},
+          "tags_micro_f1": 0.6181818181818182,
+          "tags_valid": 12,
+          "within_200": 0.45454545454545453
+        },
+        "model": "gemini-3.5-flash-lite",
+        "provider": "gemini"
+      },
+      {
+        "generation_attempts": 12,
+        "historical_failures": {},
+        "id": "gpt-oss-120b-dev-v1",
+        "label": "GPT-OSS 120B",
+        "metrics": {
+          "latency_median": 0.8739975999978924,
+          "mae": 327.27272727272725,
+          "pending": 0,
+          "rating_coverage": 1.0,
+          "rating_failure_rate": 0.0,
+          "rating_failures": {},
+          "rating_valid": 12,
+          "responded": 12,
+          "tags_coverage": 0.9166666666666666,
+          "tags_failure_rate": 0.08333333333333333,
+          "tags_failures": {
+            "invalid_output": 1
+          },
+          "tags_micro_f1": 0.5714285714285714,
+          "tags_valid": 11,
+          "within_200": 0.5454545454545454
+        },
+        "model": "openai/gpt-oss-120b",
+        "provider": "groq"
+      },
+      {
+        "generation_attempts": 12,
+        "historical_failures": {
+          "provider_error": 1
+        },
+        "id": "gpt-oss-20b-dev-v1",
+        "label": "GPT-OSS 20B",
+        "metrics": {
+          "latency_median": 1.477196300002106,
+          "mae": 463.6363636363636,
+          "pending": 0,
+          "rating_coverage": 0.9166666666666666,
+          "rating_failure_rate": 0.08333333333333333,
+          "rating_failures": {
+            "transport_error": 1
+          },
+          "rating_valid": 11,
+          "responded": 11,
+          "tags_coverage": 0.8333333333333334,
+          "tags_failure_rate": 0.16666666666666666,
+          "tags_failures": {
+            "invalid_output": 1,
+            "transport_error": 1
+          },
+          "tags_micro_f1": 0.4897959183673469,
+          "tags_valid": 10,
+          "within_200": 0.18181818181818182
+        },
+        "model": "openai/gpt-oss-20b",
+        "provider": "groq"
+      }
+    ],
+    "split": "development",
+    "version": "cf-rating-v1"
+  },
+  "content_hash": "e82de7312fcbbd7f596ca2157d326ada4a71ae228e09b8e448b5ae492800e393",
+  "schema_version": 1
+}
