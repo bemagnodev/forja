@@ -38,7 +38,7 @@ export function Dashboard() {
       topbarTitle="Dashboard"
       title="A Forja"
       description="Sua visão geral de progressão."
-      rightContent={
+      action={
         <button 
           onClick={loadData}
           className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-zinc-300 bg-zinc-800/50 hover:bg-zinc-800 rounded-md transition-colors border border-zinc-700/50"
