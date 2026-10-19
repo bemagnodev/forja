@@ -48,5 +48,5 @@ Implementação concluída e verificada com 348 testes backend e 96 frontend.
 Build, lint delimitado, Django check e diff check aprovados. TypeScript dos
 arquivos corrigidos sem diagnósticos; 12 erros históricos fora do escopo estão
 documentados, sem exclusões ou desligamento de regras. Relatório completo em
-[revisão final](../AI_LAB_FINAL_REVIEW.md). Não houve commit, push, deploy,
+[documentação do AI Lab](../AI_LAB.md). Nesta etapa não houve commit, push, deploy,
 migration operacional ou inferência real.

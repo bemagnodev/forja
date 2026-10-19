@@ -2,7 +2,7 @@
 
 > Registro da revisão anterior. O contrato de produto, imagens, limpeza e runner
 > foram posteriormente revisados conforme `2026-10-19-ai-lab-product-finalization.md`.
-> Para o estado final, consultar `../AI_LAB_FINAL_REVIEW.md` e
+> Para o estado atual, consultar `../AI_LAB.md` e
 > `../AI_LAB_TYPESCRIPT_DEBT.md`.
 
 Data: 19/10/2026. Estado revisado: `main`, HEAD `9b1d82b`, mais a árvore de

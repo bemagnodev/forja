@@ -23,6 +23,29 @@ as instruções completas A/B, taxonomia preenchida, versão, hash e opção de 
 São textos gravados nas runs, não o conteúdo atual do template. A e B são ambos
 zero-shot; B usa rubrica. Enunciados e o prompt C não são publicados.
 
+### Validação e publicação
+
+Verificação local em 19/10/2026: 348 testes backend e 97 frontend aprovados,
+build Vite e Django check aprovados. APIs e IA simuladas nos testes; nenhuma
+chamada real para validar a entrega. O botão Refresh do Dashboard tem regressão
+que verifica visibilidade e nova busca ao clicar. Restam 11 diagnósticos de
+TypeScript anteriores, detalhados em [dívida técnica](AI_LAB_TYPESCRIPT_DEBT.md).
+Build aprovado não substitui a checagem de tipos.
+
+Antes de considerar a publicação conferida:
+
+- Verificar com sessão autenticada a listagem e os três detalhes em
+  `/api/ai-lab/benchmarks`: HTTP 200, 60 problemas e prompts A/B corretos.
+- Conferir gráficos, prompts e carregamento de Explorar, fila e Contests em
+  produção, sem solicitar classificações ou depender da pasta privada `var`.
+- Conferir timeout do servidor/proxy para scraping e inferência síncronos.
+- Manter backup privado do dataset congelado e das runs; snapshots sanitizados
+  não substituem esses artefatos. Não publicar enunciados ou respostas brutas.
+
+A mesclagem de metadados foi testada em SQLite, sem reproduzir concorrência real
+de PostgreSQL. A avaliação do Gemini cobre 800–2400; aceitar 2500–3500 no produto
+não comprova qualidade nessa faixa. O Prompt C permanece pausado.
+
 ### Histórico do piloto (arquivado)
 
 Os snapshots arquivados registram `Experimento Codeforces 1`, com Gemini 3.5

@@ -54,65 +54,22 @@ O MAE aumentou 11,7 pontos. Nesta rodada, a rubrica não trouxe melhoria para
 o Gemini. Não foi realizado teste de significância, repetição com várias seeds
 ou holdout adicional; não concluir que a rubrica sempre piora resultados.
 
-## Operação, falhas e limites
+## Limitações e artefatos
 
-Os quatro novos lotes consumiram **242/300 tentativas autorizadas**: Gemini A60,
-Gemini B62, GPT-OSS 120B A60 e B60. Não houve HTTP429 nesses lotes. Gemini B
-teve dois erros de servidor, recuperados sob a mesma configuração. Nenhuma
-resposta inválida foi repetida para elevar a qualidade medida.
+A amostra é textual e balanceada: não representa toda a distribuição do
+Codeforces. Problemas públicos podem ter sido vistos no treinamento. A escolha
+do vencedor usa este mesmo conjunto; não equivale a uma avaliação independente.
+A qualidade entre 2500 e 3500 não foi avaliada.
 
-Histórico preservado do GPT-OSS 20B: A78 chamadas (18 rate limits, um erro
-permanente); B86 chamadas (26 rate limits, dois erros permanentes). Nas duas
-runs as falhas permanentes continuam na cobertura. As tags inválidas também
-continuam contabilizadas: A4 e B6 no 20B, A2/B3 no Gemini e A2/B3 no 120B.
+As tentativas históricas incluem falhas e ancestrais das runs. Respostas inválidas
+não foram repetidas para melhorar as métricas. Datas, quotas e intervalos entre
+chamadas diferem; os tempos não constituem comparação controlada de infraestrutura.
 
-O intervalo de 60s da Groq foi conservador e consumiu aproximadamente uma hora
-por prompt. Isso foi espaçamento intencional; não tempo de inferência de uma
-hora. As latências medianas de resposta ficaram aproximadamente em 1,2–1,4s
-para GPT-OSS e 2,4–2,6s para Gemini. Não comparar velocidade sem considerar
-provedor, saída, quotas e diferentes datas de execução. O experimento atual
-não é um benchmark controlado de infraestrutura.
+As três comparações sanitizadas estão em `backend/api/ai_lab/published`,
+selecionadas por `index.json`. Incluem prompts A/B revisados, versão e hash;
+não incluem enunciados, justificativas livres, respostas brutas ou chaves.
+Pilotos, Qwen, Gemini 3.8 e a comparação isolada do GPT-OSS 20B estão em
+`archive`, fora da vitrine. O Prompt C permanece pausado.
 
-Somente os modelos Free Tier autorizados; sem fallback, novos modelos ou
-alteração de faturamento. O Prompt C continua pausado e fora destas visões.
-O dataset contém questões públicas, com possível exposição no treinamento;
-o benchmark é exploratório e restrito à população textual selecionada.
-
-## Entrega local
-
-No seletor da aba Benchmark, após o acabamento aprovado:
-
-1. `Classificação direta — comparação de modelos`.
-2. `Classificação com rubrica — comparação de modelos`.
-3. `Impacto da rubrica — Gemini Flash-Lite`.
-
-Snapshots sanitizados em `backend/api/ai_lab/published/cf60-prompt-a-models-v1.json`,
-`cf60-prompt-b-models-v1.json` e `cf60-best-model-prompts-ab-v1.json`.
-Não contêm enunciados, justificativas livres, respostas brutas ou chaves. Após
-aprovação explícita, passaram a incluir somente os textos A/B revisados, com
-hash e versão. C e exemplos privados continuam excluídos. Pilotos e snapshots
-anteriores foram preservados em `api/ai_lab/archive`, fora da vitrine.
-Durante a execução dos lotes não houve commit, push, deploy ou migration.
-A organização posterior dos commits está em [revisão para publicação](AI_LAB_RELEASE_REVIEW.md).
-
-## Validação da entrega
-
-Na entrega inicial da matriz, 315 testes de backend e 83 de frontend passaram.
-Após o acabamento, são 322 backend e 85 frontend aprovados; build e
-lint dos dois arquivos React alterados aprovados. TDD reproduziu o rótulo fixo
-de Prompt v1 e a ausência de identificação da amostra final antes das correções.
-O cabeçalho agora distingue A, B e A/B usando metadados de cada run; arquivos
-legados sem versão não recebem uma versão inventada. A amostra por faixa
-vem dos resultados, em vez de texto fixo do piloto.
-
-As primeiras tentativas de suíte completa encontraram erros de acesso a arquivos
-e recursos do sandbox/Windows. Backend foi coletado explicitamente em `api`,
-sem percorrer os diretórios privados de dados/temporários. Frontend completo
-passou com uma thread (`--pool=threads --maxWorkers=1`) e diretório temporário
-local. Nenhum teste foi removido ou teve suas verificações relaxadas.
-
-As três comparações foram conferidas na página real `http://127.0.0.1:5176/ai-lab`,
-incluindo títulos, dados, cobertura, mapa de calor e dispersão. A aba Explorar
-permanece a primeira, com ícones Codeforces, AtCoder e CSES preservados.
-O acompanhamento recorrente foi pausado após concluir esta matriz; C segue
-pausado. Uma próxima execução exigirá novo alinhamento, sem retomada implícita.
+Funcionamento e publicação: [AI Lab](AI_LAB.md).
+Comandos e retomada: [operação dos experimentos](AI_LAB_EXPERIMENTS.md).
