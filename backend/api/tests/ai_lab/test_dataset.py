@@ -26,11 +26,12 @@ def test_statement_rejects_blocked_or_incomplete_html(html):
         parse_statement(html)
 
 
-def test_statement_rejects_images_requiring_review(statement_html):
+def test_statement_preserves_images_for_explicit_visual_handling(statement_html):
     from api.ai_lab.dataset import parse_statement
 
-    with pytest.raises(ValueError, match="image"):
-        parse_statement(statement_html.replace("Compute", '<img src="diagram.png">Compute'))
+    result = parse_statement(statement_html.replace("Compute", '<img src="diagram.png">Compute'))
+    assert result["images"][0]["url"].endswith("/diagram.png")
+    assert "[image:1]" in result["description"]
 
 
 def test_statement_rejects_unpaired_samples(statement_html):
@@ -219,3 +220,10 @@ def test_review_report_without_statement_fails_closed(reviewed_manifest):
     manifest = reviewed_manifest()
     with pytest.raises(ValueError, match="statement"):
         render_review(manifest, {item["key"]: '<html>navigation</html>' for item in manifest["items"]})
+def test_excluding_unusable_problem_preserves_draw_order(catalog):
+    from api.ai_lab.dataset import select_items
+    original = select_items(catalog, 3, 42)
+    excluded = (original[0]["contestId"], original[0]["index"])
+    replacement = select_items(catalog, 3, 42, exclude_problems={excluded})
+    expected = {(p["contestId"], p["index"]) for p in original[1:]}
+    assert expected.issubset({(p["contestId"], p["index"]) for p in replacement})

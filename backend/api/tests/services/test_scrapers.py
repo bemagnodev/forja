@@ -38,7 +38,7 @@ def test_codeforces_scraper_success():
     """
     Cenário: O scraper acessa um problema válido do CF com HTML padrão.
     Resultado Esperado: Dicionário com campos formatados (sem prefixo de limite)
-    e LaTeX convertido para Unicode. Não inclui métricas de submissions.
+    e LaTeX preservado pelo parser compartilhado. Não inclui métricas de submissions.
     """
     responses.add(responses.GET, "https://codeforces.com/problemset/problem/1/A", body=SAMPLE_HTML, status=200)
 
@@ -47,10 +47,9 @@ def test_codeforces_scraper_success():
 
     assert result["time_limit"] == "2 seconds"
     assert result["memory_limit"] == "256 megabytes"
-    assert "$$$" not in result["description"]
-    assert "\\leq" not in result["input_format"]
-    assert "≤" in result["input_format"]
-    assert "⊕" in result["notes"]
+    assert "$$$" in result["description"]
+    assert "\\leq" in result["input_format"]
+    assert "\\oplus" in result["notes"]
     assert result["title"] == "A. Test Problem"
     assert len(result["testcases"]) == 1
     assert "total_solved" not in result
@@ -140,6 +139,27 @@ def test_atcoder_scraper_success():
     assert "1 \leq A, B \leq 100" in result["constraints"] or "1 ≤ A, B ≤ 100" in result["constraints"]
     assert "Input is given" in result["input_format"]
     assert "Print the answer" in result["output_format"]
+
+
+@responses.activate
+def test_atcoder_samples_never_overwrite_input_and_output_formats():
+    """Sample headings must not replace the actual input/output specifications."""
+    samples = """
+        <section><h3>Sample Input 1</h3><pre>1 2</pre></section>
+        <section><h3>Sample Output 1</h3><pre>3</pre></section>
+        <section><h3>Sample Input 2</h3><pre>4 5</pre></section>
+        <section><h3>Sample Output 2</h3><pre>9</pre></section>
+    """
+    html = ATCODER_SAMPLE_HTML.replace("</span>", samples + "</span>", 1)
+    url = "https://atcoder.jp/contests/abc300/tasks/abc300_a"
+    responses.add(responses.GET, url, body=html, status=200)
+
+    result = AtCoderScraper().scrape(url)
+
+    assert "Input is given" in result["input_format"]
+    assert "Print the answer" in result["output_format"]
+    assert "4 5" not in result["input_format"]
+    assert result["output_format"] != "9"
 
 
 @responses.activate

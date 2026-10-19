@@ -7,12 +7,12 @@ import re
 from collections import Counter
 from datetime import datetime, timezone
 
-from bs4 import BeautifulSoup
+from api.services.scrapers.codeforces import CodeforcesScraper
+from api.services.scrapers.preparation import INPUT_FIELDS, prepare_input as prepare_classification_input
 
 from .contracts import normalize_tags, TAXONOMY_VERSION
 
 BANDS = ((800, 1100), (1200, 1500), (1600, 1900), (2000, 2400))
-INPUT_FIELDS = frozenset(("description", "input_format", "output_format", "time_limit", "memory_limit", "notes", "testcases"))
 
 
 def validate_version(version: str) -> str:
@@ -31,7 +31,7 @@ def content_hash(value) -> str:
     return hashlib.sha256(json.dumps(value, sort_keys=True, ensure_ascii=False, separators=(",", ":"), allow_nan=False).encode()).hexdigest()
 
 
-def select_items(catalog: dict, per_band: int, seed: int = 42, exclude_contests=()) -> list:
+def select_items(catalog: dict, per_band: int, seed: int = 42, exclude_contests=(), *, exclude_problems=()) -> list:
     """Stable stratified draw, capped at two problems per contest overall."""
     if type(per_band) is not int or per_band < 1:
         raise ValueError("per_band must be positive")
@@ -53,6 +53,8 @@ def select_items(catalog: dict, per_band: int, seed: int = 42, exclude_contests=
     random.Random(seed).shuffle(candidates)
     counts, contests, selected = Counter(), Counter(), []
     for problem in candidates:
+        if (problem["contestId"], problem["index"]) in exclude_problems:
+            continue
         band = next(i for i, (lo, hi) in enumerate(BANDS) if lo <= problem["rating"] <= hi)
         contest = problem["contestId"]
         if counts[band] < per_band and contests[contest] < 2:
@@ -65,25 +67,13 @@ def select_items(catalog: dict, per_band: int, seed: int = 42, exclude_contests=
 
 
 def prepare_input(statement: dict) -> dict:
-    prepared = {key: statement[key] for key in sorted(INPUT_FIELDS) if key in statement}
-    for key in ("description", "input_format", "output_format", "time_limit", "memory_limit"):
-        if not isinstance(prepared.get(key), str) or not prepared[key].strip():
-            raise ValueError(f"Incomplete statement: {key}")
-    if "notes" in prepared and not isinstance(prepared["notes"], str):
-        raise ValueError("Invalid statement: notes must be text")
-    samples = prepared.get("testcases")
-    if not isinstance(samples, list) or not samples:
-        raise ValueError("Missing samples")
-    prepared["testcases"] = []
-    for sample in samples:
-        if not isinstance(sample, dict) or any(not isinstance(sample.get(k), str) or not sample[k].strip() for k in ("input", "output")):
-            raise ValueError("Invalid sample")
-        prepared["testcases"].append({k: sample[k] for k in ("input", "output")})
-    return prepared
+    return prepare_classification_input(statement, strict=True)
 
 
 def require_reviewed(item: dict) -> None:
     review, value = item.get("review", {}), item.get("input", {})
+    if value.get("images"):
+        raise ValueError("Visual content requires a multimodal benchmark protocol")
     if (not review.get("reviewer") or not review.get("reviewed_at")
             or review.get("hash") != content_hash(value)
             or prepare_input(value) != value):
@@ -151,10 +141,11 @@ def build_manifest(catalog: dict, fetch_html, split="development", seed=42, deve
         require_dataset_version(development, version)
         require_frozen(development)
         excluded_contests = {item["contest_id"] for item in development["items"]}
-    working = {"problems": list(catalog["problems"])}
+    excluded_problems = set()
     cached, exclusions = {}, []
     while True:
-        selected = select_items(working, 3 if split == "development" else 15, seed, excluded_contests)
+        selected = select_items(catalog, 3 if split == "development" else 15, seed, excluded_contests,
+                                exclude_problems=excluded_problems)
         failed = set()
         for p in selected:
             key = f'{p["contestId"]}{p["index"]}'
@@ -164,7 +155,9 @@ def build_manifest(catalog: dict, fetch_html, split="development", seed=42, deve
             # A transport failure must stop the collection, not bias it toward accessible items.
             html = fetch_html(url)
             try:
-                value = prepare_input(parse_statement(html))
+                value = prepare_input(CodeforcesScraper.parse_html(html, url))
+                if value.get("images"):
+                    raise ValueError("Visual content requires a multimodal benchmark protocol")
                 tags = normalize_tags(p["tags"])
             except ValueError as exc:
                 failed.add((p["contestId"], p["index"]))
@@ -175,9 +168,9 @@ def build_manifest(catalog: dict, fetch_html, split="development", seed=42, deve
                            "reference": {"rating": p["rating"], "tags": tags}, "review": {}}
         if not failed:
             break
-        working["problems"] = [p for p in working["problems"] if (p.get("contestId"), p.get("index")) not in failed]
+        excluded_problems.update(failed)
     return {"version": version, "split": split, "state": "collected", "seed": seed,
-            "algorithm": "stratified-v1", "catalog_hash": content_hash(catalog),
+            "algorithm": "stratified-v2-stable-replacement", "catalog_hash": content_hash(catalog),
             "taxonomy": TAXONOMY_VERSION, "collected_at": datetime.now(timezone.utc).isoformat(),
             "development_hash": development["hash"] if development else None,
             "excluded": exclusions,
@@ -185,38 +178,5 @@ def build_manifest(catalog: dict, fetch_html, split="development", seed=42, deve
 
 
 def parse_statement(html: str) -> dict:
-    """Preserve mathematical source instead of destructively simplifying LaTeX."""
-    soup = BeautifulSoup(html, "html.parser")
-    root = soup.select_one("div.problem-statement")
-    if root is None:
-        raise ValueError("Missing statement; blocked or unsupported page")
-    if root.find(["img", "svg", "iframe", "script", "object"]):
-        raise ValueError("statement image or embedded content requires review")
-
-    def text(node):
-        return node.get_text("\n", strip=True) if node else ""
-
-    # Description can span several direct children; never assume child index 1.
-    description = "\n".join(
-        text(child) for child in root.find_all(recursive=False)
-        if child.name in ("div", "p", "ul", "ol") and not child.get("class")
-    ).strip()
-    result = {"description": description}
-    for field, selector in (("input_format", ".input-specification"),
-                            ("output_format", ".output-specification"),
-                            ("notes", ".note")):
-        result[field] = text(root.select_one(selector))
-    for field, selector in (("time_limit", ".time-limit"), ("memory_limit", ".memory-limit")):
-        node = root.select_one(selector)
-        if node:
-            for label in node.select(".property-title"):
-                label.decompose()
-        result[field] = text(node)
-    if any(not result[field] for field in ("description", "input_format", "output_format", "time_limit", "memory_limit")):
-        raise ValueError("Incomplete statement")
-    inputs = root.select(".sample-tests .input pre")
-    outputs = root.select(".sample-tests .output pre")
-    if not inputs or len(inputs) != len(outputs):
-        raise ValueError("Missing or unpaired sample")
-    result["testcases"] = [{"input": text(i), "output": text(o)} for i, o in zip(inputs, outputs)]
-    return result
+    """Compatibility entry point; parsing belongs to CodeforcesScraper."""
+    return CodeforcesScraper.parse_html(html)

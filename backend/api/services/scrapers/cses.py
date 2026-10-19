@@ -2,6 +2,7 @@ import requests
 from bs4 import BeautifulSoup, Tag
 from .base import BaseScraper
 from .exceptions import UnparseableProblemException
+from .images import mark_images
 
 class CSESScraper(BaseScraper):
     def scrape(self, url: str) -> dict:
@@ -16,6 +17,7 @@ class CSESScraper(BaseScraper):
 
         if not content_div:
             raise UnparseableProblemException("Could not find div with class 'content'")
+        images = mark_images(content_div, url)
 
         result = {
             "title": soup.title.string.replace("CSES - ", "") if soup.title else "",
@@ -81,4 +83,6 @@ class CSESScraper(BaseScraper):
         if not any(result[k] for k in ["description", "input_format", "output_format"]):
             raise UnparseableProblemException("Could not extract main sections from CSES problem")
 
+        if images:
+            result["images"] = images
         return result

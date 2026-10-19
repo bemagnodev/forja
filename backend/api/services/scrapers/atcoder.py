@@ -2,6 +2,7 @@ import requests
 from bs4 import BeautifulSoup
 from .base import BaseScraper
 from .exceptions import UnparseableProblemException
+from .images import mark_images
 
 class AtCoderScraper(BaseScraper):
     def scrape(self, url: str) -> dict:
@@ -20,6 +21,7 @@ class AtCoderScraper(BaseScraper):
         # Tentar pegar apenas o inglês
         lang_en = task_statement.find('span', class_='lang-en')
         container = lang_en if lang_en else task_statement
+        images = mark_images(container, url)
 
         result = {
             "description": "",
@@ -45,13 +47,15 @@ class AtCoderScraper(BaseScraper):
                 result["description"] = content
             elif "constraints" in title:
                 result["constraints"] = content
-            elif "input" in title:
+            elif title in ("input", "input format"):
                 result["input_format"] = content
-            elif "output" in title:
+            elif title in ("output", "output format"):
                 result["output_format"] = content
 
         # Se tudo ficou vazio, é possível que não parseamos direito
         if not any(result.values()):
             raise UnparseableProblemException("Could not extract any standard sections from AtCoder problem")
 
+        if images:
+            result["images"] = images
         return result
