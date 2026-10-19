@@ -69,10 +69,18 @@ def test_predict_problem_cached(mock_classify, mock_scraper_class, prediction_ap
     Cenário: O problema já possui os dados de predição em platform_metadata.
     Resultado Esperado: A API deve retornar os dados em cache imediatamente.
     """
+    from api.ai_lab.classification import load_prompt
+    from api.ai_lab.dataset import content_hash
+    from api.ai_lab.product import PRODUCT_PROMPT_VERSION, PRODUCT_RATING_DOMAIN
     setup_problem.platform_metadata = {
         "ai_rating": 1200,
         "ai_tags": ["implementation"],
-        "ai_reasoning": "Already classified"
+        "ai_reasoning": "Already classified",
+        "ai_model": "gemini-3.5-flash-lite",
+        "ai_prompt_hash": content_hash(load_prompt(PRODUCT_PROMPT_VERSION)),
+        "ai_prompt_version": PRODUCT_PROMPT_VERSION,
+        "ai_rating_domain": PRODUCT_RATING_DOMAIN,
+        "ai_visual_status": "not_applicable",
     }
     setup_problem.save()
     

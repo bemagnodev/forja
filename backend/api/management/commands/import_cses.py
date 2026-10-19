@@ -6,6 +6,7 @@ from django.utils import timezone
 import os
 import zlib
 import math
+from api.services.problem_metadata import upsert_problem_metadata
 
 class Command(BaseCommand):
     help = 'Importa problemas e histórico do CSES baseado nos usuários com cses_token'
@@ -118,17 +119,17 @@ class Command(BaseCommand):
                         verdict = 'AC' if 'full' in classes else ('WA' if 'zero' in classes else None)
 
                         # 2. Salvar Problema
-                        problem, _ = Problem.objects.update_or_create(
+                        problem, _ = upsert_problem_metadata(
                             platform=PlatformChoices.CSES,
                             platform_id=prob_id_str,
-                            defaults={
+                            fields={
                                 'title': name,
                                 'contest': contest,
-                                'platform_metadata': {
+                            },
+                            metadata={
                                     'official_rating': estimated_rating,
                                     'official_tags': section_tags
-                                }
-                            }
+                            },
                         )
 
                         # 3. Criar Tracking

@@ -4,6 +4,7 @@ from django.utils import timezone
 from django.core.management.base import BaseCommand
 from api.models import Contest, Problem, PlatformChoices
 from api.services.codeforces_client import CodeforcesClient
+from api.services.problem_metadata import upsert_problem_metadata
 
 class Command(BaseCommand):
     help = 'Sincroniza os meta-dados estáticos do Codeforces (Contests e Problems) usando a API Oficial.'
@@ -101,14 +102,14 @@ class Command(BaseCommand):
             is_gym = int(contest_id) >= 100000
             platform_type = PlatformChoices.CF_GYM if is_gym else PlatformChoices.CF_OFFICIAL
             
-            _, created = Problem.objects.update_or_create(
+            _, created = upsert_problem_metadata(
                 platform=platform_type,
                 platform_id=problem_id,
-                defaults={
+                fields={
                     'title': title,
                     'contest': contest,
-                    'platform_metadata': metadata
-                }
+                },
+                metadata=metadata,
             )
             if created: problems_created += 1
 

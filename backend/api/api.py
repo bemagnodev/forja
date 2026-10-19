@@ -8,7 +8,12 @@ from django.core.management import call_command
 from .models import Submission, Problem, Contest, QueueItem, User, UserProblemTracking, ContestParticipation
 from .services.scrapers.codeforces import CodeforcesScraper
 from .services.scrapers.exceptions import UnparseableProblemException
-from .services.ai_classifier import classify_problem
+from .ai_lab.explore import DEFAULT_MODEL, DEFAULT_PROMPT_VERSION, classify_problem, resolve_model
+from .ai_lab.product import PRODUCT_RATING_DOMAIN, validate_product_prediction
+from .ai_lab.classification import load_prompt
+from .ai_lab.dataset import content_hash
+from .ai_lab.contracts import ProviderFailure
+from .services.problem_metadata import upsert_problem_metadata
 from .services.sync_dispatcher import dispatch_sync
 
 from ninja_jwt.routers.obtain import obtain_pair_router
@@ -199,6 +204,7 @@ class QueueSchema(Schema):
     contest_name: Optional[str] = None
     ai_rating: Optional[int] = None
     ai_tags: List[str] = []
+    ai_visual_status: Optional[str] = None
 
 
     @staticmethod
@@ -272,6 +278,12 @@ class QueueSchema(Schema):
             return obj.linked_problem.platform_metadata.get('ai_tags', [])
         return []
 
+    @staticmethod
+    def resolve_ai_visual_status(obj):
+        if obj.linked_problem and obj.linked_problem.platform_metadata:
+            return obj.linked_problem.platform_metadata.get('ai_visual_status')
+        return None
+
 
 class QueueCreateSchema(Schema):
     title: str
@@ -341,27 +353,21 @@ class AIPredictionSchema(Schema):
     raw_data: Optional[dict] = None
     real_rating: Optional[int] = None
     real_tags: List[str] = []
+    model: Optional[str] = None
+    cached: bool = False
+    rating_status: Optional[str] = None
+    tags_status: Optional[str] = None
+    discarded_tags_count: int = 0
+    visual_status: Optional[str] = None
+    prompt_version: Optional[str] = None
+    prompt_hash: Optional[str] = None
+    rating_domain: Optional[str] = None
 
-@api.post("/problems/{problem_id}/predict", response=AIPredictionSchema)
-def predict_problem(request, problem_id: int, model_name: Optional[str] = None, force: bool = False):
-    from django.shortcuts import get_object_or_404
+def _classify_for_ui(problem, selected_model):
+    """Shared external I/O only; callers decide whether anything is persisted."""
     from requests.exceptions import RequestException
-    from google.genai.errors import APIError
+    from ninja.errors import HttpError
 
-    problem = get_object_or_404(Problem, id=problem_id)
-    metadata = problem.platform_metadata or {}
-    
-    # Cache hit
-    if not force and "ai_rating" in metadata and "ai_tags" in metadata and "ai_reasoning" in metadata:
-        return {
-            "rating": metadata.get("ai_rating"),
-            "tags": metadata.get("ai_tags"),
-            "reasoning": metadata.get("ai_reasoning"),
-            "raw_data": None,
-            "real_rating": metadata.get("rating"),
-            "real_tags": metadata.get("tags", [])
-        }
-    
     # Scraper selection
     from .services.scrapers import CodeforcesScraper, AtCoderScraper, CSESScraper
     
@@ -372,38 +378,103 @@ def predict_problem(request, problem_id: int, model_name: Optional[str] = None, 
     elif problem.platform == "CSES":
         scraper = CSESScraper()
     else:
-        return 400, {"message": f"Platform {problem.platform} not supported for prediction"}
+        raise HttpError(400, "Plataforma não suportada para classificação")
 
     try:
         problem_data = scraper.scrape(problem.url)
-    except UnparseableProblemException as e:
-        return 400, {"message": str(e)}
-    except RequestException as e:
-        return 502, {"message": f"Erro de conexão ao raspar o problema: {str(e)}"}
+    except UnparseableProblemException:
+        raise HttpError(400, "Não foi possível extrair o enunciado dessa questão") from None
+    except RequestException:
+        raise HttpError(502, "Erro de conexão ao obter o enunciado") from None
         
     # AI Classifier
     try:
-        ai_result = classify_problem(problem_data, model_name=model_name)
-    except APIError as e:
-        return 503, {"message": f"Erro na API do Gemini (verifique a GEMINI_API_KEY no Render): {str(e)}"}
-    except Exception as e:
-        return 500, {"message": f"Erro ao classificar via IA: {str(e)}"}
-    
-    # Update DB
-    metadata["ai_rating"] = ai_result.get("predicted_rating")
-    metadata["ai_tags"] = ai_result.get("predicted_tags", [])
-    metadata["ai_reasoning"] = ai_result.get("reasoning", "")
-    problem.platform_metadata = metadata
-    problem.save()
-    
+        ai_result = classify_problem(problem_data, model_name=selected_model)
+    except ProviderFailure as exc:
+        status, message = {
+            "rate_limit": (429, "Limite do modelo atingido. Aguarde a renovação da cota; nenhuma repetição foi feita."),
+            "authentication": (503, "Chave ou acesso do provedor indisponível. Confira a configuração do backend."),
+            "invalid_output": (502, "O modelo retornou rating ou tags fora do contrato. Nenhuma previsão foi salva."),
+            "parsing": (502, "O modelo retornou uma resposta incompleta ou inválida."),
+            "timeout": (504, "O provedor não respondeu a tempo. Nenhuma repetição automática foi feita."),
+        }.get(exc.category, (503, "O provedor está indisponível para essa classificação."))
+        if exc.http_status is not None:
+            message += f" Provedor: HTTP {exc.http_status} ({exc.category})."
+        raise HttpError(status, message) from None
+    except ValueError as exc:
+        raise HttpError(400, str(exc)) from None
+    except Exception:
+        raise HttpError(503, "Não foi possível concluir a classificação. Confira a configuração do provedor.") from None
+    return ai_result, problem_data
+
+
+def _prediction_response(ai_result, metadata, selected_model, problem_data=None, cached=False):
     return {
-        "rating": metadata["ai_rating"],
-        "tags": metadata["ai_tags"],
-        "reasoning": metadata["ai_reasoning"],
+        "rating": ai_result.get("predicted_rating"),
+        "tags": ai_result.get("predicted_tags", []),
+        "reasoning": ai_result.get("reasoning", ""),
         "raw_data": problem_data,
         "real_rating": metadata.get("rating"),
-        "real_tags": metadata.get("tags", [])
+        "real_tags": metadata.get("tags", []),
+        "model": selected_model, "cached": cached,
+        "rating_status": ai_result.get("rating_status"),
+        "tags_status": ai_result.get("tags_status"),
+        "discarded_tags_count": ai_result.get("discarded_tags_count", 0),
+        "visual_status": ai_result.get("visual_status"),
+        "prompt_version": ai_result.get("prompt_version"),
+        "prompt_hash": ai_result.get("prompt_hash"),
+        "rating_domain": ai_result.get("rating_domain"),
     }
+
+
+@api.post("/ai-lab/problems/{problem_id}/classify", response=AIPredictionSchema)
+def explore_problem(request, problem_id: int, model_name: Optional[str] = None):
+    from django.shortcuts import get_object_or_404
+    from ninja.errors import HttpError
+    try:
+        selected_model = resolve_model(model_name)
+    except ValueError as exc:
+        raise HttpError(400, str(exc)) from None
+    problem = get_object_or_404(Problem, id=problem_id)
+    ai_result, problem_data = _classify_for_ui(problem, selected_model)
+    return _prediction_response(ai_result, problem.platform_metadata or {}, selected_model, problem_data)
+
+
+@api.post("/problems/{problem_id}/predict", response=AIPredictionSchema)
+def predict_problem(request, problem_id: int, model_name: Optional[str] = None, force: bool = False):
+    from django.shortcuts import get_object_or_404
+    from ninja.errors import HttpError
+    if model_name is not None and model_name != DEFAULT_MODEL:
+        raise HttpError(400, "Use o Explorar para testar outros modelos sem alterar a previsão do produto")
+    problem = get_object_or_404(Problem, id=problem_id)
+    metadata = problem.platform_metadata or {}
+    prompt_hash = content_hash(load_prompt(DEFAULT_PROMPT_VERSION))
+    cached_prediction = validate_product_prediction({"rating": metadata.get("ai_rating"), "tags": metadata.get("ai_tags")})
+    if (not force and metadata.get("ai_model") == DEFAULT_MODEL and metadata.get("ai_prompt_hash") == prompt_hash
+            and metadata.get("ai_prompt_version") == DEFAULT_PROMPT_VERSION
+            and metadata.get("ai_rating_domain") == PRODUCT_RATING_DOMAIN
+            and metadata.get("ai_visual_status") in ("unprocessed", "not_applicable")
+            and isinstance(metadata.get("ai_reasoning"), str)
+            and cached_prediction["rating_status"] == "valid" and cached_prediction["tags_status"] == "valid"):
+        saved = {"predicted_rating": metadata["ai_rating"], "predicted_tags": metadata["ai_tags"], "reasoning": metadata["ai_reasoning"],
+                 "rating_status": "valid", "tags_status": "valid", "prompt_hash": prompt_hash, "prompt_version": DEFAULT_PROMPT_VERSION,
+                 "rating_domain": PRODUCT_RATING_DOMAIN, "visual_status": metadata["ai_visual_status"]}
+        return _prediction_response(saved, metadata, DEFAULT_MODEL, cached=True)
+
+    ai_result, problem_data = _classify_for_ui(problem, DEFAULT_MODEL)
+    validated = validate_product_prediction({"rating": ai_result.get("predicted_rating"), "tags": ai_result.get("predicted_tags")})
+    if (validated["rating_status"] != "valid" or validated["tags_status"] != "valid"
+            or ai_result.get("rating_status", "valid") != "valid" or ai_result.get("tags_status", "valid") != "valid"):
+        raise HttpError(502, "Resposta parcial ou inválida: a previsão salva do produto foi preservada")
+    # Acquire the row lock only after scraping/inference; merge the latest metadata.
+    current, _ = upsert_problem_metadata(platform=problem.platform, platform_id=problem.platform_id, metadata={
+        "ai_rating": validated["rating"], "ai_tags": ai_result["predicted_tags"], "ai_reasoning": ai_result.get("reasoning", ""),
+        "ai_model": DEFAULT_MODEL, "ai_prompt_hash": ai_result.get("prompt_hash", prompt_hash),
+        "ai_prompt_version": ai_result.get("prompt_version", DEFAULT_PROMPT_VERSION),
+        "ai_rating_domain": PRODUCT_RATING_DOMAIN,
+        "ai_visual_status": ai_result.get("visual_status", "not_applicable"),
+    })
+    return _prediction_response(ai_result, current.platform_metadata, DEFAULT_MODEL, problem_data)
 
 
 @api.get("/stats", response=StatsSchema)
@@ -716,6 +787,7 @@ class ContestProblemSchema(Schema):
     ai_rating: Optional[int] = None
     tags: List[str] = []
     ai_tags: List[str] = []
+    ai_visual_status: Optional[str] = None
     url: Optional[str] = None
     system_status: str
     review_status: str
@@ -735,6 +807,10 @@ class ContestProblemSchema(Schema):
     @staticmethod
     def resolve_ai_rating(obj):
         return obj.platform_metadata.get('ai_rating') if obj.platform_metadata else None
+
+    @staticmethod
+    def resolve_ai_visual_status(obj):
+        return obj.platform_metadata.get('ai_visual_status') if obj.platform_metadata else None
 
     @staticmethod
     def resolve_tags(obj):

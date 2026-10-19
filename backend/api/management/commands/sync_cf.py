@@ -5,6 +5,7 @@ from django.core.management.base import BaseCommand
 from api.models import User, Problem, Submission, UserProblemTracking, PlatformChoices, ContestParticipation, Contest
 from api.services.codeforces_client import CodeforcesClient
 from api.services.codeforces_gym_service import ensure_codeforces_gym_metadata
+from api.services.problem_metadata import upsert_problem_metadata
 
 class Command(BaseCommand):
     help = 'Sincroniza as submissões vitais do Codeforces, abastecendo o Tracking via motor FSM Dual-State.'
@@ -129,24 +130,14 @@ class Command(BaseCommand):
                 cont_obj = Contest.objects.filter(platform=platform_type, platform_id=contest_id).first()
 
                 # 1. Problem - Preserva metadados existentes (rating/tags do catálogo e IA) se a submissão vier sem eles
-                existing_prob = Problem.objects.filter(platform=platform_type, platform_id=platform_id).first()
-                existing_meta = existing_prob.platform_metadata if (existing_prob and existing_prob.platform_metadata) else {}
-
-                sub_rating = prob_data.get('rating')
-                sub_tags = prob_data.get('tags', [])
-
-                merged_meta = dict(existing_meta)
-                merged_meta['rating'] = sub_rating if sub_rating is not None else existing_meta.get('rating')
-                merged_meta['tags'] = sub_tags if sub_tags else existing_meta.get('tags', [])
-
-                problem, _ = Problem.objects.update_or_create(
+                problem, _ = upsert_problem_metadata(
                     platform=platform_type,
                     platform_id=platform_id,
-                    defaults={
+                    fields={
                         'title': title,
                         'contest': cont_obj,
-                        'platform_metadata': merged_meta
-                    }
+                    },
+                    metadata={'rating': prob_data.get('rating'), 'tags': prob_data.get('tags', [])},
                 )
 
                 # 2. Submission (Data Absoluta)

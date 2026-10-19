@@ -5,6 +5,7 @@ from typing import Optional
 from django.utils import timezone
 from api.models import Contest, Problem, PlatformChoices
 from api.services.codeforces_client import CodeforcesClient, CFResult, CFErrorType
+from api.services.problem_metadata import upsert_problem_metadata
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +45,7 @@ def ensure_codeforces_gym_metadata(contest_id: str, client: Optional[CodeforcesC
     Garante os metadados e o catálogo de problemas completo de um Codeforces Gym.
     Localiza o contest canônico por (platform, platform_id), cria ou atualiza os metadados existentes,
     e cria ou atualiza o catálogo de problemas retornado pela API oficial do Codeforces.
-    Protegido contra MultipleObjectsReturned caso existam registros duplicados no banco.
+    Atualiza problemas pela identidade única com merge transacional dos metadados.
     """
     if client is None:
         client = CodeforcesClient(timeout=30)
@@ -104,35 +105,17 @@ def ensure_codeforces_gym_metadata(contest_id: str, client: Optional[CodeforcesC
         prob_name = p.get('name', '')
         title = f"{index}. {prob_name}" if prob_name else problem_id
 
-        existing_probs = Problem.objects.filter(
-            platform=PlatformChoices.CF_GYM,
-            platform_id=problem_id
-        ).order_by('-id')
-        problem = existing_probs.first()
-
         metadata = {
             'rating': p.get('rating'),
             'tags': p.get('tags', []),
         }
 
-        if problem:
-            problem.title = title
-            problem.contest = contest
-            current_meta = dict(problem.platform_metadata or {})
-            current_meta['rating'] = metadata['rating'] if metadata['rating'] is not None else current_meta.get('rating')
-            current_meta['tags'] = metadata['tags'] if metadata['tags'] else current_meta.get('tags', [])
-            problem.platform_metadata = current_meta
-            problem.save()
-            problems_updated += 1
-        else:
-            Problem.objects.create(
-                platform=PlatformChoices.CF_GYM,
-                platform_id=problem_id,
-                title=title,
-                contest=contest,
-                platform_metadata=metadata
-            )
-            problems_created += 1
+        _, created = upsert_problem_metadata(
+            platform=PlatformChoices.CF_GYM, platform_id=problem_id,
+            fields={"title": title, "contest": contest}, metadata=metadata,
+        )
+        problems_created += int(created)
+        problems_updated += int(not created)
 
     return GymSyncResult(
         contest=contest,

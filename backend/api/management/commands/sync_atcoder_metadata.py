@@ -4,6 +4,7 @@ from django.utils import timezone
 from django.core.management.base import BaseCommand
 from api.models import Contest, Problem, PlatformChoices
 from api.services.atcoder_client import AtCoderClient
+from api.services.problem_metadata import upsert_problem_metadata
 
 class Command(BaseCommand):
     help = 'Sincroniza os meta-dados estáticos (Contests e Problems) do AtCoder usando a The Kenkoooo API.'
@@ -107,14 +108,14 @@ class Command(BaseCommand):
             if new_rating is not None:
                 metadata['rating'] = new_rating
             
-            _, created = Problem.objects.update_or_create(
+            _, created = upsert_problem_metadata(
                 platform=PlatformChoices.ATCODER,
                 platform_id=problem_id,
-                defaults={
+                fields={
                     'title': title,
                     'contest': contest,
-                    'platform_metadata': metadata
-                }
+                },
+                metadata=metadata,
             )
             if created: 
                 problems_created += 1
