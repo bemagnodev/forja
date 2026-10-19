@@ -6,7 +6,7 @@ import { RatingHeatmap } from "./RatingHeatmap";
 import { MetricHelp } from "./MetricHelp";
 import { PromptDetails, type PublishedPrompt } from "./PromptDetails";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { X, FlaskConical, ChevronDown } from "lucide-react";
+import { X, FlaskConical } from "lucide-react";
 
 interface Prediction {
   rating?: number | null;
@@ -100,11 +100,10 @@ export function BenchmarkResults() {
     {detail.isPending && <p role="status">Carregando comparação…</p>}
     {data && <>
       <details className="text-xs text-zinc-500"><summary className="w-fit cursor-pointer rounded py-1 outline-none focus-visible:ring-2 focus-visible:ring-primary">Sobre o experimento</summary><div className="mt-3 space-y-2 leading-relaxed">
-        <p>Problemas do Codeforces entre 800 e 2400. Mesmos enunciados preparados; referência oficial separada da entrada. Configuração: {promptLabel}. O baseline usa a mediana do desenvolvimento e estima apenas rating.</p>
-        <p>Qualidade na interseção válida: rating {data.intersections.rating.length}/{data.dataset.total}; tags {data.intersections.tags.length}/{data.dataset.total}. Cobertura considera todos os problemas. A dispersão mostra os resultados válidos de cada modelo.</p>
-        <p className="break-all font-mono">Dataset {data.dataset.version} · {data.dataset.hash} · seed {data.dataset.seed} · Prompt {data.prompt.hash || (promptVersions.length > 1 ? "por execução" : "não informado")}</p>
+        <p>{data.dataset.total} problemas textuais do Codeforces, entre 800 e 2400. Técnica: {promptLabel}. O baseline usa a mediana do desenvolvimento e estima apenas rating.</p>
+        <p>Métricas nos mesmos itens válidos: rating {data.intersections.rating.length}/{data.dataset.total}; tags {data.intersections.tags.length}/{data.dataset.total}. A cobertura considera o conjunto inteiro. A dispersão usa as previsões válidas do modelo selecionado.</p>
+        {data.selection_note && <p>{data.selection_note}</p>}
       </div></details>
-      {data.selection_note && <p role="note" className="rounded-lg border border-forja/20 bg-forja/5 px-4 py-3 text-xs leading-relaxed text-zinc-400">{data.selection_note}</p>}
       {!data.intersections.rating.length && <p className="text-sm text-orange-300">Nenhum item válido em comum para rating. MAE indisponível.</p>}
       <section className="overflow-x-auto rounded-xl border border-zinc-800">
         <table className="w-full min-w-[650px] text-left text-sm"><caption className="sr-only">Comparação de qualidade e cobertura dos modelos</caption>
@@ -122,10 +121,10 @@ export function BenchmarkResults() {
               {!!run.metrics.pending && <span className="mt-1 block text-xs text-zinc-500">{run.metrics.pending} pendente(s)</span>}</td>
             <td className="px-5 py-4 font-mono">{number(run.metrics.tags_micro_f1, 3)}{run.metrics.tags_valid != null && <span className="mt-1 block font-sans text-[10px] text-zinc-500">Tags válidas: {run.metrics.tags_valid}/{data.dataset.total}</span>}</td>
           </tr>)}</tbody>
-        </table><div className="border-t border-zinc-800 px-5 py-3 text-[11px] text-zinc-500"><p>Ordenado pelo menor erro médio · {data.intersections.rating.length} problemas comparados para rating · Escala visual: 0–1.000 pontos</p><p className="mt-1">Tags comparadas em {data.intersections.tags.length}/{data.dataset.total} problemas</p></div>
+        </table>
       </section>
       <section className={card}><h3 className="font-semibold text-zinc-100">Onde cada modelo erra mais</h3><p className="mb-4 mt-1 text-xs text-zinc-500">Erro médio por faixa de rating oficial</p><RatingHeatmap bands={data.bands || []} runs={runs} />
-        {data.bands.length > 0 && <p className="mt-4 text-xs text-zinc-500">Amostra: {data.bands.every(band => band.total === data.bands[0].total) ? `${data.bands[0].total} problemas selecionados por faixa` : "quantidades por faixa indicadas nas células"}. Falhas podem reduzir a quantidade comparada.</p>}
+
       </section>
       {graphRun && <section className={card}><div className="mb-4 flex flex-wrap items-center justify-between gap-3"><div><h3 className="font-semibold text-zinc-100">Rating oficial × estimativa</h3><p className="mt-1 text-xs text-zinc-500">Um modelo por vez · posições preservadas · detalhes ao selecionar</p></div><select className={selectClass} aria-label="Modelo no gráfico" value={graphRun.id} onChange={event => { setModelId(event.target.value); setKeys([]); }}>{runs.map(run => <option key={run.id} value={run.id}>{run.label}</option>)}</select></div>
         <PredictionChart key={graphRun.id} problems={data.problems} run={graphRun} onSelect={group => { trigger.current = document.activeElement as HTMLElement; setKeys(group); setProblemKey(group[0]); }} />
@@ -139,10 +138,7 @@ export function BenchmarkResults() {
         {prediction?.justification && <div className="mt-6 border-t border-zinc-800 pt-4"><h4 className="mb-2 text-xs font-medium text-zinc-300">Justificativa salva</h4><p className="whitespace-pre-wrap text-sm leading-relaxed text-zinc-400">{prediction.justification}</p></div>}
       </section>}
       {data.prompts?.length ? <PromptDetails key={data.id} prompts={data.prompts} /> : null}
-      <details className={card}><summary className="flex cursor-pointer list-none items-center justify-between text-sm text-zinc-400 outline-none focus-visible:ring-2 focus-visible:ring-primary">Detalhes da avaliação<ChevronDown className="size-4" /></summary><div className="mt-5 space-y-4 text-xs leading-relaxed text-zinc-500">
-        {runs.map(run => <div key={run.id}><h4 className="font-medium text-zinc-300">{run.label}</h4><p>{run.metrics.responded} respostas · {run.metrics.pending} pendentes · latência mediana: {run.provider === "baseline" ? "não aplicável" : `${number(run.metrics.latency_median, 2)} s`}</p><p>Cobertura tags: {percent(run.metrics.tags_coverage)} · falhas tags: {percent(run.metrics.tags_failure_rate)}</p><p>{run.generation_attempts} tentativas de geração · falhas históricas: {Object.entries(run.historical_failures).map(([name, count]) => `${name}: ${count}`).join(", ") || "nenhuma"}</p></div>)}
-        <p>Falhas anteriores permanecem registradas após uma recuperação. Leituras da página não chamam IA. Nos experimentos finais, a latência é o tempo registrado da tentativa de resposta. Não inclui a cadência entre chamadas nem as pausas de retomada; não equivale à duração total do lote. Pilotos antigos podem usar outra política de medição.</p>
-      </div></details>
+
     </>}
   </div></TooltipProvider>;
 }

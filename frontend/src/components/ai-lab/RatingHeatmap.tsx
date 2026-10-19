@@ -11,5 +11,5 @@ export function RatingHeatmap({ bands, runs }: { bands: RatingBand[]; runs: Benc
         <span className="font-mono font-semibold text-zinc-100">{value == null ? "—" : Math.round(value)}</span>
         <span className="mt-1 block text-[10px] text-zinc-400">{band.compared}/{band.total} comparados</span>
       </div></td>; })}</tr>)}</tbody>
-  </table><div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-xs text-zinc-500"><span>Erro médio em pontos · mesmos itens válidos em cada faixa</span><span className="flex items-center gap-2">Menor erro <span className="h-2 w-20 rounded bg-gradient-to-r from-zinc-900 to-forja/60" /> Maior erro</span></div></div>;
+  </table><div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-xs text-zinc-500"><span className="flex items-center gap-2">Menor erro <span className="h-2 w-20 rounded bg-gradient-to-r from-zinc-900 to-forja/60" /> Maior erro</span></div></div>;
 }

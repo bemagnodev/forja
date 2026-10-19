@@ -15,7 +15,19 @@ export function PredictionChart({ problems, run, onSelect }: Props) {
   const x = (r: number) => 72 + (r - 800) / 1600 * 610;
   const y = (r: number) => 350 - (r - 800) / 1600 * 300;
   const selected = active ? groups.get(active) : null;
+  const counts = { exact: 0, under: 0, over: 0 };
+  for (const point of groups.values()) {
+    counts[point.predicted === point.actual ? 'exact' : point.predicted < point.actual ? 'under' : 'over'] += point.keys.length;
+  }
+  const total = counts.exact + counts.under + counts.over;
+  const badge = (label: string, count: number) => `${label}: ${count} (${total ? Math.round(count / total * 100) : 0}%)`;
   return <div className="relative">
+    <div role="group" aria-label="Distribuição das estimativas" className="mb-4 flex flex-wrap items-center gap-2 text-xs">
+      <span className="mr-2 text-zinc-500">{total}/{problems.length} previsões válidas</span>
+      <span className="rounded-md border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1.5 text-emerald-300">{badge('Rating exato', counts.exact)}</span>
+      <span className="rounded-md border border-amber-500/20 bg-amber-500/10 px-2.5 py-1.5 text-amber-300">{badge('Subestimadas', counts.under)}</span>
+      <span className="rounded-md border border-sky-500/20 bg-sky-500/10 px-2.5 py-1.5 text-sky-300">{badge('Superestimadas', counts.over)}</span>
+    </div>
     <svg viewBox="0 0 760 420" role="img" aria-label={`Rating previsto versus oficial — ${run.label}`} className="mx-auto w-full max-w-4xl text-zinc-500">
       <title>Rating previsto versus oficial</title><desc>Horizontal: rating oficial. Vertical: estimativa. A diagonal indica acerto. Pontos coincidentes são agrupados.</desc>
       {[800, 1200, 1600, 2000, 2400].map(tick => <g key={tick}>
@@ -41,9 +53,9 @@ export function PredictionChart({ problems, run, onSelect }: Props) {
         {point.keys.length > 1 && <text x={x(point.actual)} y={y(point.predicted) + 3} textAnchor="middle" fill="#fff" fontSize="9" pointerEvents="none">{point.keys.length}</text>}
       </g>)}
     </svg>
-    <div className="min-h-12 border-t border-zinc-800 pt-3 text-xs text-zinc-400" aria-live="polite">
+    <div className="min-h-6 text-xs text-zinc-400" aria-live="polite">
       {selected ? <p role="tooltip"><strong className="text-zinc-200">Oficial: {selected.actual}</strong> · Estimado: {selected.predicted} · {selected.predicted === selected.actual ? "Estimativa correta" : `${selected.predicted > selected.actual ? "Superestimou" : "Subestimou"} em ${Math.abs(selected.predicted - selected.actual)} pontos`} · {selected.keys.length} problema(s)</p>
-        : "Acima da diagonal: superestimação. Abaixo: subestimação. Selecione um ponto para investigar; números nos pontos indicam agrupamentos."}
+        : null}
     </div>
   </div>;
 }

@@ -68,17 +68,21 @@ describe("Benchmark salvo", () => {
     expect(copy).toHaveBeenCalledWith(prompts[0].text);
     await user.selectOptions(screen.getByLabelText("Estratégia do prompt", { exact: true }), "hash-b");
     expect(screen.getByLabelText("Prompt completo")).toHaveTextContent(prompts[1].text);
+    await user.click(screen.getByText('Sobre o experimento'));
     expect(screen.getByText(/Escolhido pelo menor MAE/)).toBeVisible();
     expect(api.get).toHaveBeenCalledTimes(2);
   });
 
-  it("mostra cobertura das tags junto do F1 e distingue duração de cadência", async () => {
+  it("mantém cobertura das tags sem o bloco operacional nem rodapés repetidos", async () => {
     mount();
     const table = await screen.findByRole("table", { name: "Comparação de qualidade e cobertura dos modelos" });
     const row = within(table).getByRole("row", { name: /Gemini sintético/ });
     expect(within(row).getByText("Tags válidas: 2/2")).toBeVisible();
-    await userEvent.setup().click(screen.getByText("Detalhes da avaliação"));
-    expect(screen.getByText(/Não inclui a cadência entre chamadas nem as pausas de retomada/)).toBeVisible();
+    expect(screen.queryByText('Detalhes da avaliação')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Ordenado pelo menor erro médio/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Amostra:/)).not.toBeInTheDocument();
+    await userEvent.setup().click(screen.getByText('Sobre o experimento'));
+    expect(screen.getByText(/rating 2\/2; tags 2\/2/)).toBeVisible();
   });
 
   it("mostra a amostra real por faixa no conjunto final sem chamá-lo de piloto", async () => {
@@ -88,7 +92,8 @@ describe("Benchmark salvo", () => {
         bands: result.bands.map(band => ({ ...band, total: 15, compared: 15 })) }
     }) as Awaited<ReturnType<typeof api.get>>);
     mount();
-    expect(await screen.findByText(/Amostra: 15 problemas selecionados por faixa/)).toBeInTheDocument();
+    expect(await screen.findByText('60 problemas')).toBeInTheDocument();
+    expect(screen.getAllByText('15/15 comparados')).toHaveLength(4);
     expect(screen.queryByText(/Piloto exploratório: 3 problemas/)).not.toBeInTheDocument();
   });
 
@@ -108,7 +113,7 @@ describe("Benchmark salvo", () => {
     mount();
     expect(await screen.findByText(new RegExp(`Desenvolvimento · resultado exploratório · ${String(label).replace(/[()]/g, "\\$&")}`))).toBeInTheDocument();
     expect(screen.queryByText(/Mesmos enunciados preparados e prompt v1/)).not.toBeInTheDocument();
-    if (versions.length > 1) expect(screen.getByText(/Prompt por execução/)).toBeInTheDocument();
+    expect(screen.queryByText(/Prompt por execução/)).not.toBeInTheDocument();
   });
 
   it("usa escala fixa de mil pontos sem alterar o MAE exibido", async () => {
@@ -137,7 +142,8 @@ describe("Benchmark salvo", () => {
     const help = await screen.findByRole("tooltip");
     expect(help).toHaveTextContent("extras e as que faltaram");
     expect(help).toHaveTextContent("Não representa a porcentagem de problemas totalmente corretos");
-    expect(screen.getByText("Tags comparadas em 2/2 problemas")).toBeVisible();
+    await userEvent.setup().click(screen.getByText('Sobre o experimento'));
+    expect(screen.getByText(/rating 2\/2; tags 2\/2/)).toBeVisible();
   });
 
   it("distingue tags inválidas de uma tarefa não aplicável no detalhe", async () => {
@@ -153,12 +159,12 @@ describe("Benchmark salvo", () => {
     expect(screen.getByText(/Tags estimadas:/)).toHaveTextContent("saída inválida");
   });
 
-  it("mostra qualidade, cobertura e falhas históricas sem chamar IA", async () => {
+  it("mostra qualidade e cobertura sem histórico operacional e sem chamar IA", async () => {
     mount();
     const row = await within(await screen.findByRole("table", { name: "Comparação de qualidade e cobertura dos modelos" })).findByRole("row", { name: /Gemini sintético/ });
     expect(within(row).getByText("100,0")).toBeInTheDocument();
     expect(within(row).getByText("2/2 (100%)")).toBeInTheDocument();
-    expect(screen.getByText(/authentication: 2/)).not.toBeVisible();
+    expect(screen.queryByText(/authentication: 2/)).not.toBeInTheDocument();
     const rows = screen.getAllByRole("row");
     expect(rows.findIndex(r => r.textContent?.includes("Gemini sintético"))).toBeLessThan(rows.findIndex(r => r.textContent?.includes("Mediana")));
     expect(screen.getByText(/Desenvolvimento/)).toBeInTheDocument();

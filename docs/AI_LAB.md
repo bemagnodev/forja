@@ -25,7 +25,7 @@ zero-shot; B usa rubrica. Enunciados e o prompt C não são publicados.
 
 ### Validação e publicação
 
-Verificação local em 19/10/2026: 348 testes backend e 97 frontend aprovados,
+Verificação local em 19/10/2026: 372 testes backend e 103 frontend aprovados,
 build Vite e Django check aprovados. APIs e IA simuladas nos testes; nenhuma
 chamada real para validar a entrega. O botão Refresh do Dashboard tem regressão
 que verifica visibilidade e nova busca ao clicar. Restam 11 diagnósticos de
@@ -405,6 +405,18 @@ Critérios: suíte direcionada e suíte completa verdes, contagem total sem redu
 checks do Django/schema e Git aprovados, e artefatos privados fora do Git.
 
 ## Explorar: classificação individual
+
+As falhas de classificação incluem `detail` e um diagnóstico seguro: etapa,
+código, modelo, plataforma, status HTTP externo quando conhecido e `request_id`
+para localizar o registro do backend. Explorar permite copiar esses detalhes;
+fila e Contests preservam o motivo e o identificador na notificação. Nenhum
+corpo externo, enunciado, chave ou traceback entra nesse registro. Não há retry
+automático. Falhas de busca e preparação acontecem antes da inferência.
+
+AtCoder e CSES incluem exemplos públicos pareados de entrada/saída, com quebras
+de linha preservadas; CSES lê as seções dentro de `.md`. HTML real consultado
+para diagnóstico fica somente em `var/ai_lab`, fora do Git. Uma busca local
+bem-sucedida não comprova acesso ao Codeforces a partir do Render.
 
 A página oferece `gemini-3.5-flash-lite` (padrão), `openai/gpt-oss-120b` e
 `openai/gpt-oss-20b`. Cada clique explícito pode executar no máximo uma chamada,
