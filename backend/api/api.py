@@ -13,6 +13,9 @@ from .ai_lab.product import PRODUCT_RATING_DOMAIN, validate_product_prediction
 from .ai_lab.classification import load_prompt
 from .ai_lab.dataset import content_hash
 from .ai_lab.contracts import ProviderFailure
+from .ai_lab.diagnostics import ClassificationFailure
+from .services.scrapers.exceptions import StatementFetchError
+from .services.scrapers.preparation import PreparationError
 from .services.problem_metadata import upsert_problem_metadata
 from .services.sync_dispatcher import dispatch_sync
 
@@ -28,6 +31,18 @@ api = NinjaAPI(
 )
 
 api.add_router("/token", obtain_pair_router, auth=None)
+
+
+@api.exception_handler(ClassificationFailure)
+def classification_failure_response(request, exc):
+    import logging
+    from uuid import uuid4
+    diagnostic = {**exc.diagnostic, 'request_id': uuid4().hex}
+    logging.getLogger('api.classification').warning(
+        'classification_failed request_id=%s stage=%s code=%s model=%s platform=%s upstream_status=%s',
+        diagnostic['request_id'], diagnostic['stage'], diagnostic['code'],
+        diagnostic['model'], diagnostic['platform'], diagnostic['upstream_status'])
+    return api.create_response(request, {'detail': exc.message, 'diagnostic': diagnostic}, status=exc.status_code)
 
 
 # Saved AI Lab experiments: these endpoints never scrape or call a model.
@@ -368,6 +383,10 @@ def _classify_for_ui(problem, selected_model):
     from requests.exceptions import RequestException
     from ninja.errors import HttpError
 
+    def failure(status, message, stage, code, upstream=None):
+        return ClassificationFailure(status, message, stage=stage, code=code,
+                                     model=selected_model, platform=problem.platform, upstream_status=upstream)
+
     # Scraper selection
     from .services.scrapers import CodeforcesScraper, AtCoderScraper, CSESScraper
     
@@ -382,14 +401,30 @@ def _classify_for_ui(problem, selected_model):
 
     try:
         problem_data = scraper.scrape(problem.url)
+    except StatementFetchError as exc:
+        timed_out = exc.code == 'source_timeout'
+        message = ('O site da questão não respondeu a tempo.' if timed_out else
+                   'Não foi possível obter o enunciado no site da questão.')
+        if exc.http_status is not None:
+            message += f' O site respondeu HTTP {exc.http_status}.'
+        raise failure(504 if timed_out else 502, message + ' A IA não foi chamada.',
+                      'fetch', exc.code, exc.http_status) from None
     except UnparseableProblemException:
-        raise HttpError(400, "Não foi possível extrair o enunciado dessa questão") from None
+        raise failure(400, "Não foi possível extrair as seções do enunciado. A IA não foi chamada.",
+                      'extract', 'statement_unparseable') from None
     except RequestException:
-        raise HttpError(502, "Erro de conexão ao obter o enunciado") from None
+        raise failure(502, "Erro de conexão ao obter o enunciado. A IA não foi chamada.",
+                      'fetch', 'source_connection_error') from None
+    except Exception:
+        raise failure(503, 'Ocorreu um erro interno ao extrair o enunciado. A IA não foi chamada. Use o diagnóstico para informar o problema.',
+                      'extract', 'unexpected_error') from None
         
     # AI Classifier
     try:
         ai_result = classify_problem(problem_data, model_name=selected_model)
+    except PreparationError as exc:
+        raise failure(400, 'O enunciado extraído está incompleto. A IA não foi chamada. ' + str(exc),
+                      'prepare', 'statement_incomplete') from None
     except ProviderFailure as exc:
         status, message = {
             "rate_limit": (429, "Limite do modelo atingido. Aguarde a renovação da cota; nenhuma repetição foi feita."),
@@ -400,11 +435,16 @@ def _classify_for_ui(problem, selected_model):
         }.get(exc.category, (503, "O provedor está indisponível para essa classificação."))
         if exc.http_status is not None:
             message += f" Provedor: HTTP {exc.http_status} ({exc.category})."
-        raise HttpError(status, message) from None
-    except ValueError as exc:
-        raise HttpError(400, str(exc)) from None
+        code = ('provider_not_configured' if exc.category == 'authentication' and exc.http_status is None
+                else 'provider_access_denied' if exc.category == 'authentication' else exc.category)
+        if code == 'provider_not_configured':
+            message = 'O provedor selecionado não está configurado no servidor. A IA não foi chamada.'
+        raise failure(status, message, 'provider', code, exc.http_status) from None
+    except ValueError:
+        raise failure(400, 'A configuração de classificação é inválida.', 'prepare', 'configuration_error') from None
     except Exception:
-        raise HttpError(503, "Não foi possível concluir a classificação. Confira a configuração do provedor.") from None
+        raise failure(503, 'Ocorreu um erro interno ao classificar. Use o diagnóstico para informar o problema.',
+                      'classification', 'unexpected_error') from None
     return ai_result, problem_data
 
 
@@ -465,7 +505,8 @@ def predict_problem(request, problem_id: int, model_name: Optional[str] = None, 
     validated = validate_product_prediction({"rating": ai_result.get("predicted_rating"), "tags": ai_result.get("predicted_tags")})
     if (validated["rating_status"] != "valid" or validated["tags_status"] != "valid"
             or ai_result.get("rating_status", "valid") != "valid" or ai_result.get("tags_status", "valid") != "valid"):
-        raise HttpError(502, "Resposta parcial ou inválida: a previsão salva do produto foi preservada")
+        raise ClassificationFailure(502, "Resposta parcial ou inválida: a previsão salva do produto foi preservada",
+            stage='validation', code='invalid_prediction', model=DEFAULT_MODEL, platform=problem.platform)
     # Acquire the row lock only after scraping/inference; merge the latest metadata.
     current, _ = upsert_problem_metadata(platform=problem.platform, platform_id=problem.platform_id, metadata={
         "ai_rating": validated["rating"], "ai_tags": ai_result["predicted_tags"], "ai_reasoning": ai_result.get("reasoning", ""),

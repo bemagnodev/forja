@@ -2,14 +2,13 @@
 import requests
 from bs4 import BeautifulSoup
 from .base import BaseScraper
-from .exceptions import UnparseableProblemException
+from .exceptions import UnparseableProblemException, fetch_statement
 from .images import mark_images
 
 
 class CodeforcesScraper(BaseScraper):
     def scrape(self, url: str) -> dict:
-        response = requests.get(url, timeout=10)
-        response.raise_for_status()
+        response = fetch_statement(url, requests.get)
         try:
             return self.parse_html(response.text, url)
         except ValueError as exc:

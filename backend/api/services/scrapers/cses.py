@@ -1,16 +1,12 @@
 import requests
 from bs4 import BeautifulSoup, Tag
-from .base import BaseScraper
-from .exceptions import UnparseableProblemException
+from .base import BaseScraper, sample_text
+from .exceptions import UnparseableProblemException, fetch_statement
 from .images import mark_images
 
 class CSESScraper(BaseScraper):
     def scrape(self, url: str) -> dict:
-        try:
-            response = requests.get(url, timeout=10)
-            response.raise_for_status()
-        except requests.RequestException as e:
-            raise UnparseableProblemException(f"Failed to fetch {url}: {e}")
+        response = fetch_statement(url, requests.get)
 
         soup = BeautifulSoup(response.content, 'html.parser')
         content_div = soup.find('div', class_='content')
@@ -20,7 +16,7 @@ class CSESScraper(BaseScraper):
         images = mark_images(content_div, url)
 
         result = {
-            "title": soup.title.string.replace("CSES - ", "") if soup.title else "",
+            "title": soup.title.get_text().replace("CSES - ", "") if soup.title else "",
             "time_limit": "",
             "memory_limit": "",
             "description": "",
@@ -50,15 +46,17 @@ class CSESScraper(BaseScraper):
             "example": []
         }
 
-        for child in content_div.children:
+        body = content_div.select_one('.md') or content_div
+        samples = []
+        for child in body.children:
             if not isinstance(child, Tag):
                 continue
             
             # Ignorar scripts, inputs escondidos e a lista de restrições (já parseada)
-            if child.name in ['script', 'input', 'title'] or (child.name == 'ul' and 'task-constraints' in child.get('class', [])):
+            if child.name in ['script', 'input', 'title', 'style', 'link'] or (child.name == 'ul' and 'task-constraints' in child.get('class', [])):
                 continue
 
-            if child.name == 'h1':
+            if child.name in ('h1', 'h2', 'h3'):
                 # Trocar de seção
                 header_id = child.get('id', '')
                 if header_id in section_content:
@@ -69,10 +67,13 @@ class CSESScraper(BaseScraper):
                     if "input" in title: current_section = "input"
                     elif "output" in title: current_section = "output"
                     elif "constraint" in title: current_section = "constraints"
+                    elif 'example' in title: current_section = 'example'
                     else: current_section = title
                 continue
             
             if current_section in section_content:
+                if current_section == 'example':
+                    samples.extend([child] if child.name == 'pre' else child.find_all('pre'))
                 section_content[current_section].append(child.get_text(separator=' ', strip=True))
 
         result["description"] = " ".join(section_content.get("description", []))
@@ -82,6 +83,12 @@ class CSESScraper(BaseScraper):
 
         if not any(result[k] for k in ["description", "input_format", "output_format"]):
             raise UnparseableProblemException("Could not extract main sections from CSES problem")
+
+        if len(samples) % 2:
+            raise UnparseableProblemException('Unpaired samples')
+        if samples:
+            values = [sample_text(pre) for pre in samples]
+            result['testcases'] = [{'input': values[i], 'output': values[i+1]} for i in range(0, len(values), 2)]
 
         if images:
             result["images"] = images
