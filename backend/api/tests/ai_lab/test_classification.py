@@ -1,6 +1,157 @@
 import pytest
 
 
+@pytest.mark.parametrize("managed", [True, False])
+@pytest.mark.parametrize("mode", ["raise", "unserializable"])
+def test_unexpected_error_is_safe_preserves_attempt_and_cannot_repeat_uncertain_item(managed, mode, reviewed_manifest, tmp_path):
+    import json
+    from datetime import datetime
+    from api.ai_lab.runner import run_local
+    manifest, path = reviewed_manifest(), tmp_path / "run.json"
+    config = {"provider": "fake", "model": "fake", "execution_policy": "managed-v1",
+              "prompt_version": "classification_v1", "max_attempts": 3, "request_interval": 0, "max_wait": 60}
+    if not managed:
+        config.pop("execution_policy")
+    calls = []
+
+    def generate(prepared, *args):
+        calls.append(prepared)
+        if len(calls) == 2:
+            if mode == "unserializable":
+                return {"rating": 1200, "tags": ["math"], "private": "PRIVATE_RESPONSE_AND_API_SECRET", "bad": {object()}}
+            raise RuntimeError("PRIVATE_RESPONSE_AND_API_SECRET")
+        return {"rating": 1200, "tags": ["math"]}
+
+    with pytest.raises(RuntimeError, match="Unexpected benchmark error") as failure:
+        run_local(manifest, config, path, generate, max_requests=3)
+    assert "PRIVATE_RESPONSE_AND_API_SECRET" not in str(failure.value)
+    saved = json.loads(path.read_text())
+    assert saved["stop_reason"] == "unexpected_error"
+    assert saved["unexpected_error"]["type"] == ("RuntimeError" if mode == "raise" else "TypeError")
+    assert datetime.fromisoformat(saved["unexpected_error"]["at"]).tzinfo is not None
+    assert set(saved["unexpected_error"]) == {"type", "at"}
+    assert "PRIVATE_RESPONSE_AND_API_SECRET" not in path.read_text()
+    assert saved["request_count"] == 2 and saved["authorized_request_limit"] == 3
+    first, uncertain, third = [item["key"] for item in manifest["items"][:3]]
+    assert saved["predictions"][first]["rating_status"] == "valid"
+    assert saved["predictions"][uncertain]["error"] == "interrupted"
+    assert saved["attempt_history"][uncertain][0]["state"] == "started"
+    assert not path.with_suffix(".lock").exists()
+    resumed = run_local(manifest, config, path, generate, max_requests=3)
+    assert len(calls) == 3 and resumed["request_count"] == 3
+    assert resumed["predictions"][first] == saved["predictions"][first]
+    assert resumed["predictions"][uncertain] == saved["predictions"][uncertain]
+    assert resumed["attempt_history"][uncertain] == saved["attempt_history"][uncertain]
+    assert resumed["predictions"][third]["rating_status"] == "valid"
+
+
+def test_rubric_prompt_loads_with_same_output_contract():
+    from api.ai_lab.classification import load_prompt
+    prompt = load_prompt("classification_v2")
+    assert "Descoberta da ideia" in prompt and "solução viável mais simples" in prompt
+    assert "{taxonomy}" not in prompt and "binary search" in prompt
+    assert all(field in prompt for field in ("rating:", "tags:", "justification:"))
+    assert "soma ou média fixa" in prompt
+
+
+def test_few_shot_draft_cannot_run_with_missing_examples():
+    from api.ai_lab.classification import load_prompt
+    with pytest.raises(ValueError, match="examples"):
+        load_prompt("classification_v3")
+
+
+def test_named_prompt_rejects_paths_and_loads_version():
+    from api.ai_lab.classification import load_prompt
+    assert load_prompt("classification_v1") == load_prompt()
+    with pytest.raises(ValueError):
+        load_prompt("../classification_v1")
+
+
+def test_managed_prompt_and_policy_changes_cannot_overwrite_run(reviewed_manifest, tmp_path, monkeypatch):
+    import json
+    from api.ai_lab import runner
+    manifest, path = reviewed_manifest(), tmp_path / "run.json"
+    config = {"provider": "fake", "model": "fake", "execution_policy": "managed-v1",
+              "prompt_version": "classification_v1", "max_attempts": 3, "request_interval": 0, "max_wait": 60}
+    runner.run_local(manifest, config, path, lambda *a: {"rating": 1200, "tags": ["math"]}, max_requests=1)
+    original = json.loads(path.read_text())
+    monkeypatch.setattr(runner, "load_prompt", lambda version: "different prompt")
+    with pytest.raises(ValueError, match="configuration"):
+        runner.run_local(manifest, config, path, lambda *a: pytest.fail("must not call"), max_requests=60)
+    assert json.loads(path.read_text()) == original
+
+
+def test_managed_interruption_preserves_budget_and_does_not_repeat_unknown(reviewed_manifest, tmp_path):
+    import json
+    from api.ai_lab.runner import run_local
+    manifest, path = reviewed_manifest(), tmp_path / "run.json"
+    config = {"provider": "fake", "model": "fake", "execution_policy": "managed-v1",
+              "prompt_version": "classification_v1", "max_attempts": 3, "request_interval": 0, "max_wait": 60}
+    def interrupt(*args):
+        raise KeyboardInterrupt()
+    with pytest.raises(KeyboardInterrupt):
+        run_local(manifest, config, path, interrupt, max_requests=2)
+    assert json.loads(path.read_text())["request_count"] == 1
+    resumed = run_local(manifest, config, path, lambda *a: {"rating": 1200, "tags": ["math"]}, max_requests=2)
+    assert len(resumed["predictions"]) == 2
+    assert next(iter(resumed["predictions"].values()))["error"] == "interrupted"
+
+
+def test_managed_run_recovers_continues_and_preserves_total_budget(reviewed_manifest, tmp_path):
+    from api.ai_lab.runner import run_local, summarize_run
+    from api.ai_lab.contracts import ProviderFailure
+    calls, waits = [], []
+    def generate(*args):
+        calls.append(args)
+        if len(calls) < 3:
+            raise ProviderFailure("server_error", http_status=503)
+        return {"rating": 1200, "tags": ["math"]}
+    config = {"provider": "fake", "model": "fake", "execution_policy": "managed-v1",
+              "prompt_version": "classification_v1", "max_attempts": 3, "request_interval": 0, "max_wait": 60}
+    path = tmp_path / "run.json"
+    manifest = reviewed_manifest()
+    run = run_local(manifest, config, path, generate, max_requests=4, sleep=waits.append)
+    assert len(calls) == 4 and len(run["predictions"]) == 2
+    assert run["predictions"][reviewed_manifest()["items"][0]["key"]]["attempts"] == 3
+    assert summarize_run(run, 12)["first_attempt_valid"] == 1
+    assert summarize_run(run, 12)["pending"] == 10
+    assert len(waits) == 2
+    run_local(manifest, config, path, generate, max_requests=4, sleep=waits.append)
+    assert len(calls) == 4
+
+
+def test_managed_resume_recovers_capped_transient_not_invalid(reviewed_manifest, tmp_path):
+    from api.ai_lab.runner import run_local
+    from api.ai_lab.contracts import ProviderFailure
+    config = {"provider": "fake", "model": "fake", "execution_policy": "managed-v1",
+              "prompt_version": "classification_v1", "max_attempts": 3, "request_interval": 0, "max_wait": 60}
+    path = tmp_path / "run.json"
+    manifest = reviewed_manifest()
+    def fail(*args):
+        raise ProviderFailure("timeout")
+    run_local(manifest, config, path, fail, max_requests=1)
+    run = run_local(manifest, config, path, lambda *a: {"rating": 850, "tags": ["fake"]},
+                    max_requests=3, sleep=lambda seconds: None)
+    assert run["request_count"] == 3
+    assert len(run["predictions"]) == 2
+    assert next(iter(run["predictions"].values()))["attempts"] == 2
+
+
+@pytest.mark.parametrize("category,delay,reason", [("rate_limit", 86400, "provider_pause"),
+                                                    ("authentication", None, "authentication"),
+                                                    ("provider_error", None, "provider_error")])
+def test_managed_stops_shared_failures_before_next_item(category, delay, reason, reviewed_manifest, tmp_path):
+    from api.ai_lab.runner import run_local
+    from api.ai_lab.contracts import ProviderFailure
+    def fail(*args):
+        raise ProviderFailure(category, retry_after=delay)
+    config = {"provider": "fake", "model": "fake", "execution_policy": "managed-v1",
+              "prompt_version": "classification_v1", "max_attempts": 3, "request_interval": 0, "max_wait": 60}
+    run = run_local(reviewed_manifest(), config, tmp_path / "run.json", fail, max_requests=60)
+    assert run["request_count"] == 1
+    assert run["stop_reason"] == reason
+
+
 def test_explicit_recovery_preserves_history_and_never_starts_pending(reviewed_manifest, tmp_path):
     from api.ai_lab.runner import run_local
     from api.ai_lab.contracts import ProviderFailure
@@ -23,6 +174,34 @@ def test_explicit_recovery_preserves_history_and_never_starts_pending(reviewed_m
     assert history[1]["rating_status"] == "valid"
     run_local(manifest, config, path, success, max_requests=2, retry_failures=True)
     assert len(calls) == 1
+
+
+def test_failure_history_keeps_safe_http_status(reviewed_manifest, tmp_path):
+    from api.ai_lab.runner import run_local
+    from api.ai_lab.contracts import ProviderFailure
+    manifest = reviewed_manifest()
+    def fail(*args):
+        raise ProviderFailure("server_error", http_status=503)
+    result = run_local(manifest, {"provider": "fake", "model": "fake", "max_attempts": 1},
+                       tmp_path / "run.json", fail, max_requests=1)
+    key = manifest["items"][0]["key"]
+    assert result["request_count"] == 1
+    assert result["predictions"][key]["http_status"] == 503
+    assert result["attempt_history"][key][0]["http_status"] == 503
+
+
+def test_gemini_failure_keeps_safe_http_status():
+    from unittest.mock import Mock
+    from google.genai.errors import APIError
+    from api.ai_lab.providers.gemini import generate
+    from api.ai_lab.contracts import ProviderFailure
+    client = Mock()
+    client.models.generate_content.side_effect = APIError(503, {"error": {"message": "private-body"}})
+    with pytest.raises(ProviderFailure) as failure:
+        generate({}, "prompt", "gemini-3.5-flash-lite", client=client)
+    assert failure.value.http_status == 503
+    assert "private-body" not in str(failure.value)
+    client.models.generate_content.assert_called_once()
 
 
 @pytest.mark.parametrize("category", ["authentication", "provider_error", "parsing"])
@@ -343,7 +522,7 @@ def test_crash_after_increment_preserves_spent_budget_and_rejects_lower_authoriz
     def crash(*args):
         assert json.loads(path.read_text())["request_count"] == 1
         raise RuntimeError("simulated crash after persisted increment")
-    with pytest.raises(RuntimeError, match="simulated crash"):
+    with pytest.raises(RuntimeError, match="Unexpected benchmark error"):
         run_local(manifest, config, path, crash, max_requests=5)
     assert json.loads(path.read_text())["request_count"] == 1
     with pytest.raises(ValueError, match="limit|cap"):

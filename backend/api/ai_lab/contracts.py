@@ -7,11 +7,12 @@ TAXONOMY_VERSION = "cf-tags-2026-10-17"
 
 
 class ProviderFailure(Exception):
-    def __init__(self, category: str, retry_after=None, responded=False):
+    def __init__(self, category: str, retry_after=None, responded=False, http_status=None):
         super().__init__(category)
         self.category = category
         self.retry_after = retry_after
         self.responded = responded
+        self.http_status = http_status if type(http_status) is int and 100 <= http_status <= 599 else None
 
 
 TAGS = frozenset((

@@ -1,6 +1,24 @@
 import pytest
 from api.models import User, Contest, Problem
 
+
+@pytest.fixture(autouse=True)
+def prohibit_external_network(monkeypatch):
+    """Mocks must terminate HTTP before DNS/socket I/O; even caught attempts fail."""
+    import socket
+    attempts = []
+
+    def blocked(*args, **kwargs):
+        attempts.append(True)
+        raise AssertionError("External network is prohibited in backend tests")
+
+    monkeypatch.setattr(socket, "getaddrinfo", blocked)
+    monkeypatch.setattr(socket, "create_connection", blocked)
+    monkeypatch.setattr(socket.socket, "connect", blocked)
+    monkeypatch.setattr(socket.socket, "connect_ex", blocked)
+    yield
+    assert not attempts, "A test attempted real network I/O despite its mocks"
+
 @pytest.fixture
 def base_user():
     return User.objects.create(username="mentor", cf_handle="mentor", atcoder_handle="mentor_ac")

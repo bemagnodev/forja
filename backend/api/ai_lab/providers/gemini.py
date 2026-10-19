@@ -39,7 +39,7 @@ def generate(prepared: dict, prompt: str, model: str, *, client=None) -> dict:
                     retry_after = max(0, (parsedate_to_datetime(header) - datetime.now(timezone.utc)).total_seconds())
                 except (ValueError, TypeError):
                     retry_after = 31  # Fail closed rather than retry early on an unknown wait.
-        raise ProviderFailure(category, retry_after=retry_after, responded=False) from None
+        raise ProviderFailure(category, retry_after=retry_after, responded=False, http_status=code) from None
     except (httpx.TimeoutException, httpx.TransportError):
         raise ProviderFailure("timeout") from None
     parsed = response.parsed

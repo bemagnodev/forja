@@ -8,7 +8,7 @@ import httpx
 
 from ..contracts import ProviderFailure
 
-MODELS = ("openai/gpt-oss-120b", "qwen/qwen3.8-27b")
+MODELS = ("openai/gpt-oss-120b", "qwen/qwen3.8-27b", "openai/gpt-oss-20b")
 GENERATION = {"reasoning_effort": "low", "max_completion_tokens": 4096}
 SCHEMA = {
     "type": "object", "additionalProperties": False,
@@ -62,7 +62,7 @@ def generate(prepared: dict, prompt: str, model: str, *, client=None) -> dict:
                     delay = max(0, (parsedate_to_datetime(header) - datetime.now(timezone.utc)).total_seconds())
                 except (ValueError, TypeError):
                     delay = 31
-        raise ProviderFailure(category, retry_after=delay)
+        raise ProviderFailure(category, retry_after=delay, http_status=code)
     try:
         data = response.json()
         choice = data["choices"][0]
@@ -77,4 +77,4 @@ def generate(prepared: dict, prompt: str, model: str, *, client=None) -> dict:
             ("total_tokens", "total_tokens")) if type(usage.get(field)) is int}
         return {**prediction, "_usage": tokens} if tokens else prediction
     except (ValueError, TypeError, KeyError, IndexError):
-        raise ProviderFailure("parsing", responded=True) from None
+        raise ProviderFailure("parsing", responded=True, http_status=200) from None

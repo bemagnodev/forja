@@ -3,6 +3,20 @@ import pytest
 from django.core.management import call_command, CommandError
 
 
+def test_status_reads_saved_progress_without_keys_or_generator(reviewed_manifest, tmp_path, monkeypatch, capsys):
+    from api.ai_lab.runner import save_json
+    from api.management.commands import run_ai_benchmark as command
+    manifest = reviewed_manifest()
+    save_json(tmp_path / "datasets/cf-rating-v1/development/manifest.json", manifest)
+    save_json(tmp_path / "runs/synthetic/run.json", {"dataset_hash": manifest["hash"],
+              "predictions": {}, "request_count": 0, "authorized_request_limit": 60})
+    monkeypatch.setattr(command, "guarded_root", lambda options: tmp_path)
+    monkeypatch.setattr(command, "get_generator", lambda *a: pytest.fail("status must never infer"))
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    call_command("run_ai_benchmark", status=True, run_id="synthetic")
+    assert '"pending": 12' in capsys.readouterr().out
+
+
 @pytest.mark.parametrize("name", ["prepare_ai_dataset", "validate_ai_dataset", "run_ai_benchmark"])
 def test_dataset_version_is_explicit_and_django_version_never_does_io(name, monkeypatch, capsys):
     from django import get_version
@@ -111,7 +125,7 @@ def test_default_classifier_is_local_baseline():
     assert options.model is None
 
 
-def test_new_gemini_run_uses_the_same_single_attempt_policy(reviewed_manifest, tmp_path, monkeypatch):
+def test_new_gemini_run_records_managed_policy(reviewed_manifest, tmp_path, monkeypatch):
     import json
     from api.ai_lab.runner import save_json
     from api.ai_lab.providers import gemini
@@ -124,7 +138,9 @@ def test_new_gemini_run_uses_the_same_single_attempt_policy(reviewed_manifest, t
     call_command("run_ai_benchmark", classifier="gemini", model="gemini-3.5-flash-lite",
                  allow_model="gemini-3.5-flash-lite", max_requests=1, run_id="new-policy")
     run = json.loads((tmp_path / "runs/new-policy/run.json").read_text(encoding="utf-8"))
-    assert run["configuration"]["max_attempts"] == 1
+    assert run["configuration"]["max_attempts"] == 3
+    assert run["configuration"]["execution_policy"] == "managed-v1"
+    assert run["configuration"]["prompt_version"] == "classification_v1"
 
 
 def test_snapshot_export_is_read_only_without_model_authorization(tmp_path, monkeypatch):
@@ -168,7 +184,7 @@ def test_groq_command_uses_exact_model_budget_and_shared_contract(model, reviewe
     if model == "qwen/qwen3.8-27b":
         expected_generation["reasoning_format"] = "hidden"
     assert run["configuration"]["generation"] == expected_generation
-    assert run["configuration"]["max_attempts"] == 1
+    assert run["configuration"]["max_attempts"] == 3
     assert run["request_count"] == 2
     call_command("run_ai_benchmark", classifier="groq", model=model, allow_model=model,
                  max_requests=2, run_id="groq-synthetic")

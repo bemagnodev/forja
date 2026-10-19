@@ -4,7 +4,7 @@ import json
 import httpx
 import pytest
 
-MODELS = ("openai/gpt-oss-120b", "qwen/qwen3.8-27b")
+MODELS = ("openai/gpt-oss-120b", "qwen/qwen3.8-27b", "openai/gpt-oss-20b")
 
 
 @pytest.mark.parametrize("model", MODELS)
@@ -62,6 +62,7 @@ def test_groq_errors_are_sanitized_and_never_retried(code, category, monkeypatch
         with pytest.raises(ProviderFailure) as error:
             generate({}, "prompt", MODELS[0], client=client)
     assert error.value.category == category
+    assert error.value.http_status == code
     assert error.value.retry_after == 90
     assert error.value.responded is False
     assert "private" not in str(error.value)
