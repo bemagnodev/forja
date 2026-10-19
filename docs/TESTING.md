@@ -28,8 +28,12 @@ backend/api/tests/
 ├── services/                     # Integrações e clientes HTTP
 │   ├── __init__.py
 │   ├── test_clients.py                 # CodeforcesClient e AtCoderClient
-│   ├── test_scrapers.py                # Scrapers HTML (CF, AtCoder, CSES)
-│   └── test_ai_classifier.py           # Classificador Gemini & Mock Mode
+│   └── test_scrapers.py                # HTML de CF, AtCoder e CSES (sem rede)
+├── ai_lab/                            # Contratos, adaptadores e integração ativa
+│   ├── test_classification.py          # Benchmark e runner
+│   ├── test_groq.py                    # Contrato HTTP simulado do adaptador
+│   ├── test_product_contract.py        # Produto 800–3500, cache e imagens
+│   └── test_explore.py                 # Explorar sem escrita no produto
 │
 ├── test_dashboard.py             # Endpoint GET /api/dashboard/stats
 ├── test_prediction.py            # Endpoint POST /api/problems/{id}/predict
@@ -49,7 +53,7 @@ backend/api/tests/
 
 ## 4. Tipos de Teste
 
-1. **Unitário**: Testes de funções isoladas e classificadores (ex: `test_ai_classifier.py`, `test_password_policy.py`).
+1. **Unitário**: Testes de funções isoladas e classificadores (ex: `ai_lab/test_classification.py`, `test_password_policy.py`).
 2. **Integração**: Testes de pipelines, scrapers com HTML simulado e comandos Django (ex: `test_codeforces_pipeline.py`, `test_invite_command.py`).
 3. **Teste de Integração da API / Fluxo Completo do Backend**: Chamadas HTTP para os endpoints da API Ninja via `client` do Django/Pytest e verificação do resultado persistido no banco de dados isolado de testes. *Nota: esses testes não utilizam navegador real nem validam a renderização do frontend.*
 
@@ -173,6 +177,16 @@ Ao investigar e corrigir anomalias ou inconsistências de dados originadas em pr
 8. **Compatibilidade com PostgreSQL e Triggers (`Pending Trigger Events`)**: No PostgreSQL, executar operações DML (ex: `delete()`, `update()`) em uma tabela e, na mesma transação, tentar aplicar operações DDL na mesma tabela (`ALTER TABLE ... ADD CONSTRAINT`) gera o erro `cannot ALTER TABLE because it has pending trigger events` (diferente do SQLite, que tolera). Portanto, data migrations de consolidação/limpeza (`RunPython`) e schema migrations que adicionam constraints (`AddConstraint`) devem sempre ser divididas em migrations consecutivas separadas, ambas com `atomic = True`.
 
 ---
+
+O fixture automático `prohibit_external_network` bloqueia DNS/conexões de socket
+e falha no teardown mesmo se a aplicação capturar a tentativa. Adaptadores e
+scrapers devem ser simulados antes dessa fronteira; testes não usam chaves reais.
+
+O classificador antigo e seus sete testes exclusivos foram removidos por decisão
+explícita. A cobertura ativa está em `ai_lab/test_product_contract.py`,
+`test_product_metadata.py`, `test_explore.py`, `test_classification.py` e
+`test_groq.py`. Não interpretar a retirada dos sete testes legados como perda
+de cobertura dos fluxos ativos, nem como autorização para apagar outros testes.
 
 ## 13. Comandos Úteis
 
