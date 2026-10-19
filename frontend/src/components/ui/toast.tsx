@@ -1,40 +1,14 @@
-import React, { createContext, useContext, useState, useCallback, ReactNode } from "react";
+import { useState, useCallback, type ReactNode } from "react";
 import { CheckCircle2, X, Info, AlertCircle, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-type ToastType = "success" | "error" | "info" | "warning";
-
-interface ToastAction {
-  label: string;
-  onClick: () => void;
-  icon?: React.ReactNode;
-}
-
-interface Toast {
-  id: string;
-  title: string;
-  description?: string;
-  type: ToastType;
-  action?: ToastAction;
-  duration?: number;
-}
-
-interface ToastProps {
-  title: string;
-  description?: string;
-  type?: ToastType;
-  action?: ToastAction;
-  duration?: number;
-}
-
-interface ToastContextType {
-  toast: (props: ToastProps) => void;
-}
-
-const ToastContext = createContext<ToastContextType | undefined>(undefined);
+import { ToastContext, type Toast, type ToastProps } from "./toast-context";
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
+
+  const removeToast = useCallback((id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
 
   const toast = useCallback(({ title, description, type = "success", action, duration = 4000 }: ToastProps) => {
     const id = Math.random().toString(36).substring(2, 9);
@@ -46,11 +20,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         removeToast(id);
       }, duration);
     }
-  }, []);
-
-  const removeToast = useCallback((id: string) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
-  }, []);
+  }, [removeToast]);
 
   return (
     <ToastContext.Provider value={{ toast }}>
@@ -63,7 +33,6 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     </ToastContext.Provider>
   );
 }
-
 function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }) {
   const [isExiting, setIsExiting] = useState(false);
 
@@ -159,12 +128,4 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }
       `}</style>
     </div>
   );
-}
-
-export function useToast() {
-  const context = useContext(ToastContext);
-  if (!context) {
-    throw new Error("useToast must be used within a ToastProvider");
-  }
-  return context;
 }

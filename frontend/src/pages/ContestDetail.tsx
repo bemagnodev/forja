@@ -9,6 +9,7 @@ import { ProblemActionsCell } from "@/components/contests/ProblemActionsCell";
 import { AlertCircle, ArrowLeft, ExternalLink, Trophy, CheckCircle, Sparkles } from "lucide-react";
 import type { ContestProblem } from "@/components/contests/types";
 import { getRatingColor } from "@/lib/ratings";
+import { AIVisualWarning } from "@/components/ai-lab/AIVisualWarning";
 
 // Cores de rating do Codeforces (usando as CSS vars do design system)
 function RatingBadge({ rating, isAi = false }: { rating: number | null; isAi?: boolean }) {
@@ -256,13 +257,17 @@ export function ContestDetail() {
                         rating={prob.rating || prob.ai_rating} 
                         isAi={!prob.rating && !!prob.ai_rating} 
                       />
+                      {prob.ai_rating != null && prob.ai_visual_status === "unprocessed" && <div>
+                        {prob.rating != null && <span className="block text-[10px] text-fuchsia-300">Estimativa IA: {prob.ai_rating}</span>}
+                        <AIVisualWarning />
+                      </div>}
                     </TableCell>
 
                     {/* Tags */}
                     <TableCell className="px-3 py-4">
                       <div className="flex flex-wrap gap-1.5 items-center">
                         {!prob.rating && prob.ai_tags?.length > 0 && (
-                          <Sparkles className="w-3 h-3 text-fuchsia-400 mr-0.5 opacity-80" title="Tags estimadas por IA" />
+                          <Sparkles className="w-3 h-3 text-fuchsia-400 mr-0.5 opacity-80" role="img" aria-label="Tags estimadas por IA" />
                         )}
                         {(prob.tags?.length > 0 ? prob.tags : prob.ai_tags || [])?.slice(0, 3).map((tag) => (
                           <span key={tag} className={`text-[10px] font-bold px-2.5 py-0.5 rounded-md border transition-all ${

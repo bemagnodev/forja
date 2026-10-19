@@ -12,6 +12,7 @@ import { PlatformIcon } from "@/components/queue/PlatformIcon";
 import { getRatingColor } from "@/lib/ratings";
 import { AxiosError } from "axios";
 import { BenchmarkResults } from "@/components/ai-lab/BenchmarkResults";
+import { AIVisualWarning } from "@/components/ai-lab/AIVisualWarning";
 
 // Tipagens locais
 interface ProblemSearchItem {
@@ -25,21 +26,26 @@ interface AIPredictionResult {
   rating: number | null;
   tags: string[];
   reasoning: string;
-  raw_data: Record<string, any>;
+  raw_data: Record<string, unknown> | null;
   real_rating: number | null;
   real_tags: string[];
+  model: string | null;
+  rating_status: string;
+  tags_status: string;
+  discarded_tags_count: number;
+  visual_status?: string | null;
 }
 
 const SUPPORTED_MODELS = [
-  { value: "gemini-3.1-flash-lite-preview", label: "Gemini 3.1 Lite" },
-  { value: "gemini-2.5-flash", label: "Gemini 2.5 Flash" },
-  { value: "gemini-3-flash-preview", label: "Gemini 3.0 Flash" },
+  { value: "gemini-3.5-flash-lite", label: "Gemini 3.5 Flash-Lite" },
+  { value: "openai/gpt-oss-120b", label: "GPT-OSS 120B" },
+  { value: "openai/gpt-oss-20b", label: "GPT-OSS 20B" },
 ];
 
 export function AILab() {
   const [tab, setTab] = useState<"benchmark" | "explore">("explore");
   const [platform, setPlatform] = useState<string>("CODEFORCES");
-  const [model, setModel] = useState<string>("gemini-3.1-flash-lite-preview");
+  const [model, setModel] = useState<string>("gemini-3.5-flash-lite");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedProblem, setSelectedProblem] = useState<ProblemSearchItem | null>(null);
   const [responseTime, setResponseTime] = useState<number | null>(null);
@@ -57,23 +63,25 @@ export function AILab() {
   });
 
   // Mutação para Classificação
-  const categorizeMutation = useMutation<AIPredictionResult, AxiosError, { problemId: number; force?: boolean }>({
-    mutationFn: async ({ problemId, force = false }) => {
+  const categorizeMutation = useMutation<AIPredictionResult, AxiosError<{ message?: string; detail?: string }>, { problemId: number; modelName: string }>({
+    retry: false,
+    mutationFn: async ({ problemId, modelName }) => {
       const start = performance.now();
-      const { data } = await api.post(`/problems/${problemId}/predict`, null, {
-        params: { model_name: model, force }
+      const { data } = await api.post(`/ai-lab/problems/${problemId}/classify`, null, {
+        params: { model_name: modelName }
       });
       setResponseTime(performance.now() - start);
       return data;
     },
   });
 
-  const handleCategorize = (e: React.MouseEvent) => {
+  const handleCategorize = () => {
     if (!selectedProblem) return;
-    categorizeMutation.mutate({ problemId: selectedProblem.id, force: e.ctrlKey || e.metaKey || e.shiftKey });
+    categorizeMutation.mutate({ problemId: selectedProblem.id, modelName: model });
   };
 
   const selectProblem = (p: ProblemSearchItem) => {
+    categorizeMutation.reset(); setResponseTime(null);
     setSelectedProblem(p);
     setSearchQuery("");
   };
@@ -123,11 +131,13 @@ export function AILab() {
                   {SUPPORTED_MODELS.map((m) => (
                     <button
                       key={m.value}
-                      onClick={() => setModel(m.value)}
+                      aria-pressed={model === m.value}
+                      disabled={categorizeMutation.isPending}
+                      onClick={() => { setModel(m.value); categorizeMutation.reset(); setResponseTime(null); }}
                       className={[
                         "flex-1 py-2.5 rounded-xl text-[11px] font-bold tracking-wide transition-all duration-200 border text-center",
                         model === m.value
-                          ? "bg-purple-600/15 text-white border-purple-500/35 shadow-lg shadow-purple-500/10"
+                          ? "bg-forja/15 text-white border-forja/35 shadow-lg shadow-forja/10"
                           : "bg-white/[0.02] border-white/[0.06] text-white/35 hover:text-white/65 hover:bg-white/[0.06]",
                       ].join(" ")}
                     >
@@ -147,7 +157,8 @@ export function AILab() {
                   ].map((p) => (
                     <button
                       key={p.value}
-                      onClick={() => { setPlatform(p.value); setSelectedProblem(null); setSearchQuery(""); }}
+                      disabled={categorizeMutation.isPending}
+                      onClick={() => { setPlatform(p.value); setSelectedProblem(null); setSearchQuery(""); categorizeMutation.reset(); setResponseTime(null); }}
                       className={[
                         "flex-1 flex items-center justify-center gap-1.5 px-2 py-2.5 rounded-xl text-[11px] font-semibold border transition-all duration-200",
                         platform === p.value
@@ -170,14 +181,16 @@ export function AILab() {
                 <div className="relative group w-full">
                   <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20 group-focus-within:text-white/60 transition-colors" />
                   <Input
+                    disabled={categorizeMutation.isPending}
                     value={selectedProblem ? `${selectedProblem.platform_id} - ${selectedProblem.title}` : searchQuery}
-                    onChange={(e) => { setSearchQuery(e.target.value); setSelectedProblem(null); }}
+                    onChange={(e) => { setSearchQuery(e.target.value); setSelectedProblem(null); categorizeMutation.reset(); setResponseTime(null); }}
                     placeholder="Busque por ID ou nome (ex: 1A, Theatre)"
                     className="pl-11 h-12 bg-black/40 border-white/[0.09] text-white placeholder:text-white/18 rounded-xl text-[13px] focus-visible:ring-1 focus-visible:ring-white/20"
                   />
                   {selectedProblem && (
                     <button
-                      onClick={() => { setSelectedProblem(null); setSearchQuery(""); }}
+                      disabled={categorizeMutation.isPending}
+                      onClick={() => { setSelectedProblem(null); setSearchQuery(""); categorizeMutation.reset(); setResponseTime(null); }}
                       className="absolute right-3.5 top-1/2 -translate-y-1/2 text-white/25 hover:text-white/55 transition-colors"
                     >
                       <X className="w-4 h-4" />
@@ -206,7 +219,6 @@ export function AILab() {
                 <Button
                   onClick={handleCategorize}
                   disabled={!selectedProblem || categorizeMutation.isPending}
-                  title="Ctrl+Click ou Shift+Click para forçar o recálculo (ignorar cache)"
                   className="bg-[#dc143c] hover:bg-[#dc143c]/90 text-white font-bold h-12 px-8 rounded-xl transition-all duration-200 disabled:opacity-40 text-[13px] border border-[#dc143c]/60 shadow-lg shadow-[#dc143c]/20 w-full md:w-auto shrink-0"
                 >
                   {categorizeMutation.isPending ? (
@@ -222,6 +234,8 @@ export function AILab() {
                   )}
                 </Button>
               </div>
+              <p className="text-xs leading-relaxed text-zinc-500">Cada classificação faz uma nova chamada ao modelo. O resultado não é salvo nem altera a fila ou os contests.</p>
+              <p className="text-xs leading-relaxed text-zinc-500">Produto: ratings de 800 a 3500. A escolha do Gemini se baseia no benchmark de 800 a 2400; sua qualidade entre 2500 e 3500 ainda não foi avaliada.</p>
             </div>
           </div>
         </div>
@@ -245,12 +259,7 @@ export function AILab() {
             <AlertCircle className="h-4 w-4 !text-red-400" />
             <AlertTitle className="text-red-300 font-bold ml-2">Erro ao Processar Problema</AlertTitle>
             <AlertDescription className="ml-2 mt-1 opacity-80 text-[13px]">
-              A IA não conseguiu ler este formato. Isso ocorre geralmente em questões antigas (ex: PDF images) ou iframes complexos. 
-              {categorizeMutation.error.response?.data?.message && (
-                <div className="mt-2 p-2 bg-black/40 rounded border border-red-500/20 font-mono text-[10px]">
-                  {categorizeMutation.error.response.data.message}
-                </div>
-              )}
+              {categorizeMutation.error.response?.data?.detail || categorizeMutation.error.response?.data?.message || "Não foi possível concluir a classificação. Confira a conexão e tente novamente quando estiver disponível."}
             </AlertDescription>
           </Alert>
         )}
@@ -258,6 +267,15 @@ export function AILab() {
         {/* Resultados */}
         {categorizeMutation.isSuccess && categorizeMutation.data && (
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <p className="text-xs text-zinc-400">Modelo: {categorizeMutation.data.model} · Resultado experimental, sem gravação no banco</p>
+            {(categorizeMutation.data.rating_status !== "valid" || categorizeMutation.data.tags_status !== "valid") &&
+              <Alert className="grid-cols-[1rem_minmax(0,1fr)] gap-x-2 rounded-xl border-amber-500/30 bg-amber-500/5 text-amber-200">
+                <AlertCircle className="row-span-2 size-4" /><AlertTitle className="col-start-2 row-start-1">Resultado parcial</AlertTitle>
+                <AlertDescription className="col-start-2 row-start-2 space-y-1 text-xs">
+                  {categorizeMutation.data.rating_status !== "valid" && <p>Rating inválido: o modelo não retornou um múltiplo de 100 entre 800 e 3500.</p>}
+                  {categorizeMutation.data.tags_status !== "valid" && <p>{categorizeMutation.data.discarded_tags_count > 0 ? `${categorizeMutation.data.discarded_tags_count} tag(s) descartada(s) por não pertencerem à taxonomia oficial.` : "O formato das tags retornadas é inválido."} As partes válidas foram aproveitadas, sem nova chamada.</p>}
+                </AlertDescription>
+              </Alert>}
             
             {/* Painel de Acurácia */}
             {(categorizeMutation.data.real_rating || categorizeMutation.data.real_tags?.length > 0) && (
@@ -275,7 +293,7 @@ export function AILab() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {categorizeMutation.data.real_rating && (
+                  {categorizeMutation.data.real_rating && categorizeMutation.data.rating != null && (
                     <div className="bg-black/40 rounded-xl border border-white/[0.05] p-4 flex flex-col justify-center">
                       <span className="text-[11px] text-white/30 uppercase tracking-widest font-bold mb-3 flex items-center gap-2">
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-500/50"></span> Delta Rating
@@ -346,19 +364,20 @@ export function AILab() {
                 >
                   {categorizeMutation.data.rating ?? <span className="text-white/20">N/A</span>}
                 </div>
+                {categorizeMutation.data.visual_status === "unprocessed" && <AIVisualWarning />}
               </div>
 
               <div className="bg-[#080808] border border-white/[0.06] rounded-2xl p-5 flex flex-col">
                 <div className="flex items-center gap-2 mb-3">
                   <Tag className="w-4 h-4 text-white/40" />
-                  <span className="text-[11px] font-bold text-white/40 uppercase tracking-widest">Tags Sugeridas</span>
+                  <span className="text-[11px] font-bold text-white/40 uppercase tracking-widest">{categorizeMutation.data.tags_status === "valid" ? "Tags Sugeridas" : "Tags aproveitáveis"}</span>
                 </div>
                 <div className="flex flex-wrap gap-1.5">
                   {categorizeMutation.data.tags.length > 0 ? categorizeMutation.data.tags.map(tag => (
                     <span key={tag} className="text-[11px] font-medium bg-purple-500/10 text-purple-300 border border-purple-500/20 px-2 py-0.5 rounded-md">
                       {tag}
                     </span>
-                  )) : <span className="text-[12px] text-white/20">Nenhuma tag inferida</span>}
+                  )) : <span className="text-[12px] text-white/20">Nenhuma tag válida</span>}
                 </div>
               </div>
 
@@ -379,7 +398,7 @@ export function AILab() {
             {/* Reasoning Block */}
             <div className="bg-white/[0.03] border-y border-r border-white/[0.06] border-l-4 border-l-[#dc143c] rounded-r-2xl p-6 relative overflow-hidden">
               <div className="absolute top-4 right-4 text-[10px] font-mono text-white/10 uppercase tracking-widest">
-                Chain of Thought
+                Justificativa resumida
               </div>
               <h3 className="text-[12px] font-bold text-white/70 uppercase tracking-widest mb-4 flex items-center gap-2">
                 <Sparkles className="w-4 h-4 text-[#dc143c]" /> Raciocínio da IA
@@ -391,7 +410,7 @@ export function AILab() {
 
             {/* Accordion Raw Scraper */}
             {categorizeMutation.data.raw_data && (
-              <Accordion type="single" collapsible className="w-full bg-[#080808] border border-white/[0.06] rounded-xl overflow-hidden">
+              <Accordion className="w-full bg-[#080808] border border-white/[0.06] rounded-xl overflow-hidden">
                 <AccordionItem value="raw-data" className="border-0">
                   <AccordionTrigger className="px-5 py-4 hover:bg-white/[0.02] hover:no-underline text-[12px] font-bold text-white/60">
                     Dados Brutos do Scraper

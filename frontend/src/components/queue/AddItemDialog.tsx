@@ -5,11 +5,11 @@ import { Dialog, DialogContent, DialogTitle, DialogTrigger, DialogClose } from "
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { api } from "@/lib/api";
-import type { ProblemResult } from "./types";
+import type { ProblemResult, QueueCreateInput } from "./types";
 import { priorityOptions } from "./constants";
 import { PlatformIcon } from "./PlatformIcon";
 
-export function AddItemDialog({ onCreate }: { onCreate: (data: any) => void }) {
+export function AddItemDialog({ onCreate }: { onCreate: (data: QueueCreateInput) => void }) {
   const [title, setTitle]               = useState("");
   const [description, setDescription]   = useState("");
   const [itemType, setItemType]         = useState("PROBLEM");
@@ -78,15 +78,11 @@ export function AddItemDialog({ onCreate }: { onCreate: (data: any) => void }) {
 
   return (
     <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) resetForm(); }}>
-      <DialogTrigger asChild>
-        <div
-          role="button"
-          tabIndex={0}
+      <DialogTrigger
           className="bg-[#dc143c] hover:bg-[#dc143c]/90 hover:-translate-y-0.5 shadow-md shadow-[#dc143c]/10 text-white text-[12px] font-semibold gap-2 h-9 px-5 transition-all rounded-lg border border-[#dc143c]/30 inline-flex items-center justify-center cursor-pointer active:scale-95 duration-200"
-        >
+      >
           <Plus className="w-3.5 h-3.5" strokeWidth={2.5} />
           Novo Item
-        </div>
       </DialogTrigger>
 
       <DialogContent className="bg-[#080808]/99 backdrop-blur-2xl border border-white/[0.09] text-white w-[95vw] sm:max-w-lg rounded-2xl p-0 overflow-hidden mx-auto max-h-[90vh] flex flex-col shadow-[0_24px_64px_rgba(0,0,0,0.65)]">
@@ -271,13 +267,11 @@ export function AddItemDialog({ onCreate }: { onCreate: (data: any) => void }) {
 
         {/* Rodapé */}
         <div className="px-6 py-4 border-t border-white/[0.07] bg-black/15 flex justify-end gap-2.5 shrink-0">
-          <DialogClose asChild>
-            <Button
+          <DialogClose render={<Button
               variant="ghost"
               className="text-white/40 hover:text-white hover:bg-white/[0.04] rounded-lg text-[12px] font-medium h-9 px-5"
-            >
-              Cancelar
-            </Button>
+            />}>
+            Cancelar
           </DialogClose>
           <Button
             onClick={handleSubmit}

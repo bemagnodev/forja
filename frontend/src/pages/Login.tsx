@@ -4,7 +4,7 @@ import { api } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Eye, EyeOff } from 'lucide-react';
-import { useToast } from '@/components/ui/toast';
+import { useToast } from '@/components/ui/toast-context';
 
 import { EmberBackground } from '@/components/effects/EmberBackground';
 

@@ -47,6 +47,99 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("Benchmark salvo", () => {
+  it("exibe e copia os prompts registrados sem executar IA", async () => {
+    const user = userEvent.setup();
+    const copy = vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue();
+    const prompts = [
+      { version: "classification_v1", label: "Classificação direta", description: "Sem exemplos.", hash: "hash-a", text: "Instrução registrada <script>não executar</script>" },
+      { version: "classification_v2", label: "Classificação com rubrica", description: "Critérios explícitos, sem exemplos.", hash: "hash-b", text: "Instrução com critérios e taxonomia preenchida" },
+    ];
+    vi.mocked(api.get).mockImplementation(async (url) => ({ data: url === "/ai-lab/benchmarks"
+      ? { benchmarks: [{ id: "pilot", label: "Comparação" }] }
+      : { ...result, prompts, selection_note: "Escolhido pelo menor MAE em classificação direta, cobertura mínima de 95%." }
+    }) as Awaited<ReturnType<typeof api.get>>);
+    mount();
+    await screen.findByRole("heading", { name: result.label });
+    expect(screen.getByLabelText("Prompt completo")).not.toBeVisible();
+    await user.click(screen.getByText("Técnica e prompt"));
+    expect(screen.getByLabelText("Prompt completo")).toHaveTextContent(prompts[0].text);
+    expect(screen.getByLabelText("Prompt completo").querySelector("script")).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Copiar prompt" }));
+    expect(copy).toHaveBeenCalledWith(prompts[0].text);
+    await user.selectOptions(screen.getByLabelText("Estratégia do prompt", { exact: true }), "hash-b");
+    expect(screen.getByLabelText("Prompt completo")).toHaveTextContent(prompts[1].text);
+    expect(screen.getByText(/Escolhido pelo menor MAE/)).toBeVisible();
+    expect(api.get).toHaveBeenCalledTimes(2);
+  });
+
+  it("mostra cobertura das tags junto do F1 e distingue duração de cadência", async () => {
+    mount();
+    const table = await screen.findByRole("table", { name: "Comparação de qualidade e cobertura dos modelos" });
+    const row = within(table).getByRole("row", { name: /Gemini sintético/ });
+    expect(within(row).getByText("Tags válidas: 2/2")).toBeVisible();
+    await userEvent.setup().click(screen.getByText("Detalhes da avaliação"));
+    expect(screen.getByText(/Não inclui a cadência entre chamadas nem as pausas de retomada/)).toBeVisible();
+  });
+
+  it("mostra a amostra real por faixa no conjunto final sem chamá-lo de piloto", async () => {
+    vi.mocked(api.get).mockImplementation(async (url) => ({ data: url === "/ai-lab/benchmarks"
+      ? { benchmarks: [{ id: "final", label: "Final" }] }
+      : { ...result, dataset: { ...result.dataset, split: "final", total: 60 },
+        bands: result.bands.map(band => ({ ...band, total: 15, compared: 15 })) }
+    }) as Awaited<ReturnType<typeof api.get>>);
+    mount();
+    expect(await screen.findByText(/Amostra: 15 problemas selecionados por faixa/)).toBeInTheDocument();
+    expect(screen.queryByText(/Piloto exploratório: 3 problemas/)).not.toBeInTheDocument();
+  });
+
+  it.each<[string[], string]>([
+    [["classification_v1"], "Prompt A (v1)"],
+    [["classification_v2"], "Prompt B (v2)"],
+    [["classification_v1", "classification_v2"], "Prompts A (v1) e B (v2)"],
+    [[], "Versão do prompt não informada"],
+  ])("identifica os prompts reais da comparação: %j", async (versions, label) => {
+    const runs = [result.runs[0], ...((versions.length ? versions : [undefined]).map((version, index) => ({
+      ...result.runs[1], id: `model-${index}`, prompt_version: version,
+    })))];
+    vi.mocked(api.get).mockImplementation(async (url) => ({ data: url === "/ai-lab/benchmarks"
+      ? { benchmarks: [{ id: "pilot", label: "Piloto" }] }
+      : { ...result, runs, prompt: { hash: versions.length > 1 ? null : "prompt-hash" } }
+    }) as Awaited<ReturnType<typeof api.get>>);
+    mount();
+    expect(await screen.findByText(new RegExp(`Desenvolvimento · resultado exploratório · ${String(label).replace(/[()]/g, "\\$&")}`))).toBeInTheDocument();
+    expect(screen.queryByText(/Mesmos enunciados preparados e prompt v1/)).not.toBeInTheDocument();
+    if (versions.length > 1) expect(screen.getByText(/Prompt por execução/)).toBeInTheDocument();
+  });
+
+  it("usa escala fixa de mil pontos sem alterar o MAE exibido", async () => {
+    mount();
+    const table = await screen.findByRole("table", { name: "Comparação de qualidade e cobertura dos modelos" });
+    expect(within(table).getByRole("meter", { name: "Erro médio: Gemini sintético" })).toHaveAttribute("aria-valuemax", "1000");
+    expect(within(table).getByRole("meter", { name: "Erro médio: Gemini sintético" })).toHaveAttribute("aria-valuenow", "100");
+    expect(within(table).getByRole("meter", { name: "Erro médio: Mediana" }).firstElementChild).toHaveStyle({ width: "30%" });
+  });
+
+  it("preserva o número quando o erro ultrapassa a escala visual", async () => {
+    vi.mocked(api.get).mockImplementation(async (url) => ({ data: url === "/ai-lab/benchmarks"
+      ? { benchmarks: [{ id: "pilot", label: "Piloto" }] }
+      : { ...result, runs: [{ ...result.runs[1], metrics: { ...metric, mae: 1200 } }] }
+    }) as Awaited<ReturnType<typeof api.get>>);
+    mount();
+    const meter = await screen.findByRole("meter", { name: "Erro médio: Gemini sintético" });
+    expect(meter).toHaveAttribute("aria-valuetext", "1200 pontos; acima da escala visual de 1000 pontos");
+    expect(meter.firstElementChild).toHaveStyle({ width: "100%" });
+    expect(screen.getByText("1.200,0")).toBeInTheDocument();
+  });
+
+  it("explica F1 micro e informa o conjunto válido de tags", async () => {
+    mount();
+    await userEvent.setup().click(await screen.findByRole("button", { name: "Ajuda: F1 de tags" }));
+    const help = await screen.findByRole("tooltip");
+    expect(help).toHaveTextContent("extras e as que faltaram");
+    expect(help).toHaveTextContent("Não representa a porcentagem de problemas totalmente corretos");
+    expect(screen.getByText("Tags comparadas em 2/2 problemas")).toBeVisible();
+  });
+
   it("distingue tags inválidas de uma tarefa não aplicável no detalhe", async () => {
     const problems: BenchmarkProblem[] = structuredClone(result.problems);
     const invalid = { ...structuredClone(result), problems };

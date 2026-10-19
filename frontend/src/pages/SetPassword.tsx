@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Eye, EyeOff, CheckCircle2 } from 'lucide-react';
-import { useToast } from '@/components/ui/toast';
+import { useToast } from '@/components/ui/toast-context';
 
 import { EmberBackground } from '@/components/effects/EmberBackground';
 

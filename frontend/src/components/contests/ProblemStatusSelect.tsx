@@ -37,17 +37,15 @@ export function ProblemStatusSelect({
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button 
+      <DropdownMenuTrigger
           disabled={mutation.isPending}
           className={`inline-flex items-center gap-1.5 text-[10px] font-bold tracking-wider uppercase px-2 py-1 rounded-md border whitespace-nowrap cursor-pointer hover:scale-[1.03] transition-all active:scale-95 disabled:opacity-50 disabled:cursor-wait ${current.bg} ${current.text} ${current.border} focus:outline-none`}
-        >
+      >
           <span 
             className="w-2 h-2 rounded-full shrink-0" 
             style={{ backgroundColor: current.dot }} 
           />
           {current.label}
-        </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align="end"

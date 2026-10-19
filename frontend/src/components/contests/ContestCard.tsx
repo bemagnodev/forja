@@ -36,7 +36,7 @@ export function ContestCard({ participation }: { participation: ContestParticipa
   const navigate = useNavigate();
   const { 
     contest_id, contest_name, contest_platform, participation_date, 
-    is_virtual, has_debt, progress, url, rank, solve_count, upsolve_count, total_problems 
+    is_virtual, has_debt, progress, url, rank
   } = participation;
 
   const badge = PLATFORM_BADGE[contest_platform] ?? { label: contest_platform, cls: "bg-white/5 text-white/40 border-white/10" };

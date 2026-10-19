@@ -13,10 +13,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Inbox, AlertCircle, RefreshCw } from "lucide-react";
 
 import { PageLayout } from "@/components/layouts/PageLayout";
-import { useToast } from "@/components/ui/toast";
+import { useToast } from "@/components/ui/toast-context";
 
 // Feature Components e configs
-import type { QueueItem } from "@/components/queue/types";
+import type { QueueItem, QueueCreateInput } from "@/components/queue/types";
 import { SortableRow } from "@/components/queue/SortableRow";
 import { AddItemDialog } from "@/components/queue/AddItemDialog";
 
@@ -39,7 +39,7 @@ export function Queue() {
   });
 
   const handleToggle = useCallback(
-    (id: number, currentStatus: boolean, title: string) => {
+    function toggleQueueItem(id: number, currentStatus: boolean, title: string) {
       // Atualização otimista: remove o item da lista visual instantaneamente
       queryClient.setQueryData(["queue"], (old: QueueItem[] | undefined) => {
         if (!old) return old;
@@ -58,7 +58,7 @@ export function Queue() {
           action: {
             label: "Desfazer",
             icon: <RefreshCw className="w-3 h-3" />,
-            onClick: () => handleToggle(id, true, title),
+            onClick: () => toggleQueueItem(id, true, title),
           },
         });
       }
@@ -73,7 +73,7 @@ export function Queue() {
   });
 
   const createMutation = useMutation({
-    mutationFn: (data: any) => api.post("/queue", data),
+    mutationFn: (data: QueueCreateInput) => api.post("/queue", data),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["queue"] }),
   });
 

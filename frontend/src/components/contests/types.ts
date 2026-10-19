@@ -8,6 +8,7 @@ export interface ContestProblem {
   ai_rating: number | null;
   tags: string[];
   ai_tags: string[];
+  ai_visual_status?: string | null;
   url: string | null;
   system_status: string;
   review_status: string;

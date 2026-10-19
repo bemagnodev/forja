@@ -13,7 +13,8 @@ import { EditableDescription } from "./EditableDescription";
 import { getRatingColor } from "@/lib/ratings";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { useToast } from "@/components/ui/toast";
+import { useToast } from "@/components/ui/toast-context";
+import { AIVisualWarning } from "@/components/ai-lab/AIVisualWarning";
 
 function RatingBadge({ rating, isAi = false }: { rating: number | null; isAi?: boolean }) {
   if (!rating) return <span className="text-[11px] text-white/18 font-mono select-none">—</span>;
@@ -86,6 +87,7 @@ export function SortableRow({
     },
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["queue"] });
+      queryClient.invalidateQueries({ queryKey: ["contest-problems"] });
       toast({
         title: "Classificação concluída!",
         description: `Predição gerada em ${(result.time / 1000).toFixed(1)} segundos.`,
@@ -190,12 +192,13 @@ export function SortableRow({
             )}
             
             {item.linked_problem_id && (
-              <div className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="ml-auto shrink-0">
                 <button
                   onClick={(e) => { e.stopPropagation(); predictMutation.mutate({ force: e.shiftKey }); }}
                   disabled={predictMutation.isPending}
                   title="Estimar rating e tags com IA (Shift+Click para forçar recálculo)"
-                  className="w-6 h-6 flex items-center justify-center rounded-lg text-fuchsia-400/70 hover:text-fuchsia-400 hover:bg-fuchsia-400/10 transition-all disabled:opacity-40"
+                  aria-label="Estimar rating e tags com IA"
+                  className="w-6 h-6 flex items-center justify-center rounded-lg border border-fuchsia-400/20 bg-fuchsia-400/10 text-fuchsia-400 hover:bg-fuchsia-400/20 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-400 disabled:opacity-40"
                 >
                   {predictMutation.isPending ? (
                     <div className="w-3 h-3 border-2 border-fuchsia-400/30 border-t-fuchsia-400 rounded-full animate-spin" />
@@ -212,14 +215,17 @@ export function SortableRow({
       {/* ── RATING ── */}
       <TableCell className="py-3.5 px-3 align-middle text-center">
         <RatingBadge rating={item.rating || item.ai_rating || null} isAi={!item.rating && !!item.ai_rating} />
+        {item.ai_rating != null && item.ai_visual_status === "unprocessed" && <div>
+          {item.rating != null && <span className="block text-[10px] text-fuchsia-300">Estimativa IA: {item.ai_rating}</span>}
+          <AIVisualWarning />
+        </div>}
       </TableCell>
 
       {/* ── TAGS ── */}
       <TableCell className="py-2 px-3 align-middle overflow-hidden">
         {(item.tags?.length > 0 || item.ai_tags?.length) ? (
           <Tooltip>
-            <TooltipTrigger asChild>
-              <div className="flex items-center gap-1 cursor-help w-full overflow-hidden">
+            <TooltipTrigger className="flex items-center gap-1 cursor-help w-full overflow-hidden">
                 {!item.tags?.length && item.ai_tags && item.ai_tags.length > 0 && (
                   <Sparkles className="w-3 h-3 text-fuchsia-400 opacity-80 shrink-0" />
                 )}
@@ -240,7 +246,6 @@ export function SortableRow({
                     +{(item.tags?.length > 0 ? item.tags : item.ai_tags || []).length - 2}
                   </span>
                 )}
-              </div>
             </TooltipTrigger>
             <TooltipContent 
               side="top" 
@@ -263,10 +268,8 @@ export function SortableRow({
       <TableCell className="py-3.5 px-3 align-middle">
         {item.contest_name ? (
           <Tooltip>
-            <TooltipTrigger asChild>
-              <span className="text-[11px] font-mono font-bold tracking-wider text-white/35 hover:text-white/60 transition-colors cursor-default uppercase">
+            <TooltipTrigger className="text-[11px] font-mono font-bold tracking-wider text-white/35 hover:text-white/60 transition-colors cursor-default uppercase">
                 {abbreviateContest(item.contest_name)}
-              </span>
             </TooltipTrigger>
             <TooltipContent
               side="top"
@@ -292,10 +295,8 @@ export function SortableRow({
       {/* ── PRIORIDADE ── */}
       <TableCell className="py-3.5 px-4 align-middle text-center">
         <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button className="focus:outline-none cursor-pointer hover:scale-[1.03] transition-all active:scale-95">
-              <PriorityBadge priority={item.priority} />
-            </button>
+          <DropdownMenuTrigger className="focus:outline-none cursor-pointer hover:scale-[1.03] transition-all active:scale-95">
+            <PriorityBadge priority={item.priority} />
           </DropdownMenuTrigger>
           <DropdownMenuContent
             align="end"

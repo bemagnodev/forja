@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { BookOpen, Terminal, Code, Award } from "lucide-react";
+import { BookOpen, Terminal, Code } from "lucide-react";
 
 interface PlatformIconProps {
   platform: string | null;

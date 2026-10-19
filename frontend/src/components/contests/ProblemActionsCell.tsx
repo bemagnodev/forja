@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { ListPlus, Sparkles } from "lucide-react";
 import type { ContestProblem } from "./types";
-import { useToast } from "@/components/ui/toast";
+import { useToast } from "@/components/ui/toast-context";
 
 interface ProblemActionsCellProps {
   problem: ContestProblem;
@@ -42,6 +42,7 @@ export function ProblemActionsCell({ problem }: ProblemActionsCellProps) {
     },
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["contest-problems"] });
+      queryClient.invalidateQueries({ queryKey: ["queue"] });
       
       toast({
         title: "Classificação concluída!",
@@ -66,6 +67,7 @@ export function ProblemActionsCell({ problem }: ProblemActionsCellProps) {
         onClick={(e) => predictMutation.mutate({ force: e.shiftKey })}
         disabled={predictMutation.isPending}
         title="Estimar rating e tags com IA (Shift+Click para forçar recálculo)"
+        aria-label="Estimar rating e tags com IA"
         className="w-8 h-8 flex items-center justify-center rounded-lg text-fuchsia-400/70 hover:text-fuchsia-400 hover:bg-fuchsia-400/10 hover:shadow-[0_0_15px_rgba(232,121,249,0.2)] transition-all disabled:opacity-40"
       >
         {predictMutation.isPending ? (

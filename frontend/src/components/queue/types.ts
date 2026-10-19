@@ -4,6 +4,7 @@ export interface QueueItem {
   title: string;
   description: string | null;
   source_platform: string | null;
+  linked_problem_id?: number | null;
   priority: "P0" | "P1" | "P2" | "UPSOLVING" | "FUTURE";
   is_completed: boolean;
   tags: string[];
@@ -20,6 +21,7 @@ export interface QueueItem {
   contest_name?: string | null;
   ai_rating?: number | null;
   ai_tags?: string[];
+  ai_visual_status?: string | null;
 }
 
 
@@ -28,4 +30,13 @@ export interface ProblemResult {
   platform_id: string;
   title: string;
   platform: string;
+}
+
+export interface QueueCreateInput {
+  title: string;
+  description: string | null;
+  item_type: string;
+  priority: string;
+  source_platform: string | null;
+  linked_problem_id: number | null;
 }
