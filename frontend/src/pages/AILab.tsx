@@ -13,6 +13,7 @@ import { getRatingColor } from "@/lib/ratings";
 import { AxiosError } from "axios";
 import { BenchmarkResults } from "@/components/ai-lab/BenchmarkResults";
 import { AIVisualWarning } from "@/components/ai-lab/AIVisualWarning";
+import { ClassificationError } from "@/components/ai-lab/ClassificationError";
 
 // Tipagens locais
 interface ProblemSearchItem {
@@ -234,8 +235,6 @@ export function AILab() {
                   )}
                 </Button>
               </div>
-              <p className="text-xs leading-relaxed text-zinc-500">Cada classificação faz uma nova chamada ao modelo. O resultado não é salvo nem altera a fila ou os contests.</p>
-              <p className="text-xs leading-relaxed text-zinc-500">Produto: ratings de 800 a 3500. A escolha do Gemini se baseia no benchmark de 800 a 2400; sua qualidade entre 2500 e 3500 ainda não foi avaliada.</p>
             </div>
           </div>
         </div>
@@ -255,13 +254,7 @@ export function AILab() {
 
         {/* Erro de Parsing */}
         {categorizeMutation.isError && (
-          <Alert className="bg-red-500/10 border-red-500/30 text-red-200 rounded-xl">
-            <AlertCircle className="h-4 w-4 !text-red-400" />
-            <AlertTitle className="text-red-300 font-bold ml-2">Erro ao Processar Problema</AlertTitle>
-            <AlertDescription className="ml-2 mt-1 opacity-80 text-[13px]">
-              {categorizeMutation.error.response?.data?.detail || categorizeMutation.error.response?.data?.message || "Não foi possível concluir a classificação. Confira a conexão e tente novamente quando estiver disponível."}
-            </AlertDescription>
-          </Alert>
+          <ClassificationError error={categorizeMutation.error} />
         )}
 
         {/* Resultados */}

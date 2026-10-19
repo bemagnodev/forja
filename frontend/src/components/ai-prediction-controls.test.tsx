@@ -8,14 +8,17 @@ import { ProblemActionsCell } from "./contests/ProblemActionsCell";
 import { TooltipProvider } from "./ui/tooltip";
 import type { QueueItem } from "./queue/types";
 import type { ContestProblem } from "./contests/types";
+import { AxiosError } from 'axios';
+
+const { toast } = vi.hoisted(() => ({ toast: vi.fn() }));
 
 vi.mock("@/lib/api", () => ({ api: { post: vi.fn() } }));
-vi.mock("@/components/ui/toast-context", () => ({ useToast: () => ({ toast: vi.fn() }) }));
+vi.mock("@/components/ui/toast-context", () => ({ useToast: () => ({ toast }) }));
 vi.mock("@dnd-kit/sortable", () => ({ useSortable: () => ({
   attributes: {}, listeners: {}, setNodeRef: vi.fn(), transform: null, transition: undefined, isDragging: false,
 }) }));
 afterEach(cleanup);
-beforeEach(() => { vi.mocked(api.post).mockReset(); });
+beforeEach(() => { vi.mocked(api.post).mockReset(); toast.mockClear(); });
 
 const problem: ContestProblem = { id: 7, platform_id: "7A", title: "Synthetic", index: "A", rating: null,
   ai_rating: null, tags: [], ai_tags: [], url: null, system_status: "UNATTEMPTED", review_status: "PENDING_TRIAGE", tracking_id: null };
@@ -61,4 +64,17 @@ it.each(["queue", "contest"])("%s preserva Shift+click para recálculo explícit
 it("a fila não cria botões aninhados no seletor de prioridade", () => {
   mount("queue");
   expect(document.querySelector("button button")).toBeNull();
+});
+
+it.each(['queue', 'contest'])('%s preserves backend failure details without repeating or invalidating data', async kind => {
+  const error = new AxiosError('Request failed');
+  Object.assign(error, { response: { status: 502, data: { detail: 'O site respondeu HTTP 403. A IA não foi chamada.',
+    diagnostic: { stage: 'fetch', code: 'source_http_error', request_id: 'trace-id' } } } });
+  vi.mocked(api.post).mockRejectedValue(error);
+  const invalidate = mount(kind);
+  await userEvent.setup().click(screen.getByTitle(/Estimar rating e tags com IA/));
+  await waitFor(() => expect(toast).toHaveBeenCalledWith(expect.objectContaining({ type: 'error',
+    description: expect.stringContaining('A IA não foi chamada. Código: trace-id') })));
+  expect(api.post).toHaveBeenCalledTimes(1);
+  expect(invalidate).not.toHaveBeenCalled();
 });

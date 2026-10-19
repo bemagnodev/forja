@@ -15,6 +15,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useToast } from "@/components/ui/toast-context";
 import { AIVisualWarning } from "@/components/ai-lab/AIVisualWarning";
+import { classificationErrorInfo } from "@/lib/classification-error";
 
 function RatingBadge({ rating, isAi = false }: { rating: number | null; isAi?: boolean }) {
   if (!rating) return <span className="text-[11px] text-white/18 font-mono select-none">—</span>;
@@ -94,10 +95,11 @@ export function SortableRow({
         type: "success",
       });
     },
-    onError: () => {
+    onError: (error) => {
+      const info = classificationErrorInfo(error);
       toast({
-        title: "Erro na predição",
-        description: "A IA não conseguiu classificar este problema.",
+        title: info.title,
+        description: info.toastMessage,
         type: "error",
       });
     }

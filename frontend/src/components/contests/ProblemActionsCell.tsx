@@ -3,6 +3,7 @@ import { api } from "@/lib/api";
 import { ListPlus, Sparkles } from "lucide-react";
 import type { ContestProblem } from "./types";
 import { useToast } from "@/components/ui/toast-context";
+import { classificationErrorInfo } from "@/lib/classification-error";
 
 interface ProblemActionsCellProps {
   problem: ContestProblem;
@@ -50,10 +51,11 @@ export function ProblemActionsCell({ problem }: ProblemActionsCellProps) {
         type: "success",
       });
     },
-    onError: () => {
+    onError: (error) => {
+      const info = classificationErrorInfo(error);
       toast({
-        title: "Erro na predição",
-        description: "A IA não conseguiu classificar este problema. Pode ser um erro no formato do enunciado.",
+        title: info.title,
+        description: info.toastMessage,
         type: "error",
       });
     }
