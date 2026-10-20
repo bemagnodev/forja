@@ -413,6 +413,15 @@ fila e Contests preservam o motivo e o identificador na notificação. Nenhum
 corpo externo, enunciado, chave ou traceback entra nesse registro. Não há retry
 automático. Falhas de busca e preparação acontecem antes da inferência.
 
+Em HTTP 403, o diagnóstico inclui somente evidências limitadas: servidor
+Cloudflare quando reconhecido, Ray ID validado e categoria
+`cloudflare_challenge` (cabeçalho `cf-mitigated: challenge`),
+`cloudflare_block` (marcador reconhecido na página) ou `unknown`.
+O servidor Cloudflare sozinho não comprova desafio nem bloqueio por IP.
+Esses campos aparecem nos detalhes copiáveis e no log correlacionado pelo
+`request_id`; não incluem título, corpo da página ou cookies. Isso permite
+investigar o acesso do Render, mas não corrige nem contorna o 403.
+
 AtCoder e CSES incluem exemplos públicos pareados de entrada/saída, com quebras
 de linha preservadas; CSES lê as seções dentro de `.md`. HTML real consultado
 para diagnóstico fica somente em `var/ai_lab`, fora do Git. Uma busca local

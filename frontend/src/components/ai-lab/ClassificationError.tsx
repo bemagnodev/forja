@@ -11,7 +11,8 @@ export function ClassificationError({ error }: { error: unknown }) {
     } catch { setCopied('Não foi possível copiar. Selecione os detalhes manualmente.'); }
   };
   const labels: Record<string, string> = { stage: 'Etapa', code: 'Código', model: 'Modelo',
-    platform: 'Plataforma', upstream_status: 'HTTP de origem', request_id: 'Identificador' };
+    platform: 'Plataforma', upstream_status: 'HTTP de origem', request_id: 'Identificador',
+    source_category: 'Evidência do bloqueio', source_server: 'Servidor de origem', source_cf_ray: 'Cloudflare Ray ID' };
   return <div role="alert" className="rounded-xl border border-red-500/25 bg-red-500/5 p-5 text-sm">
     <h3 className="font-semibold text-red-300">{info.title}</h3>
     <p className="mt-2 text-zinc-300">{info.message}</p>

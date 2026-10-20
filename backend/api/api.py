@@ -39,9 +39,10 @@ def classification_failure_response(request, exc):
     from uuid import uuid4
     diagnostic = {**exc.diagnostic, 'request_id': uuid4().hex}
     logging.getLogger('api.classification').warning(
-        'classification_failed request_id=%s stage=%s code=%s model=%s platform=%s upstream_status=%s',
+        'classification_failed request_id=%s stage=%s code=%s model=%s platform=%s upstream_status=%s source_category=%s source_server=%s source_cf_ray=%s',
         diagnostic['request_id'], diagnostic['stage'], diagnostic['code'],
-        diagnostic['model'], diagnostic['platform'], diagnostic['upstream_status'])
+        diagnostic['model'], diagnostic['platform'], diagnostic['upstream_status'],
+        diagnostic.get('source_category'), diagnostic.get('source_server'), diagnostic.get('source_cf_ray'))
     return api.create_response(request, {'detail': exc.message, 'diagnostic': diagnostic}, status=exc.status_code)
 
 
@@ -383,9 +384,10 @@ def _classify_for_ui(problem, selected_model):
     from requests.exceptions import RequestException
     from ninja.errors import HttpError
 
-    def failure(status, message, stage, code, upstream=None):
+    def failure(status, message, stage, code, upstream=None, source_diagnostic=None):
         return ClassificationFailure(status, message, stage=stage, code=code,
-                                     model=selected_model, platform=problem.platform, upstream_status=upstream)
+                                     model=selected_model, platform=problem.platform, upstream_status=upstream,
+                                     source_diagnostic=source_diagnostic)
 
     # Scraper selection
     from .services.scrapers import CodeforcesScraper, AtCoderScraper, CSESScraper
@@ -408,7 +410,7 @@ def _classify_for_ui(problem, selected_model):
         if exc.http_status is not None:
             message += f' O site respondeu HTTP {exc.http_status}.'
         raise failure(504 if timed_out else 502, message + ' A IA não foi chamada.',
-                      'fetch', exc.code, exc.http_status) from None
+                      'fetch', exc.code, exc.http_status, exc.source_diagnostic) from None
     except UnparseableProblemException:
         raise failure(400, "Não foi possível extrair as seções do enunciado. A IA não foi chamada.",
                       'extract', 'statement_unparseable') from None

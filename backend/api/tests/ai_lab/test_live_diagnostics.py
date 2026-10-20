@@ -135,3 +135,57 @@ def test_unexpected_scraper_failure_has_safe_diagnostic_and_never_calls_ai(route
     assert response.json()['diagnostic']['code'] == 'unexpected_error'
     assert 'SECRET' not in response.content.decode() + caplog.text
     classify.assert_not_called()
+
+@pytest.mark.parametrize('route', ['problems/{id}/predict', 'ai-lab/problems/{id}/classify'])
+@pytest.mark.django_db
+def test_403_metadata_is_safe_and_visible_in_response_and_logs(route, api_client, sample_problem, monkeypatch, caplog):
+    from api import api as routes
+    response = requests.Response()
+    response.status_code = 403
+    response.headers.update({'Server': 'cloudflare', 'CF-Ray': 'a4d111ae5e63e0e3-GIG',
+                             'cf-mitigated': 'challenge', 'Set-Cookie': 'PRIVATE'})
+    response._content = b'<title>PRIVATE</title>'
+    monkeypatch.setattr(requests, 'get', Mock(return_value=response))
+    classify = Mock()
+    monkeypatch.setattr(routes, 'classify_problem', classify)
+    result = api_client.post('/api/' + route.format(id=sample_problem.pk))
+    diagnostic = result.json()['diagnostic']
+    assert diagnostic['source_category'] == 'cloudflare_challenge'
+    assert diagnostic['source_server'] == 'cloudflare'
+    assert diagnostic['source_cf_ray'] == 'a4d111ae5e63e0e3-GIG'
+    assert diagnostic['source_cf_ray'] in caplog.text
+    assert 'PRIVATE' not in result.content.decode() + caplog.text
+    classify.assert_not_called()
+
+
+@pytest.mark.parametrize('headers,body,category', [
+    ({'Server': 'cloudflare'}, b'Forbidden', 'unknown'),
+    ({'Server': 'cloudflare'}, b'<title>Attention Required! | Cloudflare</title>', 'cloudflare_block'),
+    ({'Server': 'PRIVATE\r\nInjected', 'CF-Ray': 'PRIVATE'}, b'PRIVATE', 'unknown'),
+])
+def test_403_does_not_invent_challenge_or_expose_arbitrary_headers(headers, body, category):
+    from api.services.scrapers.exceptions import fetch_statement, StatementFetchError
+    response = requests.Response()
+    response.status_code = 403
+    response.headers.update(headers)
+    response._content = body
+    with pytest.raises(StatementFetchError) as caught:
+        fetch_statement('https://example.invalid', Mock(return_value=response))
+    assert caught.value.source_diagnostic['source_category'] == category
+    assert 'PRIVATE' not in str(caught.value.source_diagnostic)
+
+@pytest.mark.parametrize('status', [200, 429, 500])
+def test_fetch_metadata_is_limited_to_403_and_does_not_retry(status):
+    from api.services.scrapers.exceptions import fetch_statement, StatementFetchError
+    response = requests.Response()
+    response.status_code = status
+    response.headers['cf-mitigated'] = 'challenge'
+    response._content = b'PRIVATE'
+    get = Mock(return_value=response)
+    if status == 200:
+        assert fetch_statement('https://example.invalid', get) is response
+    else:
+        with pytest.raises(StatementFetchError) as caught:
+            fetch_statement('https://example.invalid', get)
+        assert caught.value.source_diagnostic == {}
+    get.assert_called_once_with('https://example.invalid', timeout=10)

@@ -6,7 +6,7 @@ export function classificationErrorInfo(error: unknown) {
   const raw = data && typeof data === 'object' ? data.diagnostic : undefined;
   const diagnostic: Record<string, string | number> = {};
   if (raw && typeof raw === 'object') {
-    for (const key of ['stage', 'code', 'model', 'platform', 'request_id']) {
+    for (const key of ['stage', 'code', 'model', 'platform', 'request_id', 'source_category', 'source_server', 'source_cf_ray']) {
       if (typeof raw[key] === 'string') diagnostic[key] = raw[key];
     }
     if (typeof raw.upstream_status === 'number') diagnostic.upstream_status = raw.upstream_status;
