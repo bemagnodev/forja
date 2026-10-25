@@ -17,6 +17,7 @@ from .ai_lab.diagnostics import ClassificationFailure
 from .services.scrapers.exceptions import StatementFetchError
 from .services.scrapers.preparation import PreparationError
 from .services.sync_dispatcher import dispatch_sync
+from .services.cf_sync_runtime import start_cf_sync, read_cf_sync
 
 from ninja_jwt.routers.obtain import obtain_pair_router
 from ninja_jwt.authentication import JWTAuth
@@ -741,6 +742,20 @@ class SyncResultSchema(Schema):
     message: str
     handle: str
     changes: int
+    state: str = ""
+    run_id: Optional[str] = None
+
+
+class CFSyncStatusSchema(Schema):
+    state: str
+    message: str
+    run_id: Optional[str] = None
+
+
+@api.get("/sync/cf/status", response=CFSyncStatusSchema)
+def codeforces_sync_status(request, run_id: str):
+    user = get_active_user(request)
+    return read_cf_sync(user.cf_handle or '', run_id)
 
 @api.post("/sync/cf", response=SyncResultSchema)
 def sync_codeforces(request):
@@ -749,11 +764,11 @@ def sync_codeforces(request):
     if not user.cf_handle:
         return {"success": False, "message": "Nenhum handle configurado.", "handle": "", "changes": 0}
 
-    dispatch_sync("sync_cf", user.cf_handle)
+    state = start_cf_sync(user.cf_handle)
 
     return {
-        "success": True,
-        "message": "Sincronização iniciada. Os dados serão atualizados em instantes.",
+        **state,
+        "success": state['state'] == 'running',
         "handle": user.cf_handle,
         "changes": 0,
     }

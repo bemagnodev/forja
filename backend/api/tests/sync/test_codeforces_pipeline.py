@@ -2,6 +2,38 @@ import pytest
 import responses
 from django.core.management import call_command
 from api.models import User, Problem, Submission, UserProblemTracking, PlatformChoices
+from django.core.management.base import CommandError
+
+
+@pytest.mark.django_db
+@responses.activate
+@pytest.mark.parametrize("fail_on_second_page", [False, True])
+def test_sync_cf_failed_history_preserves_checkpoint_and_can_resume(fail_on_second_page):
+    """Uma página com erro não equivale a fim do histórico nem permite avançar o checkpoint."""
+    user = User.objects.create(username="paging", cf_handle="paging", cf_last_sync_time=1000)
+    submission = {'id': 501, 'verdict': 'OK', 'creationTimeSeconds': 2000,
+                  'problem': {'contestId': 1542, 'index': 'D'},
+                  'author': {'participantType': 'PRACTICE'}}
+    url = 'https://codeforces.com/api/user.status'
+    if fail_on_second_page:
+        responses.get(url, json={'status': 'OK', 'result': [submission]})
+    responses.get(url, json={'status': 'FAILED', 'comment': 'Call limit exceeded'}, status=429)
+
+    with pytest.raises(CommandError, match="histórico"):
+        call_command('sync_cf', handle='paging')
+
+    user.refresh_from_db()
+    assert user.cf_last_sync_time == 1000
+    assert not Submission.objects.filter(user=user).exists()
+
+    responses.reset()
+    responses.get(url, json={'status': 'OK', 'result': [submission]})
+    responses.get(url, json={'status': 'OK', 'result': []})
+    call_command('sync_cf', handle='paging')
+    call_command('sync_cf', handle='paging')
+    user.refresh_from_db()
+    assert user.cf_last_sync_time == 2000
+    assert Submission.objects.filter(user=user).count() == 1
 
 
 @pytest.mark.django_db

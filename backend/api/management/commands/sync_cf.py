@@ -1,11 +1,12 @@
 import time
 from datetime import datetime
 from django.utils import timezone
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 from api.models import User, Problem, Submission, UserProblemTracking, PlatformChoices, ContestParticipation, Contest
 from api.services.codeforces_client import CodeforcesClient
 from api.services.codeforces_gym_service import ensure_codeforces_gym_metadata
 from api.services.problem_metadata import upsert_problem_metadata
+from api.services.cf_sync_runtime import exclusive_cf_sync
 
 class Command(BaseCommand):
     help = 'Sincroniza as submissões vitais do Codeforces, abastecendo o Tracking via motor FSM Dual-State.'
@@ -15,6 +16,10 @@ class Command(BaseCommand):
         parser.add_argument('--force-full', action='store_true', help='Ignora a data do último sincronismo e puxa tudo (Full Sync).')
 
     def handle(self, *args, **kwargs):
+        with exclusive_cf_sync():
+            return self._sync(*args, **kwargs)
+
+    def _sync(self, *args, **kwargs):
         handle_arg = kwargs.get('handle')
         force_full = kwargs.get('force_full')
 
@@ -28,6 +33,7 @@ class Command(BaseCommand):
             return
 
         client = CodeforcesClient()
+        incomplete = False
 
         for user in users:
             self.stdout.write(self.style.MIGRATE_HEADING(f"[{user.username}] Baixando Timeline do CF para {user.cf_handle}..."))
@@ -50,7 +56,10 @@ class Command(BaseCommand):
             had_failures = False
 
             while not is_synced:
-                submissions = client.get_user_submissions(user.cf_handle, from_idx=from_idx, count=count)
+                result = client.get_user_submissions_result(user.cf_handle, from_idx=from_idx, count=count)
+                if not result.is_success:
+                    raise CommandError("Falha ao obter histórico do Codeforces. Progresso preservado; tente novamente mais tarde.")
+                submissions = result.data
                 if not submissions:
                     break
                     
@@ -107,8 +116,9 @@ class Command(BaseCommand):
                         elif gym_res.is_transient_failure:
                             transient_failed_gyms.add(contest_id)
 
-                    # Se foi falha transitória e não há dados locais com catálogo, adia submissão e retém watermark
+                    # Toda falha de catálogo retém o checkpoint; sem dados locais, adia a submissão.
                     if contest_id in transient_failed_gyms:
+                        had_failures = True
                         local_contest = Contest.objects.filter(platform=PlatformChoices.CF_GYM, platform_id=contest_id).first()
                         has_local_data = local_contest and local_contest.problems.exists()
                         if not has_local_data:
@@ -240,6 +250,9 @@ class Command(BaseCommand):
                 user.cf_last_sync_time = max_epoch
                 user.save()
             elif had_failures:
+                incomplete = True
                 self.stdout.write(self.style.WARNING(f"  [!] Watermark retido em {user.cf_last_sync_time} para {user.username} devido a falhas durante a sincronização."))
 
             self.stdout.write(self.style.SUCCESS(f"Finalizado {user.username}! ({inserts} alterações mapeadas no CF)"))
+        if incomplete:
+            return "incomplete"

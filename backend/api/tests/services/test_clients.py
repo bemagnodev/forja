@@ -3,6 +3,54 @@ import requests
 import responses
 from api.services.codeforces_client import CodeforcesClient
 from api.services.atcoder_client import AtCoderClient
+from unittest.mock import patch
+
+
+@responses.activate
+def test_cf_public_history_is_anonymous_with_server_credentials():
+    client = CodeforcesClient(sleep_time=0, api_key="private-key", api_secret="private-secret")
+    responses.get('https://codeforces.com/api/user.status', json={'status': 'OK', 'result': []})
+    result = client.get_user_submissions_result('tourist')
+    assert result.is_success and result.data == []
+    assert 'apiKey' not in responses.calls[0].request.url
+
+
+@responses.activate
+def test_cf_shared_rate_limit_applies_between_clients_even_after_failure():
+    responses.get('https://codeforces.com/api/user.status', status=503)
+    with patch('api.services.codeforces_client.time.monotonic', side_effect=[10, 10, 10.5, 12]), \
+         patch('api.services.codeforces_client.time.sleep') as sleep:
+        CodeforcesClient().get_user_submissions('one')
+        CodeforcesClient().get_user_submissions('two')
+    sleep.assert_called_once_with(1.5)
+
+
+@responses.activate
+def test_cf_cloudflare_forbidden_is_not_a_permanently_private_gym():
+    responses.get('https://codeforces.com/api/contest.standings', status=403,
+                  body='<html>Cloudflare challenge</html>')
+    result = CodeforcesClient().get_gym_standings_result('106687')
+    assert result.is_transient
+
+
+@responses.activate
+def test_cf_gym_catalog_uses_server_signature_but_public_catalog_does_not():
+    client = CodeforcesClient(api_key='fake-key', api_secret='fake-secret')
+    responses.get('https://codeforces.com/api/contest.standings',
+                  json={'status': 'OK', 'result': {'contest': {}, 'problems': []}})
+    responses.get('https://codeforces.com/api/contest.list', json={'status': 'OK', 'result': []})
+    client.get_gym_standings_result('106687')
+    client.get_contests()
+    assert 'apiKey=fake-key' in responses.calls[0].request.url
+    assert 'apiSig=' in responses.calls[0].request.url
+    assert 'apiKey=' not in responses.calls[1].request.url
+
+
+@responses.activate
+@pytest.mark.parametrize('payload', ['not json', '{"status": "OK", "result": {}}'])
+def test_cf_malformed_history_is_failure_not_empty(payload):
+    responses.get('https://codeforces.com/api/user.status', body=payload)
+    assert not CodeforcesClient().get_user_submissions_result('tourist').is_success
 
 
 @responses.activate

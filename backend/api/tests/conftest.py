@@ -3,6 +3,15 @@ from api.models import User, Contest, Problem
 
 
 @pytest.fixture(autouse=True)
+def isolate_cf_request_clock(monkeypatch, request, settings, tmp_path):
+    """Ordinary HTTP-mocked tests do not wait for the real provider's clock."""
+    import api.services.codeforces_client as cf
+    settings.CF_SYNC_RUNTIME_DIR = tmp_path / 'cf-sync'
+    if request.node.name != 'test_cf_shared_rate_limit_applies_between_clients_even_after_failure':
+        monkeypatch.setattr(cf, '_wait_for_api_slot', lambda interval: None)
+
+
+@pytest.fixture(autouse=True)
 def prohibit_external_network(monkeypatch):
     """Mocks must terminate HTTP before DNS/socket I/O; even caught attempts fail."""
     import socket

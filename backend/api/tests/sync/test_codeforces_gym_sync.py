@@ -4,6 +4,29 @@ from django.core.management import call_command
 from api.models import User, Problem, Submission, UserProblemTracking, PlatformChoices, Contest, ContestParticipation
 
 
+@pytest.mark.django_db
+@responses.activate
+def test_sync_cf_incomplete_local_catalog_does_not_hide_gym_api_failure():
+    """Mesmo com catálogo parcial salvo, falha de atualização retém o checkpoint."""
+    user = User.objects.create(username='partial', cf_handle='partial', cf_last_sync_time=1000)
+    contest = Contest.objects.create(platform=PlatformChoices.CF_GYM, platform_id='106687', name='Partial Gym')
+    Problem.objects.create(platform=PlatformChoices.CF_GYM, platform_id='106687A', title='A', contest=contest)
+    responses.get('https://codeforces.com/api/user.status', json={'status': 'OK', 'result': [
+        {'id': 901, 'creationTimeSeconds': 2000, 'verdict': 'OK',
+         'problem': {'contestId': 106687, 'index': 'A'}, 'author': {'participantType': 'VIRTUAL'}}
+    ]})
+    responses.get('https://codeforces.com/api/user.status', json={'status': 'OK', 'result': []})
+    responses.get('https://codeforces.com/api/contest.standings', status=503,
+                  json={'status': 'FAILED', 'comment': 'Unavailable'})
+
+    outcome = call_command('sync_cf', handle='partial')
+
+    user.refresh_from_db()
+    assert outcome == 'incomplete'
+    assert user.cf_last_sync_time == 1000
+    assert Submission.objects.filter(user=user, platform_submission_id='901').exists()
+
+
 def create_gym_standings_mock(contest_id="106682", name="2026 Argentinian Programming Tournament (TAP)", num_problems=14):
     """
     Gera a estrutura mockada de contest.standings do Codeforces Gym

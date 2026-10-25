@@ -5,12 +5,38 @@ import secrets
 import os
 import re
 import logging
+import threading
 from enum import Enum
 from dataclasses import dataclass
 from typing import List, Dict, Any, Optional
 from urllib.parse import urlsplit, parse_qsl, urlencode, urlunsplit
+from django.core.files import locks
+from .cf_sync_runtime import _root
 
 logger = logging.getLogger(__name__)
+_api_lock = threading.Lock()
+
+
+def _wait_for_api_slot(interval):
+    """Serialize starts across threads/processes on this host, including failures."""
+    with _api_lock:
+        with (_root() / 'api-clock.lock').open('a+b') as file:
+            if not locks.lock(file, locks.LOCK_EX):
+                raise RuntimeError('Cannot coordinate Codeforces requests')
+            try:
+                file.seek(0)
+                previous = file.read().decode('ascii')
+                now = time.monotonic()
+                if previous and now >= float(previous):
+                    wait = interval - (now - float(previous))
+                    if wait > 0:
+                        time.sleep(wait)
+                file.seek(0)
+                file.truncate()
+                file.write(str(time.monotonic()).encode('ascii'))
+                file.flush()
+            finally:
+                locks.unlock(file)
 
 
 def sanitize_sensitive_url(url_or_message: str) -> str:
@@ -65,7 +91,7 @@ def _classify_error_comment(comment: str, status_code: Optional[int] = None) -> 
     """
     Centraliza a classificação de mensagens e status de erro da API do Codeforces.
     Categorias:
-    - PERMANENT: contest privado ou inexistente ('not visible', 'not found', 'wrong contest id', status 403, 404).
+    - PERMANENT: contest explicitamente privado ou inexistente ('not visible', 'not found', 'wrong contest id').
     - TRANSIENT: rate limit, falhas de autenticação/assinatura (erro de config/tempo), falhas 5xx, timeouts
                  ou qualquer erro desconhecido (para evitar fallback precoce ou avanço incorreto de watermark).
     """
@@ -85,7 +111,7 @@ def _classify_error_comment(comment: str, status_code: Optional[int] = None) -> 
     # 3. Contest privado ou inexistente -> PERMANENT
     if any(term in comment_lower for term in [
         "is not visible", "not found", "contest not found", "wrong contest id", "no such contest", "handle not found"
-    ]) or status_code in [403, 404]:
+    ]):
         return CFErrorType.PERMANENT
 
     # 4. Falhas transitórias explícitas de infraestrutura
@@ -99,19 +125,19 @@ def _classify_error_comment(comment: str, status_code: Optional[int] = None) -> 
 class CodeforcesClient:
     """
     Cliente HTTP isolado para consumir a API oficial do Codeforces.
-    Suporta autenticação automática via SHA-512 se CF_API_KEY for definida.
+    Assina consultas de Gym via SHA-512; consultas públicas permanecem anônimas.
     Garante sanitização total de logs e tipagem de falhas (permanente vs transitória).
     """
     BASE_URL = "https://codeforces.com/api"
 
-    def __init__(self, timeout: int = 15, sleep_time: float = 0.5, api_key: Optional[str] = None, api_secret: Optional[str] = None):
+    def __init__(self, timeout: int = 15, sleep_time: float = 2, api_key: Optional[str] = None, api_secret: Optional[str] = None):
         self.timeout = timeout
         self.sleep_time = sleep_time
         self.session = requests.Session()
         self.api_key = api_key if api_key is not None else os.environ.get('CF_API_KEY')
         self.api_secret = api_secret if api_secret is not None else os.environ.get('CF_API_SECRET')
 
-    def _make_request_result(self, endpoint: str, params: dict = None) -> CFResult:
+    def _make_request_result(self, endpoint: str, params: dict = None, *, authenticated=False) -> CFResult:
         url = f"{self.BASE_URL}/{endpoint}"
         
         if params is None:
@@ -119,7 +145,8 @@ class CodeforcesClient:
         else:
             params = dict(params)
             
-        if self.api_key and self.api_secret:
+        _wait_for_api_slot(max(2, self.sleep_time))
+        if authenticated and self.api_key and self.api_secret:
             params['apiKey'] = self.api_key
             params['time'] = str(int(time.time()))
             
@@ -140,7 +167,6 @@ class CodeforcesClient:
             response.raise_for_status()
             data = response.json()
             if data.get('status') == 'OK':
-                time.sleep(self.sleep_time)
                 return CFResult(data=data.get('result'), status_code=response.status_code, error_type=CFErrorType.NONE)
             else:
                 comment = data.get('comment', '')
@@ -175,6 +201,9 @@ class CodeforcesClient:
             print(f"[CodeforcesClient] Erro de rede ou timeout acessando {endpoint}: {sanitized_err}")
             return CFResult(status_code=None, error_type=CFErrorType.TRANSIENT, error_message=sanitized_err)
 
+        except ValueError:
+            return CFResult(error_type=CFErrorType.TRANSIENT, error_message="Invalid API JSON")
+
     def _make_request(self, endpoint: str, params: dict = None) -> Any:
         res = self._make_request_result(endpoint, params=params)
         return res.data
@@ -191,16 +220,23 @@ class CodeforcesClient:
 
     def get_user_submissions(self, handle: str, from_idx: int = 1, count: int = None) -> List[Dict[str, Any]]:
         """ Retorna todas as submissões de um usuário na plataforma (mais recente pro mais antigo) """
+        result = self.get_user_submissions_result(handle, from_idx, count)
+        return result.data if result.is_success else []
+
+    def get_user_submissions_result(self, handle: str, from_idx: int = 1, count: int = None) -> CFResult:
+        """Preserve the distinction between an empty public history and a failed page."""
         params = {"handle": handle, "from": from_idx}
         if count:
             params["count"] = count
-        result = self._make_request("user.status", params)
-        return result if result else []
+        result = self._make_request_result("user.status", params)
+        if result.is_success and not isinstance(result.data, list):
+            return CFResult(error_type=CFErrorType.TRANSIENT, error_message="Invalid history format")
+        return result
 
     def get_gym_standings_result(self, contest_id: str) -> CFResult:
         """Retorna CFResult com metadados e catálogo do Gym ou classificação do erro."""
         params = {"contestId": contest_id, "from": 1, "count": 1, "showUnofficial": True}
-        return self._make_request_result("contest.standings", params)
+        return self._make_request_result("contest.standings", params, authenticated=True)
 
     def get_gym_standings(self, contest_id: str) -> Optional[Dict[str, Any]]:
         """Retorna metadata do Gym contest E a lista de todos os seus problemas."""
