@@ -1,5 +1,12 @@
 # TypeScript — dívida histórica fora da finalização do AI Lab
 
+Atualização de 25/10/2026 (sincronização CF): o Dashboard passou a consultar dados
+via React Query, seguindo o padrão das outras páginas, e seus três diagnósticos
+ESLint foram resolvidos sem desativar regras. O import `motion` também foi
+removido: restam **10 diagnósticos TypeScript em três arquivos**, listados abaixo
+exceto a linha histórica do Dashboard. O registro de 19/10 é preservado como
+referência do estado anterior.
+
 Verificação de 19/10/2026: `tsc --noEmit -p tsconfig.app.json` retorna **11
 diagnósticos em quatro arquivos**. O comando completo foi executado, sem filtros,
 sem desligar regras e sem alterar `tsconfig` para excluir testes ou arquivos.

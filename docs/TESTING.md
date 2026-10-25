@@ -150,9 +150,15 @@ Resultado esperado:
 
 ## 11. Tarefas em Background e Isolamento de Despacho
 
-- **Despacho Assíncrono (`dispatch_sync`)**: Os endpoints da API (`/api/sync/cf` e `/api/sync/atcoder`) delegam o início de tarefas em segundo plano para a camada de serviços através de `dispatch_sync`.
-- **Testes de API**: Os testes de endpoint mockam o `dispatch_sync` (`@patch("api.api.dispatch_sync")`) para verificar se o comando e o handle corretos foram solicitados. Nenhuma thread real deve escapar do ciclo do pytest.
+- **Despacho Assíncrono**: AtCoder usa `dispatch_sync`; Codeforces usa `cf_sync_runtime.start_cf_sync`, com exclusão por lock de SO e consulta de estado por usuário.
+- **Testes de API**: Mockar `api.api.dispatch_sync` para AtCoder e `api.api.start_cf_sync`/`api.api.read_cf_sync` para Codeforces. Nenhuma thread real deve escapar do ciclo do pytest. Os testes do coordenador executam o target da thread de forma síncrona e usam diretório temporário isolado.
 - **Testes de Pipelines**: Os comandos de sincronização (`sync_cf`, `sync_atcoder`) são testados sincronicamente em arquivos próprios (`test_codeforces_pipeline.py`, `test_atcoder_pipeline.py`), garantindo determinismo total e prevenindo bloqueios concorrentes no SQLite (`database table is locked`).
+
+O relógio compartilhado de requisições CF é simulado nos testes comuns; o teste
+específico do limitador simula `monotonic` e `sleep`, mantendo a coordenação por
+arquivo real. Histórico interrompido é testado na primeira e na segunda página,
+seguido de retomada idempotente. Frontend valida conclusão, falha, interrupção e
+estado desconhecido; dados só são invalidados após conclusão real.
 
 ---
 
