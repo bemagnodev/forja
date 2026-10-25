@@ -1,16 +1,16 @@
 """Single Codeforces HTML parser, shared by live classification and datasets."""
-import requests
 from bs4 import BeautifulSoup
 from .base import BaseScraper
-from .exceptions import UnparseableProblemException, fetch_statement
+from .exceptions import UnparseableProblemException
+from .codeforces_http import fetch_codeforces_statement
 from .images import mark_images
 
 
 class CodeforcesScraper(BaseScraper):
     def scrape(self, url: str) -> dict:
-        response = fetch_statement(url, requests.get)
+        html = fetch_codeforces_statement(url)
         try:
-            return self.parse_html(response.text, url)
+            return self.parse_html(html, url)
         except ValueError as exc:
             raise UnparseableProblemException(str(exc)) from None
 

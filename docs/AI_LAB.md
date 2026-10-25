@@ -427,6 +427,13 @@ de linha preservadas; CSES lê as seções dentro de `.md`. HTML real consultado
 para diagnóstico fica somente em `var/ai_lab`, fora do Git. Uma busca local
 bem-sucedida não comprova acesso ao Codeforces a partir do Render.
 
+Após duas rodadas de extração bem-sucedidas no Render, o Codeforces passou a usar
+`curl_cffi` com perfil fixo `chrome150`, mantendo o mesmo parser compartilhado.
+AtCoder e CSES continuam com requests. Não há proxy, cookies pessoais, retry ou
+fallback de transporte. Um novo desafio interrompe a operação antes da IA,
+inclusive se vier com HTTP 200. Evidências e limites estão em
+[Diagnóstico de acesso ao Codeforces](CODEFORCES_ACCESS_DIAGNOSIS.md).
+
 A página oferece `gemini-3.5-flash-lite` (padrão), `openai/gpt-oss-120b` e
 `openai/gpt-oss-20b`. Cada clique explícito pode executar no máximo uma chamada,
 sem retry de inferência ou troca automática de modelo. A autenticação pode ser

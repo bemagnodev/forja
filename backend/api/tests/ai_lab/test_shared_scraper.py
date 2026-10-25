@@ -29,8 +29,7 @@ def test_codeforces_payload_is_identical_for_dataset_and_live(statement_html, mo
     from api.services.scrapers.codeforces import CodeforcesScraper
     from api.ai_lab.dataset import parse_statement, prepare_input
     from api.ai_lab import explore
-    response = Mock(text=statement_html)
-    monkeypatch.setattr("api.services.scrapers.codeforces.requests.get", lambda *a, **k: response)
+    monkeypatch.setattr("api.services.scrapers.codeforces.fetch_codeforces_statement", lambda url: statement_html)
     statement = CodeforcesScraper().scrape("https://codeforces.com/contest/1/problem/A")
     adapter = Mock(return_value={"rating": 1200, "tags": ["math"]})
     monkeypatch.setattr(explore, "get_generator", lambda *a: adapter)

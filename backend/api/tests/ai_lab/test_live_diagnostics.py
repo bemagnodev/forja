@@ -48,12 +48,21 @@ def test_scrapers_reject_unpaired_samples_instead_of_silently_losing_them(platfo
 @pytest.mark.parametrize('route', ['problems/{id}/predict', 'ai-lab/problems/{id}/classify'])
 @pytest.mark.parametrize('failure,code,upstream', [('blocked', 'source_http_error', 403), ('timeout', 'source_timeout', None)])
 def test_fetch_failure_is_safe_identifiable_and_never_calls_ai(platform, route, failure, code, upstream,
-        api_client, sample_problem, monkeypatch):
+        api_client, sample_problem, monkeypatch, codeforces_http_client):
     from api import api as routes
     sample_problem.platform = platform
     sample_problem.save()
     error = requests.Timeout('SECRET') if failure == 'timeout' else requests.HTTPError('SECRET', response=Mock(status_code=403))
     monkeypatch.setattr(requests, 'get', Mock(side_effect=error))
+    if platform == 'CF_OFFICIAL':
+        from curl_cffi.requests import exceptions as curl_errors
+        if failure == 'timeout':
+            codeforces_http_client.get.side_effect = curl_errors.Timeout('SECRET')
+        else:
+            upstream_response = requests.Response()
+            upstream_response.status_code = 403
+            upstream_response._content = b'SECRET'
+            codeforces_http_client.get.return_value = upstream_response
     classify = Mock()
     monkeypatch.setattr(routes, 'classify_problem', classify)
     response = api_client.post('/api/' + route.format(id=sample_problem.pk))
@@ -138,14 +147,16 @@ def test_unexpected_scraper_failure_has_safe_diagnostic_and_never_calls_ai(route
 
 @pytest.mark.parametrize('route', ['problems/{id}/predict', 'ai-lab/problems/{id}/classify'])
 @pytest.mark.django_db
-def test_403_metadata_is_safe_and_visible_in_response_and_logs(route, api_client, sample_problem, monkeypatch, caplog):
+def test_403_metadata_is_safe_and_visible_in_response_and_logs(route, api_client, sample_problem, monkeypatch, caplog,
+        codeforces_http_client):
     from api import api as routes
     response = requests.Response()
     response.status_code = 403
     response.headers.update({'Server': 'cloudflare', 'CF-Ray': 'a4d111ae5e63e0e3-GIG',
                              'cf-mitigated': 'challenge', 'Set-Cookie': 'PRIVATE'})
     response._content = b'<title>PRIVATE</title>'
-    monkeypatch.setattr(requests, 'get', Mock(return_value=response))
+    response._content_consumed = True
+    codeforces_http_client.get.return_value = response
     classify = Mock()
     monkeypatch.setattr(routes, 'classify_problem', classify)
     result = api_client.post('/api/' + route.format(id=sample_problem.pk))

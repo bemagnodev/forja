@@ -6,7 +6,8 @@ O serviço Render Free (Oregon) recebeu HTTP 403 com
 `cf-mitigated: challenge`. Isso confirma um desafio antes do enunciado, mas
 não identifica qual regra o disparou. A coleta automática continua sendo
 requisito do produto; esta investigação não substitui a funcionalidade por
-entrada manual nem modifica o scraper ativo.
+entrada manual. Após as provas abaixo, o transporte validado foi integrado
+somente à busca de enunciados do Codeforces.
 
 ## Comparação histórica e controle local
 
@@ -56,8 +57,8 @@ atribuir a melhora somente ao header ou à sessão.
 Perfil `curl_chrome`: somente duas buscas, nas páginas individuais official e
 Gym. Usa `curl_cffi==0.16.3` e perfil fixo `chrome150`, sem proxy de ambiente,
 sem cookies pessoais, sem persistir cookies e com certificado verificado.
-A dependência é instalada pelo requirements, mas importada somente nesse
-perfil; o scraper do produto continua usando requests. Sem navegador completo,
+A dependência é instalada pelo requirements e usada por esse perfil e pelo
+transporte Codeforces integrado. Sem navegador completo,
 execução de JavaScript, serviço pago, fallback ou retry. Os testes simulam esse
 transporte e bloqueiam também a fronteira nativa de rede do libcurl.
 
@@ -124,6 +125,42 @@ Start Command original acima. Não deixar essa busca em cada restart.
 Se funcionar, repetir deliberadamente em outro momento antes de integrar ao
 produto. Se falhar, não concluir automaticamente bloqueio por IP nem insistir
 em tentativas de outros perfis sem uma hipótese nova.
+
+## Integração validada em 25/10/2026
+
+Duas rodadas no Render Free/Oregon com `curl_chrome` validaram official e Gym:
+quatro respostas 200 com dois pares de exemplos em cada, preservando uma imagem
+na Gym. Isso demonstra viabilidade nesse ambiente, sem isolar a causa exata do
+desafio ou estabelecer disponibilidade de longo prazo.
+
+`api/services/scrapers/codeforces_http.py` agora realiza uma única busca para
+`CodeforcesScraper.scrape`, usando `chrome150`, certificado verificado, sessão
+por operação, `retry=0`, sem proxy de ambiente ou persistência de cookies.
+Aceita apenas HTTPS no host codeforces.com, sem credenciais na URL, e não segue
+redirecionamentos. AtCoder, CSES e o cliente de metadados da API Codeforces
+continuam com seus transportes anteriores.
+
+A leitura em streaming reproduz o modo validado no diagnóstico: timeout de
+rede de dez segundos, limite de 1 MiB e interrupção se a leitura ultrapassar
+quinze segundos ao receber um chunk. Não é deadline rígido; o timeout da
+operação em curso ainda se aplica. Tamanho excessivo e leitura incompleta
+geram erro; nunca se classifica um fragmento do enunciado. Resposta e sessão
+são fechadas tanto em sucesso quanto em falha.
+
+O parser `parse_html` permaneceu idêntico (comparação de AST). Fila/Contests
+continuam compartilhando o cache existente, e Explorar continua sem escrever
+classificações no banco. Modelo, prompt e domínio de rating não mudaram.
+Se o Cloudflare voltar a desafiar, inclusive com HTTP 200, a API informa
+`source_challenge`, preserva metadados seguros e não chama IA.
+
+Verificações locais iniciais da integração tiveram timeouts, preservados no
+registro privado. A versão final com streaming validou as duas páginas em
+1266 e 750 ms; isso não prova que o streaming, isoladamente, explique a diferença.
+Não há retry automático nem garantia de acesso futuro.
+
+Após o deploy da integração, o Start Command deve ser o Gunicorn original.
+Validar a classificação real pela UI é uma etapa separada que consome a cota
+do modelo; os testes desta entrega usaram somente IA simulada e buscas públicas.
 
 ## Decisão após os resultados
 

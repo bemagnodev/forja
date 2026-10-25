@@ -407,7 +407,9 @@ def _classify_for_ui(problem, selected_model):
         timed_out = exc.code == 'source_timeout'
         message = ('O site da questão não respondeu a tempo.' if timed_out else
                    'Não foi possível obter o enunciado no site da questão.')
-        if exc.http_status is not None:
+        if exc.code == 'source_challenge':
+            message = 'O Codeforces exigiu uma verificação de acesso e não disponibilizou o enunciado.'
+        elif exc.http_status is not None:
             message += f' O site respondeu HTTP {exc.http_status}.'
         raise failure(504 if timed_out else 502, message + ' A IA não foi chamada.',
                       'fetch', exc.code, exc.http_status, exc.source_diagnostic) from None

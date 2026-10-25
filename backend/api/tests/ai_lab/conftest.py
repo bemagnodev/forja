@@ -4,6 +4,16 @@ import pytest
 
 
 @pytest.fixture
+def codeforces_http_client(monkeypatch):
+    from unittest.mock import Mock
+    from curl_cffi import requests as curl_requests
+    client = Mock()
+    context = Mock(__enter__=Mock(return_value=client), __exit__=Mock(return_value=False))
+    monkeypatch.setattr(curl_requests, 'Session', Mock(return_value=context))
+    return client
+
+
+@pytest.fixture
 def few_shot_context(catalog, statement_html, reviewed_manifest, tmp_path):
     from api.ai_lab.dataset import build_manifest, record_review, freeze_manifest
     from api.ai_lab.runner import save_json

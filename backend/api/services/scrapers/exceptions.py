@@ -10,13 +10,15 @@ class StatementFetchError(Exception):
         self.source_diagnostic = source_diagnostic or {}
 
 
-def _forbidden_diagnostic(response):
+def _forbidden_diagnostic(response, *, include_challenge=False):
     """Classify evidence, never return page text, cookies or arbitrary headers."""
     import re
-    if response is None or response.status_code != 403:
+    if response is None:
         return {}
     headers = response.headers
     if not hasattr(headers, 'get'):
+        return {}
+    if response.status_code != 403 and not (include_challenge and headers.get('cf-mitigated') == 'challenge'):
         return {}
     result = {'source_category': 'unknown'}
     server = headers.get('Server', '')

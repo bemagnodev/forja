@@ -33,14 +33,13 @@ SAMPLE_HTML = """
 </div>
 """
 
-@responses.activate
-def test_codeforces_scraper_success():
+def test_codeforces_scraper_success(monkeypatch):
     """
     Cenário: O scraper acessa um problema válido do CF com HTML padrão.
     Resultado Esperado: Dicionário com campos formatados (sem prefixo de limite)
     e LaTeX preservado pelo parser compartilhado. Não inclui métricas de submissions.
     """
-    responses.add(responses.GET, "https://codeforces.com/problemset/problem/1/A", body=SAMPLE_HTML, status=200)
+    monkeypatch.setattr('api.services.scrapers.codeforces.fetch_codeforces_statement', lambda url: SAMPLE_HTML)
 
     scraper = CodeforcesScraper()
     result = scraper.scrape("https://codeforces.com/problemset/problem/1/A")
@@ -55,18 +54,13 @@ def test_codeforces_scraper_success():
     assert "total_solved" not in result
 
 
-@responses.activate
-def test_codeforces_scraper_unparseable():
+def test_codeforces_scraper_unparseable(monkeypatch):
     """
     Cenário: O Codeforces retorna uma página sem a div problem-statement (ex: iframe de PDF de Gym).
     Resultado Esperado: Scraper lança UnparseableProblemException imediatamente (fail-fast).
     """
-    responses.add(
-        responses.GET,
-        "https://codeforces.com/problemset/problem/1/B",
-        body="<div>No problem statement here</div>",
-        status=200,
-    )
+    monkeypatch.setattr('api.services.scrapers.codeforces.fetch_codeforces_statement',
+                        lambda url: '<div>No problem statement here</div>')
 
     scraper = CodeforcesScraper()
     with pytest.raises(UnparseableProblemException):
