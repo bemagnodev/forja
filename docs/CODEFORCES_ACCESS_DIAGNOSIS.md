@@ -26,6 +26,10 @@ entrada manual nem modifica o scraper ativo.
   oficial. A individual Gym retornou 200, mas excedeu o limite de leitura;
   a rodada terminou por orçamento de tempo antes dos dois alvos finais.
   Esses casos são inconclusivos, não sucessos nem evidência de desafio.
+- No Render Free/Oregon, duas rodadas (`plain` e `session`) concluíram cinco
+  alvos cada: todos responderam 403 com `cloudflare_challenge`, incluindo as
+  consolidadas. Os hashes do script coincidiram com o controle local. Isso não
+  determina se a causa é IP, características do cliente ou outra regra.
 
 ## Script e limites
 
@@ -48,6 +52,20 @@ Perfil `session`: conexões reutilizáveis e headers identificando
 `ForjaDiagnostics/1.0`, HTML e idioma inglês. Não é navegador nem login.
 Esse segundo perfil muda um conjunto de condições: sucesso isolado não permite
 atribuir a melhora somente ao header ou à sessão.
+
+Perfil `curl_chrome`: somente duas buscas, nas páginas individuais official e
+Gym. Usa `curl_cffi==0.16.3` e perfil fixo `chrome150`, sem proxy de ambiente,
+sem cookies pessoais, sem persistir cookies e com certificado verificado.
+A dependência é instalada pelo requirements, mas importada somente nesse
+perfil; o scraper do produto continua usando requests. Sem navegador completo,
+execução de JavaScript, serviço pago, fallback ou retry. Os testes simulam esse
+transporte e bloqueiam também a fronteira nativa de rede do libcurl.
+
+Em 25/10/2026, esse perfil validou localmente os dois enunciados com HTTP 200:
+1542/D em 797 ms e 106682/H em 1312 ms. Ambos tiveram dois pares de exemplos;
+H preservou uma imagem. Não é comparação pareada de velocidade nem comprovação
+de funcionamento no Render. O campo `openssl` informa a biblioteca do Python,
+não o backend TLS usado pelo curl_cffi.
 
 ## Rodar localmente
 
@@ -88,6 +106,24 @@ gunicorn core.wsgi:application --bind 0.0.0.0:$PORT
 Essa restauração pode iniciar outro deploy. Perfil `session` só deve ser rodado
 em uma rodada deliberada, trocando `--profile plain` por `--profile session`.
 Não instalar navegadores ou modificar extração antes da comparação inicial.
+
+## Próxima rodada: curl_chrome
+
+Após publicar a revisão que inclui a dependência fixa, usar temporariamente:
+
+```sh
+python -u scripts/probe_codeforces.py --environment render --profile curl_chrome; exec gunicorn core.wsgi:application --bind 0.0.0.0:$PORT
+```
+
+Não alterar o Build Command que já instala requirements.txt. O JSON `start`
+deve informar `curl_cffi: 0.16.3`, `impersonate: chrome150` e `max_requests: 2`.
+Se faltar a biblioteca ou houver versão divergente, o script registra `stop`
+e não faz fallback. Copiar o resultado de uma única execução e restaurar o
+Start Command original acima. Não deixar essa busca em cada restart.
+
+Se funcionar, repetir deliberadamente em outro momento antes de integrar ao
+produto. Se falhar, não concluir automaticamente bloqueio por IP nem insistir
+em tentativas de outros perfis sem uma hipótese nova.
 
 ## Decisão após os resultados
 

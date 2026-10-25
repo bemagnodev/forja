@@ -6,6 +6,7 @@ from api.models import User, Contest, Problem
 def prohibit_external_network(monkeypatch):
     """Mocks must terminate HTTP before DNS/socket I/O; even caught attempts fail."""
     import socket
+    from curl_cffi import Curl, AsyncCurl
     attempts = []
 
     def blocked(*args, **kwargs):
@@ -16,6 +17,9 @@ def prohibit_external_network(monkeypatch):
     monkeypatch.setattr(socket, "create_connection", blocked)
     monkeypatch.setattr(socket.socket, "connect", blocked)
     monkeypatch.setattr(socket.socket, "connect_ex", blocked)
+    # libcurl performs native I/O, bypassing Python's socket monkeypatches.
+    monkeypatch.setattr(Curl, "perform", blocked)
+    monkeypatch.setattr(AsyncCurl, "add_handle", blocked)
     yield
     assert not attempts, "A test attempted real network I/O despite its mocks"
 

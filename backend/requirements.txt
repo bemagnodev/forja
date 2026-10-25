@@ -4,6 +4,8 @@ asgiref==3.11.1
 beautifulsoup4==4.14.3
 certifi==2026.1.4
 cffi==2.0.0
+# Used only by the opt-in Codeforces diagnostic.
+curl_cffi==0.16.3
 charset-normalizer==3.4.4
 colorama==0.4.6
 contextlib2==21.6.0

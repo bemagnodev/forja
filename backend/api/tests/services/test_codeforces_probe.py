@@ -116,3 +116,57 @@ def test_session_profile_is_explicit_and_closed(probe, monkeypatch):
     assert run.call_args.kwargs['get'] == client.get
     session.__exit__.assert_called_once()
     assert 'ForjaDiagnostics' in client.headers.update.call_args.args[0]['User-Agent']
+
+@pytest.mark.parametrize('kind,outcome', [('timeout', 'timeout'), ('connection', 'connection_error')])
+def test_curl_errors_are_classified_without_provider_or_error_text(probe, kind, outcome):
+    from curl_cffi.requests import exceptions
+    # Native networking is replaced before the C library boundary.
+    error = exceptions.Timeout if kind == 'timeout' else exceptions.RequestException
+    get = Mock(side_effect=error('PRIVATE'))
+    result = probe.inspect_target(probe.TARGETS[0], get, 'render', 'curl_chrome',
+                                  network_errors=(exceptions.Timeout, exceptions.RequestException))
+    assert result['outcome'] == outcome
+    assert 'PRIVATE' not in str(result)
+    get.assert_called_once()
+
+
+def test_curl_profile_only_checks_two_public_individual_pages(probe):
+    get, emit, sleep = Mock(return_value=response(403)), Mock(), Mock()
+    probe.run_probe('render', 'curl_chrome', get=get, emit=emit, sleep=sleep, clock=lambda: 0)
+    assert [call.args[0] for call in get.call_args_list] == [
+        'https://codeforces.com/contest/1542/problem/D',
+        'https://codeforces.com/gym/106682/problem/H',
+    ]
+    sleep.assert_called_once_with(3)
+
+
+def test_curl_profile_uses_fixed_fingerprint_without_proxy_cookies_or_fallback(probe, monkeypatch):
+    from curl_cffi import requests as curl_requests
+    client = Mock()
+    context = Mock(__enter__=Mock(return_value=client), __exit__=Mock())
+    factory = Mock(return_value=context)
+    monkeypatch.setattr(curl_requests, 'Session', factory)
+    run, emit = Mock(), Mock()
+    monkeypatch.setattr(probe, 'run_probe', run)
+    monkeypatch.setattr(probe, 'emit_json', emit)
+    monkeypatch.setattr(probe.requests, 'get', Mock(side_effect=AssertionError('No fallback')))
+    probe.main(['--environment', 'render', '--profile', 'curl_chrome'])
+    factory.assert_called_once_with(impersonate='chrome150', trust_env=False,
+                                     verify=True, discard_cookies=True)
+    assert run.call_args.kwargs['get'] == client.get
+    start = emit.call_args_list[0].args[0]
+    assert start['max_requests'] == 2
+    assert start['impersonate'] == 'chrome150'
+    assert start['curl_cffi'] == '0.16.3'
+    context.__exit__.assert_called_once()
+
+
+def test_curl_stream_error_is_classified_and_response_closed(probe):
+    from curl_cffi.requests import exceptions
+    value = response()
+    value.iter_content.side_effect = exceptions.Timeout('PRIVATE')
+    result = probe.inspect_target(probe.TARGETS[0], Mock(return_value=value), 'render', 'curl_chrome',
+                                  network_errors=(exceptions.Timeout, exceptions.RequestException))
+    assert result['outcome'] == 'timeout'
+    assert 'PRIVATE' not in str(result)
+    value.close.assert_called_once()
