@@ -9,14 +9,13 @@ from .models import Submission, Problem, Contest, QueueItem, User, UserProblemTr
 from .services.scrapers.codeforces import CodeforcesScraper
 from .services.scrapers.exceptions import UnparseableProblemException
 from .ai_lab.explore import DEFAULT_MODEL, DEFAULT_PROMPT_VERSION, classify_problem, resolve_model
-from .ai_lab.product import PRODUCT_RATING_DOMAIN, validate_product_prediction
+from .ai_lab.product import PRODUCT_RATING_DOMAIN, validate_product_prediction, has_native_rating, NATIVE_RATING_MESSAGE
 from .ai_lab.classification import load_prompt
 from .ai_lab.dataset import content_hash
 from .ai_lab.contracts import ProviderFailure
 from .ai_lab.diagnostics import ClassificationFailure
 from .services.scrapers.exceptions import StatementFetchError
 from .services.scrapers.preparation import PreparationError
-from .services.problem_metadata import upsert_problem_metadata
 from .services.sync_dispatcher import dispatch_sync
 
 from ninja_jwt.routers.obtain import obtain_pair_router
@@ -486,12 +485,20 @@ def explore_problem(request, problem_id: int, model_name: Optional[str] = None):
 
 @api.post("/problems/{problem_id}/predict", response=AIPredictionSchema)
 def predict_problem(request, problem_id: int, model_name: Optional[str] = None, force: bool = False):
+    from django.db import transaction
     from django.shortcuts import get_object_or_404
     from ninja.errors import HttpError
     if model_name is not None and model_name != DEFAULT_MODEL:
         raise HttpError(400, "Use o Explorar para testar outros modelos sem alterar a previsão do produto")
     problem = get_object_or_404(Problem, id=problem_id)
     metadata = problem.platform_metadata or {}
+
+    def reject_native_rating(value):
+        if has_native_rating(value):
+            raise ClassificationFailure(409, NATIVE_RATING_MESSAGE, stage='policy',
+                code='native_rating_available', model=DEFAULT_MODEL, platform=problem.platform)
+
+    reject_native_rating(metadata.get('rating'))
     prompt_hash = content_hash(load_prompt(DEFAULT_PROMPT_VERSION))
     cached_prediction = validate_product_prediction({"rating": metadata.get("ai_rating"), "tags": metadata.get("ai_tags")})
     if (not force and metadata.get("ai_model") == DEFAULT_MODEL and metadata.get("ai_prompt_hash") == prompt_hash
@@ -512,13 +519,19 @@ def predict_problem(request, problem_id: int, model_name: Optional[str] = None, 
         raise ClassificationFailure(502, "Resposta parcial ou inválida: a previsão salva do produto foi preservada",
             stage='validation', code='invalid_prediction', model=DEFAULT_MODEL, platform=problem.platform)
     # Acquire the row lock only after scraping/inference; merge the latest metadata.
-    current, _ = upsert_problem_metadata(platform=problem.platform, platform_id=problem.platform_id, metadata={
+    ai_metadata = {
         "ai_rating": validated["rating"], "ai_tags": ai_result["predicted_tags"], "ai_reasoning": ai_result.get("reasoning", ""),
         "ai_model": DEFAULT_MODEL, "ai_prompt_hash": ai_result.get("prompt_hash", prompt_hash),
         "ai_prompt_version": ai_result.get("prompt_version", DEFAULT_PROMPT_VERSION),
         "ai_rating_domain": PRODUCT_RATING_DOMAIN,
         "ai_visual_status": ai_result.get("visual_status", "not_applicable"),
-    })
+    }
+    with transaction.atomic():
+        current = get_object_or_404(Problem.objects.select_for_update(), pk=problem.pk)
+        latest = current.platform_metadata or {}
+        reject_native_rating(latest.get('rating'))
+        current.platform_metadata = {**latest, **ai_metadata}
+        current.save(update_fields=['platform_metadata'])
     return _prediction_response(ai_result, current.platform_metadata, DEFAULT_MODEL, problem_data)
 
 

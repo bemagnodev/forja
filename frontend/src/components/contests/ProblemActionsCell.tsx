@@ -1,9 +1,11 @@
+import { useId, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { ListPlus, Sparkles } from "lucide-react";
 import type { ContestProblem } from "./types";
 import { useToast } from "@/components/ui/toast-context";
 import { classificationErrorInfo } from "@/lib/classification-error";
+import { hasNativeRating, NATIVE_RATING_MESSAGE } from "@/lib/product-classification";
 
 interface ProblemActionsCellProps {
   problem: ContestProblem;
@@ -12,6 +14,9 @@ interface ProblemActionsCellProps {
 export function ProblemActionsCell({ problem }: ProblemActionsCellProps) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const [nativeNoticeFor, setNativeNoticeFor] = useState<number | null>(null);
+  const noticeId = useId();
+  const showNativeNotice = nativeNoticeFor === problem.id;
 
   const addToQueueMutation = useMutation({
     mutationFn: () =>
@@ -53,6 +58,12 @@ export function ProblemActionsCell({ problem }: ProblemActionsCellProps) {
     },
     onError: (error) => {
       const info = classificationErrorInfo(error);
+      if (info.diagnostic.code === 'native_rating_available') {
+        setNativeNoticeFor(problem.id);
+        queryClient.invalidateQueries({ queryKey: ['queue'] });
+        queryClient.invalidateQueries({ queryKey: ['contest-problems'] });
+        return;
+      }
       toast({
         title: info.title,
         description: info.toastMessage,
@@ -62,14 +73,24 @@ export function ProblemActionsCell({ problem }: ProblemActionsCellProps) {
   });
 
   return (
+    <div className="flex flex-col items-end gap-1">
     <div className="flex items-center justify-end gap-1 relative opacity-40 group-hover/row:opacity-100 transition-all duration-200">
 
       {/* Botão de IA */}
       <button
-        onClick={(e) => predictMutation.mutate({ force: e.shiftKey })}
+        onClick={(e) => {
+          if (hasNativeRating(problem.rating) || showNativeNotice) {
+            setNativeNoticeFor(problem.id);
+            return;
+          }
+          predictMutation.mutate({ force: e.shiftKey });
+        }}
         disabled={predictMutation.isPending}
-        title="Estimar rating e tags com IA (Shift+Click para forçar recálculo)"
+        title={hasNativeRating(problem.rating) || showNativeNotice
+          ? 'Esta questão já possui rating nativo da plataforma'
+          : 'Estimar rating e tags com IA (Shift+Click para forçar recálculo)'}
         aria-label="Estimar rating e tags com IA"
+        aria-describedby={showNativeNotice ? noticeId : undefined}
         className="w-8 h-8 flex items-center justify-center rounded-lg text-fuchsia-400/70 hover:text-fuchsia-400 hover:bg-fuchsia-400/10 hover:shadow-[0_0_15px_rgba(232,121,249,0.2)] transition-all disabled:opacity-40"
       >
         {predictMutation.isPending ? (
@@ -88,6 +109,10 @@ export function ProblemActionsCell({ problem }: ProblemActionsCellProps) {
       >
         <ListPlus className="w-4 h-4" />
       </button>
+    </div>
+    {showNativeNotice && <p id={noticeId} role="status" className="max-w-52 whitespace-normal text-right text-[11px] leading-relaxed text-white/50">
+      {NATIVE_RATING_MESSAGE}
+    </p>}
     </div>
   );
 }

@@ -9,11 +9,11 @@ import { ProblemActionsCell } from "@/components/contests/ProblemActionsCell";
 import { AlertCircle, ArrowLeft, ExternalLink, Trophy, CheckCircle, Sparkles } from "lucide-react";
 import type { ContestProblem } from "@/components/contests/types";
 import { getRatingColor } from "@/lib/ratings";
-import { AIVisualWarning } from "@/components/ai-lab/AIVisualWarning";
+import { hasNativeRating } from "@/lib/product-classification";
 
 // Cores de rating do Codeforces (usando as CSS vars do design system)
 function RatingBadge({ rating, isAi = false }: { rating: number | null; isAi?: boolean }) {
-  if (!rating) return <span className="text-white/20 text-[12px]">—</span>;
+  if (rating == null) return <span className="text-white/20 text-[12px]">—</span>;
 
   const colorStyle = { color: getRatingColor(rating) };
 
@@ -254,19 +254,15 @@ export function ContestDetail() {
                     {/* Rating */}
                     <TableCell className="px-3 py-4 text-center">
                       <RatingBadge 
-                        rating={prob.rating || prob.ai_rating} 
-                        isAi={!prob.rating && !!prob.ai_rating} 
+                        rating={prob.rating ?? prob.ai_rating}
+                        isAi={!hasNativeRating(prob.rating) && prob.ai_rating != null}
                       />
-                      {prob.ai_rating != null && prob.ai_visual_status === "unprocessed" && <div>
-                        {prob.rating != null && <span className="block text-[10px] text-fuchsia-300">Estimativa IA: {prob.ai_rating}</span>}
-                        <AIVisualWarning />
-                      </div>}
                     </TableCell>
 
                     {/* Tags */}
                     <TableCell className="px-3 py-4">
                       <div className="flex flex-wrap gap-1.5 items-center">
-                        {!prob.rating && prob.ai_tags?.length > 0 && (
+                        {!hasNativeRating(prob.rating) && prob.ai_tags?.length > 0 && (
                           <Sparkles className="w-3 h-3 text-fuchsia-400 mr-0.5 opacity-80" role="img" aria-label="Tags estimadas por IA" />
                         )}
                         {(prob.tags?.length > 0 ? prob.tags : prob.ai_tags || [])?.slice(0, 3).map((tag) => (

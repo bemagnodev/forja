@@ -1,8 +1,14 @@
 """Product contract; benchmark validation and its 800–2400 domain stay unchanged."""
+from math import isfinite
 from .contracts import normalize_tags
 
 PRODUCT_PROMPT_VERSION = "product_classification_v1"
 PRODUCT_RATING_DOMAIN = "cf-rating-800-3500-grid100-v1"
+NATIVE_RATING_MESSAGE = 'Não é possível classificar com IA: esta questão já possui rating nativo da plataforma.'
+
+
+def has_native_rating(rating):
+    return type(rating) in (int, float) and isfinite(rating)
 
 
 def validate_product_prediction(raw) -> dict:

@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
@@ -26,25 +26,34 @@ const item: QueueItem = { id: 3, item_type: "PROBLEM", title: "Synthetic", descr
   created_at: "2026-10-19T00:00:00Z", resolved_at: null, linked_problem_id: 7,
   ai_rating: 3500, ai_tags: ["math"], ai_visual_status: "unprocessed" };
 
-function mount(kind: "queue" | "contest" | "explore") {
+function mount(kind: "queue" | "contest" | "explore", nativeRating?: number) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
   return render(<QueryClientProvider client={client}><TooltipProvider>
-    {kind === "queue" ? <table><tbody><SortableRow item={item} onToggle={vi.fn()} onPatchPriority={vi.fn()} onPatchDescription={vi.fn()} /></tbody></table>
+    {kind === "queue" ? <table><tbody><SortableRow item={{ ...item, rating: nativeRating }} onToggle={vi.fn()} onPatchPriority={vi.fn()} onPatchDescription={vi.fn()} /></tbody></table>
       : kind === "contest" ? <MemoryRouter initialEntries={["/contests/1"]}><Routes><Route path="/contests/:id" element={<ContestDetail />} /></Routes></MemoryRouter>
       : <AILab />}
   </TooltipProvider></QueryClientProvider>);
 }
 
-it.each(["queue", "contest"] as const)("%s mostra rating 3500 e aviso salvo, inclusive após remontar", async kind => {
+it.each(["queue", "contest"] as const)("%s mostra rating 3500 sem aviso de imagem, inclusive após remontar", async kind => {
   vi.mocked(api.get).mockResolvedValue({ data: [problem] });
   const first = mount(kind);
-  expect(await screen.findByText(warning)).toBeVisible();
-  expect(screen.getByText("3500")).toBeVisible();
+  expect(await screen.findByText("3500")).toBeVisible();
+  expect(screen.queryByText(warning)).not.toBeInTheDocument();
   expect(document.querySelector("button button")).toBeNull();
   first.unmount();
   mount(kind);
-  expect(await screen.findByText(warning)).toBeVisible();
+  expect(await screen.findByText("3500")).toBeVisible();
+  expect(screen.queryByText(warning)).not.toBeInTheDocument();
   expect(api.post).not.toHaveBeenCalled();
+});
+
+it.each(['queue', 'contest'] as const)('%s preserva rating nativo zero e não mostra estimativa antiga no lugar', async kind => {
+  vi.mocked(api.get).mockResolvedValue({ data: [{ ...problem, rating: 0 }] });
+  mount(kind, 0);
+  expect(await within(await screen.findByRole('table')).findByText('0')).toBeVisible();
+  expect(screen.queryByText('3500')).not.toBeInTheDocument();
+  expect(screen.queryByText(warning)).not.toBeInTheDocument();
 });
 
 it("Explorar exibe aviso textual e permite inspecionar e recolher dados do scraper", async () => {

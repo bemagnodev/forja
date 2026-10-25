@@ -25,8 +25,8 @@ zero-shot; B usa rubrica. Enunciados e o prompt C não são publicados.
 
 ### Validação e publicação
 
-Verificação local em 19/10/2026: 372 testes backend e 103 frontend aprovados,
-build Vite e Django check aprovados. APIs e IA simuladas nos testes; nenhuma
+Verificação local em 25/10/2026: 439 testes backend e 113 frontend aprovados,
+build Vite, lint dos arquivos frontend alterados e Django check aprovados. APIs e IA simuladas nos testes; nenhuma
 chamada real para validar a entrega. O botão Refresh do Dashboard tem regressão
 que verifica visibilidade e nova busca ao clicar. Restam 11 diagnósticos de
 TypeScript anteriores, detalhados em [dívida técnica](AI_LAB_TYPESCRIPT_DEBT.md).
@@ -472,17 +472,32 @@ e estado visual conhecido. Previsões com outra versão/domínio não são reuti
 somente um clique explícito pode gerar uma nova classificação. O domínio salvo é
 `cf-rating-800-3500-grid100-v1`.
 
-Questões com imagens podem receber uma estimativa textual válida. O produto
-salva `ai_visual_status=unprocessed` junto da previsão. Fila, Contests e Explorar
-mostram: “Esta questão contém imagens que não foram analisadas; a estimativa pode
-ser menos precisa.” O aviso volta pelas APIs de fila/contests após recarregar e
-ao reutilizar o cache. Explorar mostra o aviso, mas continua sem gravação.
+Fila e Contests não permitem estimar questões que já tenham rating nativo:
+um número finito em `rating`, inclusive zero, independentemente do domínio
+800–3500 reservado às previsões. Tags sem rating não bloqueiam. Ao tentar,
+o usuário vê a explicação abaixo do controle, sem requisição de classificação;
+Shift não contorna a regra. O backend também rejeita com 409 e código
+`native_rating_available` antes do scraping/IA ou da devolução de cache antigo.
+Se detectar dados nativos que a tela ainda não conhece, ela mostra a mesma
+explicação e atualiza as consultas de fila/Contests, sem repetir a classificação.
+Explorar continua permitindo comparar previsões com ratings nativos.
 
-Classificação de produto e atualizações de catálogo (CF, Gym, AtCoder, CSES) usam
-`api/services/problem_metadata.py`: leem a linha atual com bloqueio e mesclam
-somente os campos atualizados numa transação curta, após chamadas externas.
-Isso preserva metadados oficiais, previsões e outros campos; nenhuma transação
-do helper fica aberta durante scraping ou IA. Testes SQLite cobrem interleavings
+Questões com imagens podem receber uma estimativa textual válida. O produto
+salva `ai_visual_status=unprocessed` junto da previsão. As APIs de fila/Contests
+preservam esse estado após recarregar e ao reutilizar o cache, mas essas duas
+telas não mostram o aviso de imagens. Explorar continua mostrando: “Esta questão
+contém imagens que não foram analisadas; a estimativa pode ser menos precisa”,
+sem gravação. Ocultar o aviso não implica processamento multimodal.
+
+Atualizações de catálogo (CF, Gym, AtCoder, CSES) usam
+`api/services/problem_metadata.py`. A classificação de produto bloqueia a linha
+existente pelo ID e verifica novamente o rating antes de mesclar a previsão,
+numa transação curta após as chamadas externas. Se um rating nativo surgir
+durante a inferência, descarta a previsão e preserva os dados atuais; a chamada
+já iniciada pode ter consumido cota. Se a questão for excluída nesse intervalo,
+não a recria. Não há bloqueio de linha mantido durante scraping ou IA.
+Isso preserva metadados oficiais, previsões anteriores e outros campos.
+Testes SQLite cobrem interleavings
 determinísticos e preservação dos campos, não a semântica real dos bloqueios
 PostgreSQL. Não foi usado banco de produção para validar concorrência.
 
@@ -493,7 +508,7 @@ justificativa e tags oficiais conhecidas mesmo numa resposta parcial, com aviso
 e quantidade de tags descartadas. Não corrige sinônimos. Rating inválido não é
 truncado nem ganha delta fictício. O produto preserva sua previsão anterior se
 receber rating/tags inválidos; a presença de imagens por si só não impede salvar
-um resultado textual válido com aviso. A regra estrita do benchmark continua intacta:
+um resultado textual válido com estado visual registrado. A regra estrita do benchmark continua intacta:
 uma tag desconhecida invalida sua tarefa de tags, sem invalidar rating válido.
 
 Novas falhas de provedor registram categoria e `http_status` quando conhecido no

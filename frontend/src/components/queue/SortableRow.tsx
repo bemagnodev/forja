@@ -1,3 +1,4 @@
+import { useId, useState } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, Sparkles } from "lucide-react";
@@ -14,11 +15,11 @@ import { getRatingColor } from "@/lib/ratings";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useToast } from "@/components/ui/toast-context";
-import { AIVisualWarning } from "@/components/ai-lab/AIVisualWarning";
 import { classificationErrorInfo } from "@/lib/classification-error";
+import { hasNativeRating, NATIVE_RATING_MESSAGE } from "@/lib/product-classification";
 
 function RatingBadge({ rating, isAi = false }: { rating: number | null; isAi?: boolean }) {
-  if (!rating) return <span className="text-[11px] text-white/18 font-mono select-none">—</span>;
+  if (rating == null) return <span className="text-[11px] text-white/18 font-mono select-none">—</span>;
 
   const colorStyle = { color: getRatingColor(rating) };
 
@@ -76,6 +77,9 @@ export function SortableRow({
 }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const [nativeNoticeFor, setNativeNoticeFor] = useState<number | null>(null);
+  const noticeId = useId();
+  const showNativeNotice = item.linked_problem_id != null && nativeNoticeFor === item.linked_problem_id;
 
   const predictMutation = useMutation({
     mutationFn: async ({ force }: { force?: boolean } = {}) => {
@@ -97,6 +101,12 @@ export function SortableRow({
     },
     onError: (error) => {
       const info = classificationErrorInfo(error);
+      if (info.diagnostic.code === 'native_rating_available') {
+        setNativeNoticeFor(item.linked_problem_id ?? null);
+        queryClient.invalidateQueries({ queryKey: ['queue'] });
+        queryClient.invalidateQueries({ queryKey: ['contest-problems'] });
+        return;
+      }
       toast({
         title: info.title,
         description: info.toastMessage,
@@ -196,10 +206,20 @@ export function SortableRow({
             {item.linked_problem_id && (
               <div className="ml-auto shrink-0">
                 <button
-                  onClick={(e) => { e.stopPropagation(); predictMutation.mutate({ force: e.shiftKey }); }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (hasNativeRating(item.rating) || showNativeNotice) {
+                      setNativeNoticeFor(item.linked_problem_id ?? null);
+                      return;
+                    }
+                    predictMutation.mutate({ force: e.shiftKey });
+                  }}
                   disabled={predictMutation.isPending}
-                  title="Estimar rating e tags com IA (Shift+Click para forçar recálculo)"
+                  title={hasNativeRating(item.rating) || showNativeNotice
+                    ? 'Esta questão já possui rating nativo da plataforma'
+                    : 'Estimar rating e tags com IA (Shift+Click para forçar recálculo)'}
                   aria-label="Estimar rating e tags com IA"
+                  aria-describedby={showNativeNotice ? noticeId : undefined}
                   className="w-6 h-6 flex items-center justify-center rounded-lg border border-fuchsia-400/20 bg-fuchsia-400/10 text-fuchsia-400 hover:bg-fuchsia-400/20 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-400 disabled:opacity-40"
                 >
                   {predictMutation.isPending ? (
@@ -212,15 +232,14 @@ export function SortableRow({
             )}
           </div>
         </div>
+        {showNativeNotice && <p id={noticeId} role="status" className="mt-1.5 max-w-sm whitespace-normal text-[11px] leading-relaxed text-white/50">
+          {NATIVE_RATING_MESSAGE}
+        </p>}
       </TableCell>
 
       {/* ── RATING ── */}
       <TableCell className="py-3.5 px-3 align-middle text-center">
-        <RatingBadge rating={item.rating || item.ai_rating || null} isAi={!item.rating && !!item.ai_rating} />
-        {item.ai_rating != null && item.ai_visual_status === "unprocessed" && <div>
-          {item.rating != null && <span className="block text-[10px] text-fuchsia-300">Estimativa IA: {item.ai_rating}</span>}
-          <AIVisualWarning />
-        </div>}
+        <RatingBadge rating={item.rating ?? item.ai_rating ?? null} isAi={!hasNativeRating(item.rating) && item.ai_rating != null} />
       </TableCell>
 
       {/* ── TAGS ── */}

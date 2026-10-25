@@ -76,13 +76,49 @@ def test_prediction_merges_after_external_call_and_preserves_other_fields(api_cl
 
     monkeypatch.setattr(routes, "classify_problem", classify)
     response = api_client.post(f"/api/problems/{sample_problem.pk}/predict?force=true")
-    assert response.status_code == 200
+    assert response.status_code == 409
     sample_problem.refresh_from_db()
     assert sample_problem.title == "Updated by sync"
     assert sample_problem.platform_metadata["rating"] == 1900
     assert sample_problem.platform_metadata["other_cache"] == {"rating": 1600}
-    assert sample_problem.platform_metadata["ai_rating"] == 1200
-    assert response.json()["real_rating"] == 1900
+    assert 'ai_rating' not in sample_problem.platform_metadata
+    assert response.json()['diagnostic']['code'] == 'native_rating_available'
+
+
+@pytest.mark.django_db
+def test_prediction_still_merges_new_metadata_without_native_rating(api_client, sample_problem,
+        explore_statement, monkeypatch):
+    from api import api as routes
+    from api.models import Problem
+
+    def classify(*args):
+        Problem.objects.filter(pk=sample_problem.pk).update(title='Synced title',
+            platform_metadata={'tags': ['dp'], 'other_cache': {'rating': 1600}})
+        return {'predicted_rating': 1200, 'predicted_tags': ['math'], 'reasoning': 'Synthetic'}, explore_statement
+
+    monkeypatch.setattr(routes, '_classify_for_ui', classify)
+    assert api_client.post(f'/api/problems/{sample_problem.pk}/predict').status_code == 200
+    sample_problem.refresh_from_db()
+    assert sample_problem.title == 'Synced title'
+    assert sample_problem.platform_metadata['tags'] == ['dp']
+    assert sample_problem.platform_metadata['other_cache'] == {'rating': 1600}
+    assert sample_problem.platform_metadata['ai_rating'] == 1200
+
+
+@pytest.mark.django_db
+def test_prediction_does_not_recreate_problem_deleted_during_inference(api_client, sample_problem,
+        explore_statement, monkeypatch):
+    from api import api as routes
+    from api.models import Problem
+    pk = sample_problem.pk
+
+    def classify(*args):
+        Problem.objects.filter(pk=pk).delete()
+        return {'predicted_rating': 1200, 'predicted_tags': ['math'], 'reasoning': 'Synthetic'}, explore_statement
+
+    monkeypatch.setattr(routes, '_classify_for_ui', classify)
+    assert api_client.post(f'/api/problems/{pk}/predict').status_code == 404
+    assert not Problem.objects.filter(platform=sample_problem.platform, platform_id=sample_problem.platform_id).exists()
 
 
 @pytest.mark.django_db

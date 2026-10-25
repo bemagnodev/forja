@@ -3,6 +3,68 @@ from unittest.mock import Mock
 import pytest
 
 
+@pytest.mark.parametrize('rating,expected', [(0, True), (1200, True), (3800, True),
+    (None, False), (False, False), ('1200', False), (float('nan'), False), (float('inf'), False)])
+def test_native_rating_policy_is_independent_of_ai_domain(rating, expected):
+    from api.ai_lab.product import has_native_rating
+    assert has_native_rating(rating) is expected
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize('rating', [0, 1200, 3800])
+@pytest.mark.parametrize('force', ['false', 'true'])
+def test_native_rating_blocks_product_before_scraping_inference_or_cached_result(api_client, sample_problem,
+        rating, force, monkeypatch):
+    from api import api as routes
+    from api.ai_lab.classification import load_prompt
+    from api.ai_lab.dataset import content_hash
+    from api.ai_lab.product import PRODUCT_PROMPT_VERSION, PRODUCT_RATING_DOMAIN
+    sample_problem.platform_metadata = {'rating': rating, 'ai_rating': 1500, 'ai_tags': ['math'],
+        'ai_reasoning': 'Historical', 'ai_model': 'gemini-3.5-flash-lite',
+        'ai_prompt_hash': content_hash(load_prompt(PRODUCT_PROMPT_VERSION)),
+        'ai_prompt_version': PRODUCT_PROMPT_VERSION, 'ai_rating_domain': PRODUCT_RATING_DOMAIN,
+        'ai_visual_status': 'unprocessed'}
+    sample_problem.save()
+    before = dict(sample_problem.platform_metadata)
+    classify = Mock()
+    monkeypatch.setattr(routes, '_classify_for_ui', classify)
+    response = api_client.post(f'/api/problems/{sample_problem.pk}/predict?force={force}')
+    assert response.status_code == 409
+    assert response.json()['diagnostic']['code'] == 'native_rating_available'
+    classify.assert_not_called()
+    sample_problem.refresh_from_db()
+    assert sample_problem.platform_metadata == before
+
+
+@pytest.mark.django_db
+def test_native_rating_remains_available_to_explore_without_writes(api_client, sample_problem,
+        explore_statement, monkeypatch):
+    from api import api as routes
+    sample_problem.platform_metadata = {'rating': 1200}
+    sample_problem.save()
+    classify = Mock(return_value=({'predicted_rating': 1500, 'predicted_tags': ['math'],
+                                   'reasoning': 'Synthetic'}, explore_statement))
+    monkeypatch.setattr(routes, '_classify_for_ui', classify)
+    response = api_client.post(f'/api/ai-lab/problems/{sample_problem.pk}/classify')
+    assert response.status_code == 200
+    assert response.json()['real_rating'] == 1200
+    classify.assert_called_once()
+    sample_problem.refresh_from_db()
+    assert sample_problem.platform_metadata == {'rating': 1200}
+
+
+@pytest.mark.django_db
+def test_tags_without_native_rating_do_not_block_product(api_client, sample_problem, explore_statement, monkeypatch):
+    from api import api as routes
+    sample_problem.platform_metadata = {'tags': ['math']}
+    sample_problem.save()
+    classify = Mock(return_value=({'predicted_rating': 1500, 'predicted_tags': ['math'],
+                                   'reasoning': 'Synthetic'}, explore_statement))
+    monkeypatch.setattr(routes, '_classify_for_ui', classify)
+    assert api_client.post(f'/api/problems/{sample_problem.pk}/predict').status_code == 200
+    classify.assert_called_once()
+
+
 def test_product_prompt_cannot_enter_benchmark_runner(reviewed_manifest, tmp_path):
     from api.ai_lab.runner import run_local
     from api.ai_lab.product import PRODUCT_PROMPT_VERSION
