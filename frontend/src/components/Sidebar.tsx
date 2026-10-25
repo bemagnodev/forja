@@ -1,5 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import {
   Anvil,
@@ -78,6 +79,7 @@ function NavItem({
 // ─── Sidebar Principal ────────────────────────────────────
 export function Sidebar() {
   const location = useLocation();
+  const queryClient = useQueryClient();
   const [logoError, setLogoError] = useState(false);
 
   interface UserProfile {
@@ -107,6 +109,64 @@ export function Sidebar() {
   // Codeforces
   const [syncStateCf, setSyncStateCf] = useState<SyncState>("idle");
   const [syncMessageCf, setSyncMessageCf] = useState("");
+  const [cfRunId, setCfRunId] = useState<string | null>(null);
+  const cfBusy = useRef(false);
+
+  useEffect(() => {
+    if (!cfRunId) return;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout>;
+    const deadline = Date.now() + 15 * 60 * 1000;
+    async function poll() {
+      try {
+        const { data } = await api.get('/sync/cf/status', { params: { run_id: cfRunId } });
+        if (cancelled) return;
+        if (data.state === 'running' && Date.now() < deadline) {
+          timer = setTimeout(poll, 3000);
+          return;
+        }
+        const completed = data.state === 'completed';
+        setSyncStateCf(completed ? 'success' : 'error');
+        setSyncMessageCf(data.state === 'running'
+          ? 'A sincronização continua em andamento. Atualize os dados para conferir o resultado.'
+          : data.message);
+        if (completed) {
+          for (const key of ['queue', 'contests', 'contest-problems']) {
+            void queryClient.invalidateQueries({ queryKey: [key] });
+          }
+          window.dispatchEvent(new Event('forja:cf-sync-completed'));
+        }
+      } catch {
+        if (cancelled) return;
+        setSyncStateCf('error');
+        setSyncMessageCf('Não foi possível acompanhar a sincronização. Atualize os dados para conferir o resultado.');
+      }
+      cfBusy.current = false;
+      setCfRunId(null);
+    }
+    void poll();
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [cfRunId, queryClient]);
+
+  async function handleSyncCf() {
+    if (cfBusy.current) return;
+    cfBusy.current = true;
+    setSyncStateCf('loading');
+    setSyncMessageCf('');
+    try {
+      const { data } = await api.post('/sync/cf');
+      setSyncMessageCf(data.message);
+      if (data.success && data.state === 'running' && data.run_id) {
+        setCfRunId(data.run_id);
+        return;
+      }
+      setSyncStateCf('error');
+    } catch {
+      setSyncStateCf('error');
+      setSyncMessageCf('Não foi possível iniciar a sincronização. Confira sua conexão e tente novamente.');
+    }
+    cfBusy.current = false;
+  }
 
   // AtCoder
   const [syncStateAt, setSyncStateAt] = useState<SyncState>("idle");
@@ -143,7 +203,6 @@ export function Sidebar() {
     };
   }
 
-  const handleSyncCf = makeSyncHandler("cf", setSyncStateCf, setSyncMessageCf);
   const handleSyncAt = makeSyncHandler("atcoder", setSyncStateAt, setSyncMessageAt);
 
   return (
@@ -228,13 +287,14 @@ export function Sidebar() {
           {syncStateCf === "error" && (
             <AlertCircle className="w-4 h-4 shrink-0 text-red-400" strokeWidth={1.75} />
           )}
-          <span className="flex-1 truncate text-left" title={syncMessageCf || (syncStateCf === "success" ? "Sincronização iniciada. Os dados serão atualizados em instantes." : "")}>
+          <span className="flex-1 truncate text-left">
             {syncStateCf === "idle" && "Sincronizar CF"}
             {syncStateCf === "loading" && "Sincronizando..."}
-            {syncStateCf === "success" && (syncMessageCf || "Sincronização iniciada. Os dados serão atualizados em instantes.")}
-            {syncStateCf === "error" && (syncMessageCf || "Erro!")}
+            {syncStateCf === "success" && "CF atualizado"}
+            {syncStateCf === "error" && "Tentar sincronizar CF"}
           </span>
         </button>
+        {syncMessageCf && <p role="status" className="px-3 py-1 text-[11px] leading-relaxed text-white/55">{syncMessageCf}</p>}
 
         {/* ── Botão de Sync AtCoder ── */}
         <button

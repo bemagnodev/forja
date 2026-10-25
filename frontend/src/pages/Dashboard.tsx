@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { PageLayout } from "@/components/layouts/PageLayout";
-import { fetchDashboardStats, type DashboardStats } from "@/lib/api-dashboard";
+import { fetchDashboardStats } from "@/lib/api-dashboard";
 import { KPICards } from "@/components/dashboard/KPICards";
 import { ActivityHeatmap } from "@/components/dashboard/ActivityHeatmap";
 import { Last7DaysWidget } from "@/components/dashboard/Last7DaysWidget";
@@ -8,30 +9,22 @@ import { DifficultyBreakdown } from "@/components/dashboard/DifficultyBreakdown"
 import { TopicMastery } from "@/components/dashboard/TopicMastery";
 import { RecentContestsList } from "@/components/dashboard/RecentContestsList";
 import { RecentACsList } from "@/components/dashboard/RecentACsList";
-import { motion } from "framer-motion";
 import { RefreshCw } from "lucide-react";
 
 export function Dashboard() {
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      const data = await fetchDashboardStats();
-      setStats(data);
-      setError(null);
-    } catch (err: any) {
-      setError(err.message || "Erro ao carregar os dados do painel.");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { data: stats, isPending, isFetching, error: queryError, refetch } = useQuery({
+    queryKey: ['dashboard'],
+    queryFn: fetchDashboardStats,
+    retry: false,
+  });
+  const loading = isPending || isFetching;
+  const error = queryError?.message;
 
   useEffect(() => {
-    loadData();
-  }, []);
+    const onSyncCompleted = () => { void refetch(); };
+    window.addEventListener('forja:cf-sync-completed', onSyncCompleted);
+    return () => window.removeEventListener('forja:cf-sync-completed', onSyncCompleted);
+  }, [refetch]);
 
   return (
     <PageLayout
@@ -40,7 +33,7 @@ export function Dashboard() {
       description="Sua visão geral de progressão."
       action={
         <button 
-          onClick={loadData}
+          onClick={() => { void refetch(); }}
           className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-zinc-300 bg-zinc-800/50 hover:bg-zinc-800 rounded-md transition-colors border border-zinc-700/50"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
