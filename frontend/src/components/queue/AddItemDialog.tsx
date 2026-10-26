@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Plus, BookOpen, Search, X, Code2 } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle, DialogTrigger, DialogClose } from "@/components/ui/dialog";
@@ -9,7 +9,10 @@ import type { ProblemResult, QueueCreateInput } from "./types";
 import { priorityOptions } from "./constants";
 import { PlatformIcon } from "./PlatformIcon";
 
-export function AddItemDialog({ onCreate }: { onCreate: (data: QueueCreateInput) => void }) {
+export function AddItemDialog({ onCreate }: { onCreate: (data: QueueCreateInput) => Promise<unknown> }) {
+  const submitting = useRef(false);
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [title, setTitle]               = useState("");
   const [description, setDescription]   = useState("");
   const [itemType, setItemType]         = useState("PROBLEM");
@@ -42,13 +45,16 @@ export function AddItemDialog({ onCreate }: { onCreate: (data: QueueCreateInput)
     setSelectedProblem(null);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    if (submitting.current) return;
     const finalTitle = selectedProblem
       ? selectedProblem.title
       : title.trim();
     if (!finalTitle) return;
 
-    onCreate({
+    submitting.current = true; setPending(true); setError(null);
+    try {
+    await onCreate({
       title: finalTitle,
       description: description.trim() || null,
       item_type: itemType,
@@ -60,6 +66,8 @@ export function AddItemDialog({ onCreate }: { onCreate: (data: QueueCreateInput)
     });
     setOpen(false);
     resetForm();
+    } catch { setError('Não foi possível criar o item. Seus dados foram preservados.'); }
+    finally { submitting.current = false; setPending(false); }
   };
 
   const selectProblem = (p: ProblemResult) => {
@@ -77,7 +85,7 @@ export function AddItemDialog({ onCreate }: { onCreate: (data: QueueCreateInput)
   };
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) resetForm(); }}>
+    <Dialog open={open} onOpenChange={(v) => { if (pending) return; setOpen(v); if (!v) resetForm(); }}>
       <DialogTrigger
           className="bg-[#dc143c] hover:bg-[#dc143c]/90 hover:-translate-y-0.5 shadow-md shadow-[#dc143c]/10 text-white text-[12px] font-semibold gap-2 h-9 px-5 transition-all rounded-lg border border-[#dc143c]/30 inline-flex items-center justify-center cursor-pointer active:scale-95 duration-200"
       >
@@ -265,6 +273,7 @@ export function AddItemDialog({ onCreate }: { onCreate: (data: QueueCreateInput)
           </div>
         </div>
 
+        {error && <p role="alert" className="px-6 text-sm text-red-400">{error}</p>}
         {/* Rodapé */}
         <div className="px-6 py-4 border-t border-white/[0.07] bg-black/15 flex justify-end gap-2.5 shrink-0">
           <DialogClose render={<Button
@@ -275,10 +284,10 @@ export function AddItemDialog({ onCreate }: { onCreate: (data: QueueCreateInput)
           </DialogClose>
           <Button
             onClick={handleSubmit}
-            disabled={!title.trim() && !selectedProblem}
+            disabled={pending || (!title.trim() && !selectedProblem)}
             className="bg-[#dc143c] hover:bg-[#dc143c]/90 hover:scale-[1.02] active:scale-95 text-white font-bold h-9 px-7 rounded-lg transition-all duration-200 disabled:opacity-35 text-[12px] border border-[#dc143c]/60 shadow-lg shadow-[#dc143c]/20"
           >
-            Criar Item
+            {pending ? "Criando..." : "Criar Item"}
           </Button>
         </div>
       </DialogContent>

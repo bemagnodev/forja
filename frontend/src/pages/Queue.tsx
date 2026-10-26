@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useMemo } from "react";
+import React, { useCallback, useState, useMemo, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 
@@ -32,54 +32,54 @@ export function Queue() {
     },
   });
 
+  const busy = useRef(false);
   const toggleMutation = useMutation({
     mutationFn: ({ id, is_completed }: { id: number; is_completed: boolean }) =>
       api.post(`/queue/${id}/status`, { is_completed: !is_completed }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["queue"] }),
   });
-
-  const handleToggle = useCallback(
-    function toggleQueueItem(id: number, currentStatus: boolean, title: string) {
-      // Atualização otimista: remove o item da lista visual instantaneamente
-      queryClient.setQueryData(["queue"], (old: QueueItem[] | undefined) => {
-        if (!old) return old;
-        return old.map((item) => 
-          item.id === id ? { ...item, is_completed: !currentStatus } : item
-        );
-      });
-
-      toggleMutation.mutate({ id, is_completed: currentStatus });
-
-      if (!currentStatus) {
-        toast({
-          title: "Item finalizado",
-          description: title,
-          type: "success",
-          action: {
-            label: "Desfazer",
-            icon: <RefreshCw className="w-3 h-3" />,
-            onClick: () => toggleQueueItem(id, true, title),
-          },
-        });
-      }
-    },
-    [toggleMutation, queryClient, toast]
-  );
+  const handleToggle = useCallback(async function toggleQueueItem(id: number, currentStatus: boolean, title: string) {
+    if (busy.current) return;
+    busy.current = true;
+    try {
+      await toggleMutation.mutateAsync({ id, is_completed: currentStatus });
+      await queryClient.cancelQueries({ queryKey: ['queue'] });
+      queryClient.setQueryData<QueueItem[]>(['queue'], old => old?.map(item => item.id === id ? { ...item, is_completed: !currentStatus } : item));
+      if (!currentStatus) toast({ title: 'Item finalizado', description: title, type: 'success', action: {
+        label: 'Desfazer', icon: <RefreshCw className="w-3 h-3" />,
+        onClick: () => { void toggleQueueItem(id, true, title); },
+      } });
+    } catch {
+      toast({ title: 'Não foi possível salvar', description: 'O estado anterior foi preservado. Tente novamente.', type: 'error' });
+    } finally {
+      busy.current = false;
+      void queryClient.invalidateQueries({ queryKey: ['queue'] });
+    }
+  }, [toggleMutation, queryClient, toast]);
 
   const patchMutation = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Record<string, unknown> }) =>
-      api.patch(`/queue/${id}`, data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["queue"] }),
+    mutationFn: ({ id, data }: { id: number; data: Record<string, unknown> }) => api.patch(`/queue/${id}`, data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['queue'] }),
+    onError: () => toast({ title: 'Não foi possível salvar a edição', description: 'Tente novamente.', type: 'error' }),
   });
-
   const createMutation = useMutation({
-    mutationFn: (data: QueueCreateInput) => api.post("/queue", data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["queue"] }),
+    mutationFn: (data: QueueCreateInput) => api.post('/queue', data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['queue'] }),
   });
-
   const reorderMutation = useMutation({
-    mutationFn: (orderedIds: number[]) =>
-      api.post("/queue/reorder", { ordered_ids: orderedIds }),
+    mutationFn: (orderedIds: number[]) => api.post('/queue/reorder', { ordered_ids: orderedIds }),
+    onMutate: async orderedIds => {
+      await queryClient.cancelQueries({ queryKey: ['queue'] });
+      const previous = queryClient.getQueryData<QueueItem[]>(['queue']);
+      const reordered = orderedIds.map(id => previous?.find(item => item.id === id)).filter((item): item is QueueItem => !!item);
+      queryClient.setQueryData(['queue'], reordered);
+      return { previous, reordered };
+    },
+    onError: (_error, _ids, context) => {
+      // Do not overwrite a newer refetch with an older snapshot.
+      if (context && queryClient.getQueryData(['queue']) === context.reordered) queryClient.setQueryData(['queue'], context.previous);
+      toast({ title: 'Não foi possível salvar a ordem', description: 'A fila será atualizada novamente.', type: 'error' });
+    },
+    onSettled: () => { busy.current = false; return queryClient.invalidateQueries({ queryKey: ['queue'] }); },
   });
 
   const sensors = useSensors(
@@ -111,13 +111,14 @@ export function Queue() {
   }, [filteredItems, groupByContest]);
 
   const handleDragEnd = (event: DragEndEvent) => {
-    if (groupByContest) return;
+    if (groupByContest || busy.current || patchMutation.isPending) return;
     const { active, over } = event;
     if (!over || active.id === over.id) return;
     const oldIndex = items.findIndex((i) => i.id === active.id);
     const newIndex  = items.findIndex((i) => i.id === over.id);
+    if (oldIndex < 0 || newIndex < 0) return;
     const reordered = arrayMove(items, oldIndex, newIndex);
-    queryClient.setQueryData(["queue"], reordered);
+    busy.current = true;
     reorderMutation.mutate(reordered.map((i) => i.id));
   };
 
@@ -126,7 +127,7 @@ export function Queue() {
       topbarTitle="Fila de Upsolving"
       title="Pendências"
       description="Organize seus próximos desafios e sessões de treinamento."
-      action={<AddItemDialog onCreate={(data) => createMutation.mutate(data)} />}
+      action={<AddItemDialog onCreate={(data) => createMutation.mutateAsync(data)} />}
     >
 
       {/* Loading */}
@@ -147,7 +148,7 @@ export function Queue() {
           </div>
           <div>
             <p className="font-bold text-[14px]">Conexão falhou</p>
-            <p className="text-[12px] opacity-60 mt-0.5">Não foi possível conectar com o servidor. Django está rodando?</p>
+            <p className="text-[12px] opacity-60 mt-0.5">Não foi possível conectar com o servidor. Tente novamente em instantes.</p>
           </div>
         </div>
       )}
@@ -172,7 +173,7 @@ export function Queue() {
             <div className={`w-8 h-4 rounded-full transition-colors relative ${groupByContest ? 'bg-[#dc143c]' : 'bg-white/10'}`}>
               <div className={`absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full transition-transform ${groupByContest ? 'translate-x-4' : 'translate-x-0'}`} />
             </div>
-            <input type="checkbox" className="hidden" checked={groupByContest} onChange={(e) => setGroupByContest(e.target.checked)} />
+            <input type="checkbox" className="sr-only" checked={groupByContest} onChange={(e) => setGroupByContest(e.target.checked)} />
           </label>
         </div>
       )}
@@ -181,42 +182,15 @@ export function Queue() {
       {!isLoading && !isError && (
         <div className="border border-white/[0.07] rounded-2xl overflow-hidden bg-[#080808]/70 backdrop-blur-xl">
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-            <Table>
+            <Table className="table-fixed">
               <colgroup>
-                <col style={{ width: "52px" }} />
-                <col style={{ width: "26%" }} />
-                <col style={{ width: "76px" }} />
-                <col style={{ width: "26%" }} />
-                <col style={{ width: "72px" }} />
-                <col />
-                <col style={{ width: "116px" }} />
+                <col style={{ width: '64px' }} /><col style={{ width: '27%' }} />
+                <col style={{ width: '110px' }} /><col style={{ width: '76px' }} />
+                <col style={{ width: '22%' }} /><col style={{ width: '84px' }} /><col />
               </colgroup>
-
-              <TableHeader>
-                <TableRow className="border-b border-white/[0.07] bg-black/35 hover:bg-black/35">
-                  <TableHead className="text-[9px] uppercase tracking-widest text-white/20 font-bold py-3 pl-5 pr-2">
-                    {/* Vazio — check + grip */}
-                  </TableHead>
-                  <TableHead className="text-[9px] uppercase tracking-widest text-white/20 font-bold py-3 px-3">
-                    Questão / Estudo
-                  </TableHead>
-                  <TableHead className="text-[9px] uppercase tracking-widest text-white/20 font-bold py-3 px-3 text-center">
-                    Rating
-                  </TableHead>
-                  <TableHead className="text-[9px] uppercase tracking-widest text-white/20 font-bold py-3 px-3">
-                    Tags
-                  </TableHead>
-                  <TableHead className="text-[9px] uppercase tracking-widest text-white/20 font-bold py-3 px-3">
-                    Contest
-                  </TableHead>
-                  <TableHead className="text-[9px] uppercase tracking-widest text-white/20 font-bold py-3 px-3">
-                    Descrição
-                  </TableHead>
-                  <TableHead className="text-[9px] uppercase tracking-widest text-white/20 font-bold py-3 px-4 text-center">
-                    Prioridade
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
+              <TableHeader><TableRow className="bg-black/35 border-b border-white/[0.07]">
+                {['', 'Questão / Estudo', 'Prioridade', 'Rating', 'Tags', 'Contest', 'Descrição'].map((label, i) => <TableHead key={i} className="px-3 py-3 text-[10px] uppercase tracking-wide text-white/50">{label}</TableHead>)}
+              </TableRow></TableHeader>
 
               <TableBody>
                 {/* Estado vazio */}
@@ -249,9 +223,10 @@ export function Queue() {
                           <SortableRow
                             key={item.id}
                             item={item}
+                            disabled={toggleMutation.isPending || reorderMutation.isPending || patchMutation.isPending}
                             onToggle={handleToggle}
                             onPatchPriority={(id, priority) => patchMutation.mutate({ id, data: { priority } })}
-                            onPatchDescription={(id, description) => patchMutation.mutate({ id, data: { description } })}
+                            onPatchDescription={async (id, description) => { await patchMutation.mutateAsync({ id, data: { description } }); }}
                           />
                         ))}
                       </SortableContext>
@@ -263,9 +238,10 @@ export function Queue() {
                       <SortableRow
                         key={item.id}
                         item={item}
+                            disabled={toggleMutation.isPending || reorderMutation.isPending || patchMutation.isPending}
                         onToggle={handleToggle}
                         onPatchPriority={(id, priority) => patchMutation.mutate({ id, data: { priority } })}
-                        onPatchDescription={(id, description) => patchMutation.mutate({ id, data: { description } })}
+                        onPatchDescription={async (id, description) => { await patchMutation.mutateAsync({ id, data: { description } }); }}
                       />
                     ))}
                   </SortableContext>

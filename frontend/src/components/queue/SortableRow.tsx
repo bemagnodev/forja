@@ -4,8 +4,8 @@ import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, Sparkles } from "lucide-react";
 import { TableRow, TableCell } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import type { QueueItem } from "./types";
 import { priorityConfig, priorityOptions } from "./constants";
 import { PlatformIcon } from "./PlatformIcon";
@@ -66,14 +66,16 @@ function abbreviateContest(name: string): string {
 
 export function SortableRow({
   item,
+  disabled = false,
   onToggle,
   onPatchPriority,
   onPatchDescription,
 }: {
   item: QueueItem;
+  disabled?: boolean;
   onToggle: (id: number, currentStatus: boolean, title: string) => void;
   onPatchPriority: (id: number, priority: string) => void;
-  onPatchDescription: (id: number, description: string) => void;
+  onPatchDescription: (id: number, description: string) => Promise<void>;
 }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -118,7 +120,7 @@ export function SortableRow({
   const {
     attributes, listeners, setNodeRef,
     transform, transition, isDragging,
-  } = useSortable({ id: item.id });
+  } = useSortable({ id: item.id, disabled });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -146,13 +148,15 @@ export function SortableRow({
           <button
             {...attributes}
             {...listeners}
-            tabIndex={-1}
+            aria-label={`Reordenar ${item.title}`} disabled={disabled}
             className="cursor-grab active:cursor-grabbing p-0.5 text-white/[0.12] hover:text-white/30 transition-colors focus:outline-none"
           >
             <GripVertical className="w-3.5 h-3.5" />
           </button>
           <div onClick={(e) => e.stopPropagation()}>
             <Checkbox
+              disabled={disabled}
+              aria-label={`Concluir ${item.title}`}
               checked={item.is_completed}
               onCheckedChange={() => onToggle(item.id, item.is_completed, item.title)}
               className="border-white/15 hover:border-white/30 transition-all duration-200"
@@ -163,7 +167,7 @@ export function SortableRow({
 
       {/* ── QUESTÃO / ESTUDO ── */}
       <TableCell className="py-3.5 px-3 align-middle">
-        <div className="flex items-center gap-2.5 w-full">
+        <div className="grid grid-cols-[20px_minmax(0,1fr)_24px] items-center gap-2.5 w-full">
           <PlatformIcon platform={item.source_platform} type={item.item_type} />
           
           <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -180,6 +184,7 @@ export function SortableRow({
                     : item.title);
               return item.url ? (
                 <a
+                  title={displayTitle}
                   href={item.url}
                   target="_blank"
                   rel="noopener noreferrer"
@@ -188,7 +193,7 @@ export function SortableRow({
                   {displayTitle}
                 </a>
               ) : (
-                <span className="text-[13px] font-medium text-white/80 group-hover:text-white transition-colors truncate leading-snug">
+                <span title={displayTitle} className="text-[13px] font-medium text-white/80 group-hover:text-white transition-colors truncate leading-snug">
                   {displayTitle}
                 </span>
               );
@@ -203,8 +208,10 @@ export function SortableRow({
               </div>
             )}
             
+
+          </div>
             {item.linked_problem_id && (
-              <div className="ml-auto shrink-0">
+              <div className="flex h-6 w-6 items-center justify-center">
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
@@ -229,8 +236,34 @@ export function SortableRow({
                 </button>
               </div>
             )}
-          </div>
         </div>
+      </TableCell>
+
+      {/* ── PRIORIDADE ── */}
+      <TableCell className="py-3.5 px-4 align-middle text-center">
+        <DropdownMenu>
+          <DropdownMenuTrigger disabled={disabled} aria-label={`Prioridade de ${item.title}`} className="focus:outline-none cursor-pointer hover:scale-[1.03] transition-all active:scale-95">
+            <PriorityBadge priority={item.priority} />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            align="end"
+            className="bg-[#0d0d0d]/98 backdrop-blur-xl border-white/[0.09] min-w-[168px] shadow-xl p-1 rounded-xl"
+          >
+            {priorityOptions.map((opt) => (
+              <DropdownMenuItem
+                key={opt.value}
+                onClick={() => onPatchPriority(item.id, opt.value)}
+                className="text-[12px] text-white/55 focus:text-white hover:text-white focus:bg-white/10 hover:bg-white/10 cursor-pointer gap-2.5 py-2 px-3 rounded-lg transition-colors font-medium outline-none"
+              >
+                <div
+                  className="w-2 h-2 rounded-full shrink-0"
+                  style={{ backgroundColor: opt.color }}
+                />
+                {opt.label}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </TableCell>
 
       {/* ── RATING ── */}
@@ -242,14 +275,14 @@ export function SortableRow({
       <TableCell className="py-2 px-3 align-middle overflow-hidden">
         {(item.tags?.length > 0 || item.ai_tags?.length) ? (
           <Tooltip>
-            <TooltipTrigger className="flex items-center gap-1 cursor-help w-full overflow-hidden">
+            <TooltipTrigger aria-label="Todas as tags" className="flex items-center gap-1 cursor-help w-full overflow-hidden">
                 {!item.tags?.length && item.ai_tags && item.ai_tags.length > 0 && (
                   <Sparkles className="w-3 h-3 text-fuchsia-400 opacity-80 shrink-0" />
                 )}
-                {(item.tags?.length > 0 ? item.tags : item.ai_tags || []).slice(0, 2).map((tag) => (
+                {(item.tags?.length > 0 ? item.tags : item.ai_tags || []).slice(0, 2).map((tag, index) => (
                   <span
                     key={tag}
-                    className={`shrink truncate min-w-0 text-[10px] px-1.5 py-[2.5px] rounded uppercase tracking-wider font-bold border transition-colors ${
+                    className={`${index === 0 ? "shrink-0 max-w-[45%]" : "shrink min-w-0"} truncate text-[10px] px-1.5 py-[2.5px] rounded uppercase tracking-wider font-bold border transition-colors ${
                       !item.tags?.length && item.ai_tags && item.ai_tags.length > 0 
                       ? "bg-fuchsia-500/10 border-fuchsia-500/20 text-fuchsia-300"
                       : "bg-white/[0.06] border-white/[0.08] text-white/55"
@@ -264,7 +297,8 @@ export function SortableRow({
                   </span>
                 )}
             </TooltipTrigger>
-            <TooltipContent 
+            <TooltipContent
+              role="tooltip"
               side="top" 
               align="start"
               className="bg-[#121212] border-white/10 text-white/70 shadow-2xl px-3 py-2.5 flex flex-wrap gap-1.5 max-w-[320px]"
@@ -305,36 +339,11 @@ export function SortableRow({
       <TableCell className="py-3.5 px-3 align-middle">
         <EditableDescription
           value={item.description}
+          disabled={disabled}
           onSave={(text) => onPatchDescription(item.id, text)}
         />
       </TableCell>
 
-      {/* ── PRIORIDADE ── */}
-      <TableCell className="py-3.5 px-4 align-middle text-center">
-        <DropdownMenu>
-          <DropdownMenuTrigger className="focus:outline-none cursor-pointer hover:scale-[1.03] transition-all active:scale-95">
-            <PriorityBadge priority={item.priority} />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent
-            align="end"
-            className="bg-[#0d0d0d]/98 backdrop-blur-xl border-white/[0.09] min-w-[168px] shadow-xl p-1 rounded-xl"
-          >
-            {priorityOptions.map((opt) => (
-              <DropdownMenuItem
-                key={opt.value}
-                onClick={() => onPatchPriority(item.id, opt.value)}
-                className="text-[12px] text-white/55 focus:text-white hover:text-white focus:bg-white/10 hover:bg-white/10 cursor-pointer gap-2.5 py-2 px-3 rounded-lg transition-colors font-medium outline-none"
-              >
-                <div
-                  className="w-2 h-2 rounded-full shrink-0"
-                  style={{ backgroundColor: opt.color }}
-                />
-                {opt.label}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </TableCell>
     </TableRow>
   );
 }
