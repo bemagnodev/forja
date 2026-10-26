@@ -7,6 +7,7 @@ from api.services.codeforces_client import CodeforcesClient
 from api.services.codeforces_gym_service import ensure_codeforces_gym_metadata
 from api.services.problem_metadata import upsert_problem_metadata
 from api.services.cf_sync_runtime import exclusive_cf_sync
+from api.services.contest_results import cf_submission_timing
 
 class Command(BaseCommand):
     help = 'Sincroniza as submissões vitais do Codeforces, abastecendo o Tracking via motor FSM Dual-State.'
@@ -36,6 +37,7 @@ class Command(BaseCommand):
         incomplete = False
 
         for user in users:
+            previous_checkpoint = None if force_full else user.cf_last_sync_time
             self.stdout.write(self.style.MIGRATE_HEADING(f"[{user.username}] Baixando Timeline do CF para {user.cf_handle}..."))
             if not force_full and user.cf_last_sync_time:
                 self.stdout.write(f"  > Incremental ativo: Wall configurada p/ Epoch {user.cf_last_sync_time}")
@@ -152,6 +154,7 @@ class Command(BaseCommand):
 
                 # 2. Submission (Data Absoluta)
                 creation_dt = datetime.fromtimestamp(epoch_sec, tz=timezone.UTC)
+                timing = cf_submission_timing(sub_data)
                 
                 p_type = Submission.ParticipantType.PRACTICE
                 cf_participant = sub_data.get('author', {}).get('participantType')
@@ -173,7 +176,8 @@ class Command(BaseCommand):
                         'user': user,
                         'participant_type': p_type,
                         'verdict': verdict,
-                        'creation_time': creation_dt
+                        'creation_time': creation_dt,
+                        **{key: value for key, value in timing.items() if value is not None},
                     }
                 )
 
@@ -190,6 +194,9 @@ class Command(BaseCommand):
                             'is_virtual': is_virtual_participation
                         }
                     )
+                    if participation.session_start_time is None and timing['session_start_time']:
+                        participation.session_start_time = timing['session_start_time']
+                        participation.save(update_fields=['session_start_time'])
                     # Garante Tracking UNATTEMPTED para todas as questões do Contest
                     all_problems_in_contest = Problem.objects.filter(contest=problem.contest)
                     for p_in_contest in all_problems_in_contest:
@@ -247,6 +254,12 @@ class Command(BaseCommand):
             # Retenção do Watermark: somente avança se todas as submissões necessárias do lote foram processadas sem falha.
             # Nota: sem transação de banco em volta de todo o lote, o watermark não avança para prevenir perda de reprocessamento.
             if max_epoch > 0 and not had_failures:
+                covered = ContestParticipation.objects.filter(user=user,
+                    contest__platform__in=[PlatformChoices.CF_OFFICIAL, PlatformChoices.CF_GYM],
+                    session_start_time__isnull=False)
+                if previous_checkpoint:
+                    covered = covered.filter(session_start_time__gte=datetime.fromtimestamp(previous_checkpoint, tz=timezone.UTC))
+                covered.update(results_synced_at=timezone.now())
                 user.cf_last_sync_time = max_epoch
                 user.save()
             elif had_failures:

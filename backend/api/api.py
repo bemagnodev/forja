@@ -817,6 +817,14 @@ class ContestParticipationSchema(Schema):
     solve_count: int = 0
     upsolve_count: int = 0
     total_problems: int = 0
+    rank_context: str = ''
+    penalty: Optional[int] = None
+    session_start_time: Optional[datetime] = None
+    duration_seconds: Optional[int] = None
+
+    @staticmethod
+    def resolve_duration_seconds(obj):
+        return obj.contest.duration_seconds
 
     @staticmethod
     def resolve_url(obj):
@@ -854,6 +862,19 @@ class ContestParticipationSchema(Schema):
             'upsolved': 0, 'unattempted': 0, 'total': 0
         }
 
+class ContestResultSchema(Schema):
+    accepted: Optional[bool] = None
+    failed_attempts: Optional[int] = None
+    first_ac_seconds: Optional[int] = None
+    errors_before_ac: dict[str, int] = {}
+    errors_after_ac: dict[str, int] = {}
+    compilation_errors: int = 0
+    coverage: str = 'partial'
+    is_upsolved: bool = False
+    upsolved_at: Optional[datetime] = None
+    manual_completion: bool = False
+
+
 class ContestProblemSchema(Schema):
     id: int
     platform_id: str
@@ -868,6 +889,11 @@ class ContestProblemSchema(Schema):
     system_status: str
     review_status: str
     tracking_id: Optional[int] = None
+    contest_result: Optional[ContestResultSchema] = None
+
+    @staticmethod
+    def resolve_contest_result(obj):
+        return getattr(obj, '_contest_result', None)
 
     @staticmethod
     def resolve_index(obj):
@@ -915,7 +941,7 @@ class ContestProblemSchema(Schema):
         tracking = getattr(obj, '_tracking', None)
         return tracking.id if tracking else None
 
-def contest_progress(user, contest_ids):
+def contest_progress(user, contest_ids, participations=()):
     """One catalogue total and user-scoped tracking query for list and detail."""
     from django.db.models import Count
     totals = Problem.objects.filter(contest_id__in=contest_ids).values('contest_id').annotate(total=Count('id'))
@@ -923,13 +949,15 @@ def contest_progress(user, contest_ids):
     for row in totals:
         counts[row['contest_id']]['total'] = row['total']
         counts[row['contest_id']]['unattempted'] = row['total']
-    trackings = UserProblemTracking.objects.filter(user=user, problem__contest_id__in=contest_ids).values('problem__contest_id', 'system_status')
+    trackings = UserProblemTracking.objects.filter(user=user, problem__contest_id__in=contest_ids).values('problem_id', 'problem__contest_id', 'system_status')
     for row in trackings:
         progress = counts[row['problem__contest_id']]
         key = {'SOLVED_LIVE': 'solved_live', 'PENDING_UPSOLVE': 'pending_upsolve', 'UPSOLVED': 'upsolved', 'PRACTICE_AC': 'upsolved'}.get(row['system_status'])
         if key:
             progress[key] += 1
             progress['unattempted'] -= 1
+    from .services.contest_results import confirmed_progress
+    counts.update(confirmed_progress(user, participations, {row['problem_id']: row['system_status'] for row in trackings}))
     return counts
 
 
@@ -938,7 +966,7 @@ def contest_detail(request, contest_id: int):
     from django.shortcuts import get_object_or_404
     user = get_active_user(request)
     participation = get_object_or_404(ContestParticipation.objects.select_related('contest'), user=user, contest_id=contest_id)
-    participation._progress = contest_progress(user, [contest_id])[contest_id]
+    participation._progress = contest_progress(user, [contest_id], [participation])[contest_id]
     participation._pending_count = participation._progress['pending_upsolve']
     return participation
 
@@ -962,7 +990,7 @@ def list_contest_participations(request):
 
     contest_ids = [p.contest_id for p in participations]
 
-    counts_by_contest = contest_progress(user, contest_ids)
+    counts_by_contest = contest_progress(user, contest_ids, participations)
 
     result = []
     for p in participations:
@@ -980,6 +1008,10 @@ def list_contest_problems(request, contest_id: int):
     """Retorna todos os problemas de um contest com status de tracking do usuário."""
     user = get_active_user(request)
     from django.db.models import Prefetch
+    from django.shortcuts import get_object_or_404
+    from .services.contest_results import contest_results
+    participation = get_object_or_404(ContestParticipation.objects.select_related('contest'),
+                                      user=user, contest_id=contest_id)
 
     problems = list(
         Problem.objects
@@ -998,6 +1030,10 @@ def list_contest_problems(request, contest_id: int):
     for prob in problems:
         tracking_list = getattr(prob, '_trackings_list', [])
         prob._tracking = tracking_list[0] if tracking_list else None
+
+    results = contest_results(participation, problems)
+    for prob in problems:
+        prob._contest_result = results[prob.id]
 
     return problems
 

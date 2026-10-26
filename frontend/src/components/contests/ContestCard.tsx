@@ -1,6 +1,6 @@
-import { useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { ContestProgressBar } from "./ContestProgressBar";
-import { Trophy, Swords, FlaskConical, ArrowRight } from "lucide-react";
+import { Trophy, ArrowUpRight } from "lucide-react";
 
 export interface ContestProgress {
   solved_live: number;
@@ -24,19 +24,22 @@ export interface ContestParticipation {
   solve_count: number;
   upsolve_count: number;
   total_problems: number;
+  rank_context?: string;
+  penalty?: number | null;
+  session_start_time?: string | null;
+  duration_seconds?: number | null;
 }
 
 const PLATFORM_BADGE: Record<string, { label: string; cls: string }> = {
-  CF_OFFICIAL: { label: "CF Oficial",  cls: "bg-blue-500/10 text-blue-400 border-blue-500/20" },
+  CF_OFFICIAL: { label: "Codeforces",  cls: "bg-blue-500/10 text-blue-400 border-blue-500/20" },
   CF_GYM:      { label: "CF Gym",      cls: "bg-purple-500/10 text-purple-400 border-purple-500/20" },
   ATCODER:     { label: "AtCoder",     cls: "bg-orange-500/10 text-orange-400 border-orange-500/20" },
 };
 
-export function ContestCard({ participation }: { participation: ContestParticipation }) {
-  const navigate = useNavigate();
+export function ContestCard({ participation, onNavigate }: { participation: ContestParticipation; onNavigate?: () => void }) {
   const { 
     contest_id, contest_name, contest_platform, participation_date, 
-    is_virtual, has_debt, progress, url, rank
+    is_virtual, progress, url, rank
   } = participation;
 
   const badge = PLATFORM_BADGE[contest_platform] ?? { label: contest_platform, cls: "bg-white/5 text-white/40 border-white/10" };
@@ -46,70 +49,26 @@ export function ContestCard({ participation }: { participation: ContestParticipa
     : null;
 
   return (
-    <div
-      onClick={() => navigate(`/contests/${contest_id}`, { state: { contest_name, url, rank, progress } })}
-      className="group relative w-full text-left rounded-2xl border border-white/[0.04] bg-[#0a0a0a]/80 backdrop-blur-xl p-6 cursor-pointer overflow-hidden transition-all duration-300 hover:border-[#dc143c]/30 hover:bg-[#110a0a]/80 hover:shadow-[0_0_30px_rgba(220,20,60,0.06)] hover:-translate-y-0.5 flex flex-col"
-    >
-      {/* Subtle top accent line */}
-      <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-[#dc143c]/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-
-      {/* Cabeçalho: badge + data */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-md border ${badge.cls} tracking-wide uppercase`}>
-            {badge.label}
-          </span>
-          {is_virtual && (
-            <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-md border bg-white/5 text-white/30 border-white/10 tracking-wide uppercase">
-              Virtual
-            </span>
-          )}
-          {rank !== null && rank !== undefined && (
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-md border bg-yellow-500/10 text-yellow-500 border-yellow-500/20 flex items-center gap-1">
-              <Trophy className="w-2.5 h-2.5" />
-              #{rank}
-            </span>
-          )}
-        </div>
-        {formattedDate && (
-          <span className="text-[11px] font-medium text-white/20 uppercase tracking-widest">{formattedDate}</span>
-        )}
+    <Link to={`/contests/${contest_id}`} state={{ contest_name, url, rank, progress }} onClick={onNavigate}
+      className="group flex min-h-[210px] flex-col rounded-2xl border border-white/[0.09] bg-[#101116] p-5 text-left transition-colors hover:border-white/20 hover:bg-[#14151c] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-red-400">
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <span className={`rounded-md border px-2 py-0.5 text-[10px] font-semibold ${badge.cls}`}>{contest_platform === "CF_GYM" ? "Gym · Equipe" : badge.label}</span>
+        <span className="text-[10px] text-white/45">{is_virtual ? "Virtual" : "Oficial"}</span>
+        {formattedDate && <span className="ml-auto text-[10px] text-white/50">{formattedDate}</span>}
       </div>
-
-      {/* Nome do contest */}
-      <div className="flex items-start justify-between gap-4 mb-5">
-        <h3 className="text-[15px] font-bold text-white/80 leading-snug line-clamp-2 group-hover:text-white transition-colors">
-          {contest_name}
-        </h3>
-        <div className="w-6 h-6 rounded-full bg-white/5 border border-white/10 flex items-center justify-center shrink-0 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300 group-hover:bg-[#dc143c]/10 group-hover:border-[#dc143c]/20 group-hover:text-[#dc143c]">
-          <ArrowRight className="w-3 h-3" />
-        </div>
+      <div className="mb-5 flex items-start justify-between gap-3">
+        <h3 className="min-h-10 text-sm font-semibold leading-relaxed text-white/90">{contest_name}</h3>
+        <ArrowUpRight className="mt-0.5 size-4 shrink-0 text-white/25 transition-colors group-hover:text-red-300" />
       </div>
-
-      {/* Barra de progresso */}
-      <ContestProgressBar {...progress} className="mb-4" />
-
-      {/* Contagens textuais */}
-      <div className="flex items-center gap-4 text-[11px] font-semibold tracking-wide">
-        {progress.solved_live > 0 && (
-          <span className="flex items-center gap-1.5 text-emerald-500/90">
-            <Trophy className="w-3 h-3" />
-            {progress.solved_live} AC LIVE
-          </span>
-        )}
-        {progress.upsolved > 0 && (
-          <span className="flex items-center gap-1.5 text-blue-400/90">
-            <FlaskConical className="w-3 h-3" />
-            {progress.upsolved} UPSOLVED
-          </span>
-        )}
-        {has_debt && (
-          <span className="flex items-center gap-1.5 ml-auto px-2 py-0.5 rounded-md bg-[#dc143c]/10 border border-[#dc143c]/20 text-[#dc143c]">
-            <Swords className="w-3 h-3" />
-            {progress.pending_upsolve} DÍVIDA{progress.pending_upsolve > 1 ? "S" : ""}
-          </span>
-        )}
+      <div className="mb-3 mt-auto flex items-end justify-between gap-3">
+        <div><span className="text-2xl font-bold tabular-nums text-emerald-400">{progress.solved_live}</span><span className="ml-1 text-sm text-white/45">/ {progress.total}</span><p className="mt-0.5 text-[10px] text-white/50">ACs na prova</p></div>
+        <div className="text-right"><p className="text-sm font-semibold tabular-nums text-sky-300">+{progress.upsolved}</p><p className="mt-0.5 text-[10px] text-white/50">{progress.upsolved === 1 ? 'upsolvada' : 'upsolvadas'}</p></div>
       </div>
-    </div>
+      <ContestProgressBar {...progress} />
+      <div className="mt-3 flex min-h-4 items-center justify-between gap-2 text-[10px] text-white/50">
+        <span>{progress.pending_upsolve ? `${progress.pending_upsolve} para estudar` : "Ver questões e resultados"}</span>
+        {participation.rank_context && rank != null && <span className="inline-flex items-center gap-1 text-amber-300"><Trophy className="size-3" />#{rank} · {participation.rank_context === "VIRTUAL" ? "virtual" : "oficial"}</span>}
+      </div>
+    </Link>
   );
 }

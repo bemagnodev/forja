@@ -143,7 +143,7 @@ def test_product_cache_requires_full_contract_identity(changed, value, api_clien
 def test_visual_product_prediction_survives_cache_queue_and_contest_without_explore_writes(
         api_client, base_user, sample_problem, explore_statement, monkeypatch):
     from api.ai_lab import explore
-    from api.models import QueueItem
+    from api.models import QueueItem, ContestParticipation
     statement = {**explore_statement, "description": "Text before [image:1] and after.",
         "images": [{"url": "https://example.invalid/diagram.png", "alt": "Diagram", "position": 1}]}
     scraper = Mock()
@@ -152,6 +152,7 @@ def test_visual_product_prediction_survives_cache_queue_and_contest_without_expl
     generate = Mock(return_value={"rating": 2600, "tags": ["math"], "justification": "Synthetic text estimate"})
     monkeypatch.setattr(explore, "get_generator", lambda *a: generate)
     QueueItem.objects.create(user=base_user, linked_problem=sample_problem, title="Synthetic")
+    ContestParticipation.objects.create(user=base_user, contest=sample_problem.contest)
     response = api_client.post(f"/api/problems/{sample_problem.pk}/predict")
     assert response.status_code == 200
     assert response.json()["rating"] == 2600 and response.json()["visual_status"] == "unprocessed"

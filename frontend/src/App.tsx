@@ -15,16 +15,10 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { Login } from "@/pages/Login";
 import { SetPassword } from "@/pages/SetPassword";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { AppFrame } from "@/components/layouts/AppFrame";
 
 function ProtectedLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="flex h-screen overflow-hidden bg-[#050505] text-foreground w-full">
-      <Sidebar />
-      <main className="flex-1 overflow-y-auto overflow-x-hidden">
-        {children}
-      </main>
-    </div>
-  );
+  return <AppFrame sidebar={<Sidebar />}>{children}</AppFrame>;
 }
 
 function App() {

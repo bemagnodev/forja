@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
@@ -6,312 +6,161 @@ import { PageLayout } from "@/components/layouts/PageLayout";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ProblemStatusSelect } from "@/components/contests/ProblemStatusSelect";
 import { ProblemActionsCell } from "@/components/contests/ProblemActionsCell";
-import { AlertCircle, ArrowLeft, ExternalLink, Trophy, CheckCircle, Sparkles } from "lucide-react";
+import { ContestResultCell } from "@/components/contests/ContestResultCell";
+import { AlertCircle, ArrowLeft, ExternalLink, Sparkles, Search } from "lucide-react";
 import type { ContestProblem } from "@/components/contests/types";
+import type { ContestParticipation } from "@/components/contests/ContestCard";
 import { getRatingColor } from "@/lib/ratings";
 import { hasNativeRating } from "@/lib/product-classification";
 
-// Cores de rating do Codeforces (usando as CSS vars do design system)
-function RatingBadge({ rating, isAi = false }: { rating: number | null; isAi?: boolean }) {
-  if (rating == null) return <span className="text-white/20 text-[12px]">—</span>;
-
-  const colorStyle = { color: getRatingColor(rating) };
-
-  return (
-    <div className="flex items-center justify-center gap-1.5" title={isAi ? "Rating estimado por IA" : undefined}>
-      {isAi && <Sparkles className="w-3 h-3 text-fuchsia-400 opacity-80" />}
-      <span 
-        className="text-[12px] font-bold tabular-nums"
-        style={colorStyle}
-      >
-        {rating}
-      </span>
-    </div>
-  );
-}
-
-type FilterType = "all" | "pending" | "solved" | "unattempted";
-
-const FILTER_LABELS: { key: FilterType; label: string }[] = [
-  { key: "all",         label: "Todas" },
-  { key: "pending",     label: "Pendentes" },
-  { key: "solved",      label: "Resolvidas" },
+type Filter = "all" | "live" | "upsolved" | "pending" | "unattempted";
+const FILTERS: { key: Filter; label: string }[] = [
+  { key: "all", label: "Todas" }, { key: "live", label: "No contest" },
+  { key: "upsolved", label: "Upsolvadas" }, { key: "pending", label: "A estudar" },
   { key: "unattempted", label: "Não tentadas" },
 ];
+function matches(p: ContestProblem, filter: Filter) {
+  if (filter === "live") return p.contest_result?.accepted ?? p.system_status === "SOLVED_LIVE";
+  if (filter === "upsolved") return p.contest_result?.is_upsolved ?? p.system_status === "UPSOLVED";
+  if (filter === "pending") return p.system_status === "PENDING_UPSOLVE" || p.review_status === "DOABLE";
+  if (filter === "unattempted") return p.system_status === "UNATTEMPTED";
+  return true;
+}
+const inputClass = "rounded-lg border border-white/10 bg-[#111217] px-3 py-2.5 text-xs text-white/75 outline-none focus-visible:ring-2 focus-visible:ring-sky-400";
 
 export function ContestDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
   const contestId = Number(id);
-  const [filter, setFilter] = useState<FilterType>("all");
-  
+  const validId = Number.isInteger(contestId) && contestId > 0;
+  useEffect(() => {
+    const main = document.querySelector('main');
+    if (main) main.scrollTop = 0;
+  }, [contestId]);
+  const [filter, setFilter] = useState<Filter>("all");
+  const [search, setSearch] = useState("");
+  const [sort, setSort] = useState("index");
+  const [selected, setSelected] = useState<{ id: number; request: number } | null>(null);
+  useEffect(() => {
+    if (selected) document.getElementById(`questao-${selected.id}`)?.scrollIntoView?.({ behavior: "smooth", block: "center", inline: "nearest" });
+  }, [selected]);
   const detailQuery = useQuery({
-    queryKey: ['contest', contestId],
-    queryFn: async () => (await api.get<{
-      contest_name: string; url: string | null; rank: number | null;
-      progress: { solved_live: number; upsolved: number; total: number };
-    }>(`/contests/${contestId}`)).data,
-    enabled: Number.isInteger(contestId) && contestId > 0,
-    retry: false,
+    queryKey: ["contest", contestId],
+    queryFn: async () => (await api.get<ContestParticipation>(`/contests/${contestId}`)).data,
+    enabled: validId, retry: false,
   });
-  const { contest_name, url, rank, progress } = detailQuery.data ?? (!detailQuery.isError ? location.state ?? {} : {});
-  
-  const solve_count = progress?.solved_live || 0;
-  const upsolve_count = progress?.upsolved || 0;
-  const total_problems = progress?.total || 0;
-
-  const { data: problems = [], isLoading, isError } = useQuery<ContestProblem[]>({
+  const problemsQuery = useQuery<ContestProblem[]>({
     queryKey: ["contest-problems", contestId],
-    queryFn: async () => {
-      const { data } = await api.get(`/contests/${contestId}/problems`);
-      return data;
-    },
-    enabled: !!contestId,
+    queryFn: async () => (await api.get(`/contests/${contestId}/problems`)).data,
+    enabled: validId, retry: false,
   });
+  const detail = detailQuery.data ?? (!detailQuery.isError ? location.state as ContestParticipation | null : null);
+  const problems = problemsQuery.data ?? [];
+  const filtered = problems.filter(p => matches(p, filter) && `${p.index} ${p.title}`.toLocaleLowerCase().includes(search.toLocaleLowerCase()))
+    .sort((a, b) => {
+      if (sort === "rating") return (a.rating ?? a.ai_rating ?? Infinity) - (b.rating ?? b.ai_rating ?? Infinity);
+      if (sort === "time") return (a.contest_result?.first_ac_seconds ?? Infinity) - (b.contest_result?.first_ac_seconds ?? Infinity);
+      if (sort === "errors") return (b.contest_result?.failed_attempts ?? -1) - (a.contest_result?.failed_attempts ?? -1);
+      return a.index.localeCompare(b.index, "en", { numeric: true });
+    });
+  const partial = problems.some(p => p.contest_result?.coverage !== "complete");
+  const verdicts: Record<string, number> = {};
+  for (const p of problems) {
+    for (const group of [p.contest_result?.errors_before_ac, p.contest_result?.errors_after_ac]) {
+      for (const [verdict, count] of Object.entries(group ?? {})) verdicts[verdict] = (verdicts[verdict] ?? 0) + count;
+    }
+  }
+  const errors = Object.values(verdicts).reduce((a, b) => a + b, 0);
+  const loading = detailQuery.isPending || problemsQuery.isPending;
+  const failed = !validId || detailQuery.isError || problemsQuery.isError;
+  const rankKnown = !!detail?.rank_context && detail.rank != null;
+  const metrics = [
+    { label: "ACs na prova", value: `${detail?.progress?.solved_live ?? 0} / ${detail?.progress?.total ?? problems.length}`, color: "text-emerald-400" },
+    { label: "Upsolving", value: String(detail?.progress?.upsolved ?? 0), color: "text-sky-400" },
+    { label: rankKnown ? `Ranking ${detail?.rank_context === "VIRTUAL" ? "virtual" : "oficial"}` : "Ranking", value: rankKnown ? `#${detail?.rank}` : "—", color: "text-amber-300" },
+    { label: "Erros na prova", value: partial ? (errors ? `≥ ${errors}` : "—") : String(errors), color: "text-white/90" },
+  ];
+  const goToProblem = (pid: number) => {
+    setFilter("all"); setSearch(""); setSelected(current => ({ id: pid, request: (current?.request ?? 0) + 1 }));
+  };
 
-  // Filtro local — sem nova requisição ao backend
-  const filtered = problems.filter((p) => {
-    if (filter === "pending")     return p.system_status === "PENDING_UPSOLVE";
-    if (filter === "solved")      return ["SOLVED_LIVE", "UPSOLVED", "PRACTICE_AC"].includes(p.system_status);
-    if (filter === "unattempted") return p.system_status === "UNATTEMPTED";
-    return true;
-  });
-
-  return (
-    <PageLayout
-      topbarTitle="Contests"
-      title={
-        <div className="flex items-center gap-3">
-          <span className="text-white/90">{contest_name || "Detalhe do Contest"}</span>
-          {url && (
-            <a
-              href={url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-white/20 hover:text-[#dc143c] transition-all flex items-center justify-center p-1.5 rounded-lg hover:bg-[#dc143c]/10 border border-transparent hover:border-[#dc143c]/20"
-              title="Abrir contest na plataforma"
-            >
-              <ExternalLink className="w-5 h-5" />
-            </a>
-          )}
+  return <PageLayout topbarTitle="Contests"
+    title={<span className="break-words text-[clamp(1.25rem,2vw,1.875rem)] leading-tight">{detail?.contest_name || "Detalhe do Contest"}</span>}
+    description="O resultado da prova e o progresso do seu estudo, lado a lado."
+    action={<button onClick={() => navigate("/contests")} className="inline-flex items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-xs text-white/70 hover:bg-white/5"><ArrowLeft className="size-3.5" />Voltar</button>}>
+    {failed ? <div role="alert" className="rounded-xl border border-red-400/20 bg-red-400/5 p-5 text-sm text-red-300">
+      <p className="flex items-center gap-2 font-semibold"><AlertCircle className="size-4" />Não foi possível carregar o contest</p>
+      <button className="mt-3 underline" onClick={() => { detailQuery.refetch(); problemsQuery.refetch(); }}>Tentar novamente</button>
+    </div> : loading ? <p className="py-20 text-center text-sm text-white/60">Carregando problemas...</p> : <>
+      <div className="mb-6 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-white/55">
+        {detail?.contest_platform && <span className="rounded-md border border-white/10 bg-white/5 px-2 py-1 font-medium text-white/75">{detail.contest_platform === "CF_GYM" ? "Codeforces Gym" : detail.contest_platform === "CF_OFFICIAL" ? "Codeforces" : detail.contest_platform}</span>}
+        <span>{detail?.is_virtual ? "Participação virtual" : "Participação oficial"}</span>
+        {detail?.participation_date && <span>{new Date(detail.participation_date).toLocaleDateString("pt-BR")}</span>}
+        {!!detail?.duration_seconds && <span>{Math.floor(detail.duration_seconds / 60)} min</span>}
+        {detail?.url && <a href={detail.url} target="_blank" rel="noopener noreferrer" title="Abrir contest na plataforma" className="inline-flex items-center gap-1.5 text-white/75 hover:text-white">Abrir contest<ExternalLink className="size-3" /></a>}
+        {detail?.url && <a href={`${detail.url}/standings`} target="_blank" rel="noopener noreferrer" className="text-white/60 hover:text-white">Placar original ↗</a>}
+        {rankKnown && detail?.penalty != null && <span>Penalidade: {detail.penalty}</span>}
+      </div>
+      <div className="mb-6 grid grid-cols-2 gap-3 xl:grid-cols-4">
+        {metrics.map(m => <div key={m.label} className="rounded-xl border border-white/[0.08] bg-white/[0.025] px-4 py-4">
+          <p className="mb-2 text-[11px] font-medium text-white/55">{m.label}</p><p className={`text-2xl font-bold tabular-nums ${m.color}`}>{m.value}</p>
+        </div>)}
+      </div>
+      <div className="mb-5 flex flex-wrap gap-2 text-[11px] text-white/65">
+        {Object.entries(verdicts).map(([key, value]) => <span key={key} className="rounded-md border border-white/10 px-2 py-1">{key} <strong className="ml-1 text-white/85">{value}</strong></span>)}
+        {partial && <span className="text-amber-300/80">Dados da prova parcialmente disponíveis</span>}
+      </div>
+      <section aria-label="Placar por questão" className="mb-8 overflow-hidden rounded-xl border border-white/10 bg-[#0e1015]">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/[0.07] px-4 py-3 text-[11px]">
+          <span className="font-semibold text-white/75">Resultado da prova</span>
+          <span className="text-white/45">+ AC · − tentativas sem AC · tempo HH:MM</span>
         </div>
-      }
-      description="Status de cada questão e ferramentas de triagem."
-      action={
-        <button
-          onClick={() => navigate("/contests")}
-          className="flex items-center gap-2 text-[12px] text-white/60 hover:text-white transition-colors bg-white/5 px-3 py-1.5 rounded-lg border border-white/10 hover:border-white/20"
-        >
-          <ArrowLeft className="w-3.5 h-3.5" />
-          Voltar
-        </button>
-      }
-    >
-      {/* Loading */}
-      {(isLoading || detailQuery.isPending) && (
-        <div className="flex items-center justify-center py-32">
-          <div className="flex flex-col items-center gap-4">
-            <div className="w-6 h-6 rounded-full border-2 border-[#dc143c] border-t-transparent animate-spin" />
-            <span className="text-[11px] text-white/25 font-medium tracking-widest uppercase">
-              Carregando problemas...
-            </span>
-          </div>
+        <div className="flex overflow-x-auto">
+          {[...problems].sort((a, b) => a.index.localeCompare(b.index, "en", { numeric: true })).map(p => <div key={p.id} className="flex min-w-20 flex-1 flex-col items-center border-r border-white/[0.07] py-3 last:border-0">
+            <button aria-label={`Ir para questão ${p.index}`} onClick={() => goToProblem(p.id)} className="mb-1 rounded px-3 py-1 text-xs font-bold text-white/65 hover:text-white focus-visible:outline focus-visible:outline-sky-400">{p.index}</button>
+            <ContestResultCell result={p.contest_result} systemStatus={p.system_status} label={p.index} />
+          </div>)}
+          {!problems.length && <p className="p-5 text-sm text-white/50">Nenhuma questão disponível.</p>}
         </div>
-      )}
-
-      {/* Erro */}
-      {(isError || detailQuery.isError) && (
-        <div className="rounded-2xl border flex items-center gap-4 border-red-500/20 bg-red-500/[0.04] p-5 text-red-400">
-          <div className="w-8 h-8 rounded-full bg-red-500/10 border border-red-500/15 flex items-center justify-center shrink-0">
-            <AlertCircle className="w-4 h-4" />
-          </div>
-          <div>
-            <p className="font-bold text-[14px]">Não foi possível carregar o contest</p>
-            <p className="text-[12px] opacity-60 mt-0.5">Tente novamente em instantes.</p>
-          </div>
+      </section>
+      <div className="mb-4 flex flex-col gap-4">
+        <div className="flex flex-wrap gap-2">{FILTERS.map(f => <button key={f.key} aria-pressed={filter === f.key} onClick={() => setFilter(f.key)} className={`rounded-lg border px-3 py-2 text-xs font-medium transition-colors ${filter === f.key ? "border-primary/40 bg-primary/10 text-red-300" : "border-white/10 text-white/55 hover:bg-white/5"}`}>
+          {f.label} <span className="ml-1.5 opacity-60">{problems.filter(p => matches(p, f.key)).length}</span>
+        </button>)}</div>
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="relative flex-1"><Search className="absolute left-3 top-3 size-3.5 text-white/35" /><input type="search" aria-label="Buscar questão" placeholder="Buscar questão..." value={search} onChange={e => setSearch(e.target.value)} className={`${inputClass} w-full min-w-40 pl-9`} /></label>
+          <select aria-label="Ordenar questões" value={sort} onChange={e => setSort(e.target.value)} className={inputClass}>
+            <option value="index">Ordem da prova</option><option value="rating">Menor rating</option><option value="time">Momento do AC</option><option value="errors">Mais erros</option>
+          </select>
         </div>
-      )}
-
-      {!isLoading && !isError && !detailQuery.isPending && !detailQuery.isError && (
-        <>
-          {/* Top Stats Scorecards */}
-          {(total_problems > 0 || rank !== undefined) && (
-            <div className="flex flex-wrap gap-4 mb-8">
-              {rank !== undefined && rank !== null && (
-                <div className="flex items-center gap-3 bg-white/[0.02] border border-white/[0.05] rounded-xl px-5 py-4 backdrop-blur-sm shadow-lg shadow-black/20">
-                  <div className="p-2.5 bg-yellow-500/10 rounded-lg text-yellow-500 border border-yellow-500/20">
-                    <Trophy className="w-5 h-5" />
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-[11px] font-bold tracking-wider uppercase text-white/30 mb-0.5">Ranking Final</span>
-                    <span className="text-xl font-bold text-white/90">#{rank}</span>
-                  </div>
+      </div>
+      <div className="overflow-hidden rounded-xl border border-white/[0.09] bg-[#0c0d11]">
+        <Table>
+          <TableHeader><TableRow className="bg-white/[0.025] hover:bg-white/[0.025]">
+            {["Questão", "Resultado", "Rating / tags", "Triagem", "Ações"].map(h => <TableHead key={h} className="px-4 py-4 text-[11px] font-semibold text-white/55">{h}</TableHead>)}
+          </TableRow></TableHeader>
+          <TableBody>
+            {filtered.map(p => <TableRow key={p.id} id={`questao-${p.id}`} className={`group/row border-white/[0.05] transition-colors ${selected?.id === p.id ? "bg-sky-400/[0.06]" : "hover:bg-white/[0.025]"}`}>
+              <TableCell className="w-[32%] min-w-44 max-w-80 whitespace-normal px-4 py-4"><div className="flex items-start gap-3">
+                <span className="pt-0.5 text-xs font-bold text-white/35">{p.index}</span>
+                {p.url ? <a href={p.url} target="_blank" rel="noopener noreferrer" className="text-[13px] font-medium leading-relaxed text-white/85 hover:text-sky-300">{p.title}</a> : <span className="text-[13px] text-white/85">{p.title}</span>}
+              </div></TableCell>
+              <TableCell className="px-3 py-3"><ContestResultCell result={p.contest_result} systemStatus={p.system_status} label={p.index} /></TableCell>
+              <TableCell className="min-w-44 max-w-80 px-4 py-3">
+                <div className="mb-2 flex items-center gap-1.5 text-xs font-bold tabular-nums" style={{ color: getRatingColor(p.rating ?? p.ai_rating ?? null) }}>
+                  {!hasNativeRating(p.rating) && p.ai_rating != null && <Sparkles className="size-3 text-fuchsia-400" aria-label="Rating estimado por IA" />}
+                  {p.rating ?? p.ai_rating ?? "—"}
                 </div>
-              )}
-              {total_problems !== undefined && total_problems > 0 && (
-                <div className="flex items-center gap-3 bg-white/[0.02] border border-white/[0.05] rounded-xl px-5 py-4 backdrop-blur-sm shadow-lg shadow-black/20">
-                  <div className="p-2.5 bg-emerald-500/10 rounded-lg text-emerald-400 border border-emerald-500/20">
-                    <CheckCircle className="w-5 h-5" />
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-[11px] font-bold tracking-wider uppercase text-white/30 mb-0.5">Problemas Resolvidos</span>
-                    <div className="flex items-baseline gap-1.5">
-                      <span className="text-xl font-bold text-white/90">{solve_count + upsolve_count}</span>
-                      <span className="text-[13px] font-medium text-white/40">/ {total_problems}</span>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Filtros pill */}
-          <div className="flex gap-2 mb-6 overflow-x-auto pb-2 scrollbar-hide">
-            {FILTER_LABELS.map(({ key, label }) => (
-              <button
-                key={key}
-                onClick={() => setFilter(key)}
-                className={[
-                  "px-4 py-1.5 rounded-full text-[12px] font-semibold border transition-all whitespace-nowrap",
-                  filter === key
-                    ? "bg-[#dc143c]/20 border-[#dc143c] text-[#dc143c] shadow-[0_0_20px_rgba(220,20,60,0.15)]"
-                    : "bg-white/[0.02] border-white/10 text-white/50 hover:bg-white/[0.06] hover:text-white/90",
-                ].join(" ")}
-              >
-                {label}
-                {key !== "all" && (
-                  <span className="ml-1.5 opacity-60">
-                    {key === "pending"     ? problems.filter(p => p.system_status === "PENDING_UPSOLVE").length
-                    : key === "solved"     ? problems.filter(p => ["SOLVED_LIVE","UPSOLVED","PRACTICE_AC"].includes(p.system_status)).length
-                    : problems.filter(p => p.system_status === "UNATTEMPTED").length}
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
-
-          {/* Tabela de problemas */}
-          <div className="border border-white/[0.07] rounded-2xl overflow-hidden bg-[#0a0a0a]/80 backdrop-blur-2xl shadow-2xl shadow-black/50">
-            <Table>
-              <colgroup>
-                <col style={{ width: "52px" }} />
-                <col style={{ width: "30%" }} />
-                <col style={{ width: "80px" }} />
-                <col />
-                <col style={{ width: "150px" }} />
-                <col style={{ width: "110px" }} />
-              </colgroup>
-
-              <TableHeader>
-                <TableRow className="border-b border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.02]">
-                  <TableHead className="text-[10px] uppercase tracking-[0.15em] text-white/40 font-bold py-4 pl-6">#</TableHead>
-                  <TableHead className="text-[10px] uppercase tracking-[0.15em] text-white/40 font-bold py-4 px-3">Problema</TableHead>
-                  <TableHead className="text-[10px] uppercase tracking-[0.15em] text-white/40 font-bold py-4 px-3 text-center">Rating</TableHead>
-                  <TableHead className="text-[10px] uppercase tracking-[0.15em] text-white/40 font-bold py-4 px-3">Tags</TableHead>
-                  <TableHead className="text-[10px] uppercase tracking-[0.15em] text-white/40 font-bold py-4 px-3">Status</TableHead>
-                  <TableHead className="text-[10px] uppercase tracking-[0.15em] text-white/40 font-bold py-4 px-3 text-right pr-6">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-
-              <TableBody>
-                {filtered.length === 0 && (
-                  <TableRow className="hover:bg-transparent border-0">
-                    <TableCell colSpan={6} className="py-24 text-center">
-                      <div className="flex flex-col items-center opacity-20">
-                        <AlertCircle className="w-8 h-8 mb-2" />
-                        <p className="text-[13px] font-medium">Nenhum problema encontrado</p>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                )}
-
-                {filtered.map((prob) => (
-                  <TableRow key={prob.id} className="border-b border-white/[0.04] hover:bg-white/[0.02] transition-all duration-200 group/row">
-                    {/* Index */}
-                    <TableCell className="pl-6 py-4">
-                      <span className="text-[13px] font-bold text-white/20 group-hover/row:text-white/40 transition-colors">{prob.index}</span>
-                    </TableCell>
-
-                    {/* Título */}
-                    <TableCell className="px-3 py-4">
-                      <div className="flex items-center gap-2.5">
-                        {prob.url ? (
-                          <a 
-                            href={prob.url} 
-                            target="_blank" 
-                            rel="noopener noreferrer" 
-                            className="text-[14px] font-semibold text-white/80 hover:text-[#dc143c] transition-colors inline-flex items-center gap-2 group/link"
-                          >
-                            <span className="line-clamp-1">{prob.title}</span>
-                            <ExternalLink className="w-3.5 h-3.5 opacity-0 -translate-x-1 group-hover/link:opacity-100 group-hover/link:translate-x-0 transition-all text-[#dc143c]" />
-                          </a>
-                        ) : (
-                          <span className="text-[14px] font-semibold text-white/80 line-clamp-1">{prob.title}</span>
-                        )}
-                        {["SOLVED_LIVE", "UPSOLVED", "PRACTICE_AC"].includes(prob.system_status) && (
-                          <div 
-                            className="shrink-0 flex items-center justify-center px-1.5 py-0.5 rounded-sm bg-emerald-500/10 border border-emerald-500/20 shadow-[0_0_8px_rgba(16,185,129,0.15)]"
-                            title="Resolvido"
-                          >
-                            <span className="text-emerald-500 text-[9px] font-black tracking-widest leading-none mt-[1px]">AC</span>
-                          </div>
-                        )}
-                      </div>
-                    </TableCell>
-
-                    {/* Rating */}
-                    <TableCell className="px-3 py-4 text-center">
-                      <RatingBadge 
-                        rating={prob.rating ?? prob.ai_rating}
-                        isAi={!hasNativeRating(prob.rating) && prob.ai_rating != null}
-                      />
-                    </TableCell>
-
-                    {/* Tags */}
-                    <TableCell className="px-3 py-4">
-                      <div className="flex flex-wrap gap-1.5 items-center">
-                        {!hasNativeRating(prob.rating) && prob.ai_tags?.length > 0 && (
-                          <Sparkles className="w-3 h-3 text-fuchsia-400 mr-0.5 opacity-80" role="img" aria-label="Tags estimadas por IA" />
-                        )}
-                        {(prob.tags?.length > 0 ? prob.tags : prob.ai_tags || [])?.slice(0, 3).map((tag) => (
-                          <span key={tag} className={`text-[10px] font-bold px-2.5 py-0.5 rounded-md border transition-all ${
-                            !prob.tags?.length && prob.ai_tags?.length > 0 
-                            ? "bg-fuchsia-500/10 border-fuchsia-500/20 text-fuchsia-300"
-                            : "bg-white/[0.03] border-white/[0.08] text-white/40 group-hover/row:border-white/15 group-hover/row:text-white/60"
-                          }`}>
-                            {tag}
-                          </span>
-                        ))}
-                        {(prob.tags?.length > 0 ? prob.tags : prob.ai_tags || [])?.length > 3 && (
-                          <span className="text-[10px] font-bold text-white/15 ml-1">
-                            +{(prob.tags?.length > 0 ? prob.tags : prob.ai_tags || []).length - 3}
-                          </span>
-                        )}
-                      </div>
-                    </TableCell>
-
-                    {/* Status inline */}
-                    <TableCell className="px-3 py-4">
-                      <ProblemStatusSelect
-                        problemId={prob.id}
-                        trackingId={prob.tracking_id}
-                        currentStatus={prob.review_status}
-                        contestId={contestId}
-                      />
-                    </TableCell>
-
-                    {/* Ações */}
-                    <TableCell className="pr-6 py-4">
-                      <ProblemActionsCell problem={prob} />
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </>
-      )}
-    </PageLayout>
-  );
+                <div className="flex flex-wrap gap-1">{(p.tags?.length ? p.tags : p.ai_tags ?? []).map(tag => <span key={tag} className="rounded border border-white/[0.07] bg-white/[0.025] px-1.5 py-0.5 text-[10px] text-white/55">{tag}</span>)}</div>
+              </TableCell>
+              <TableCell className="px-3 py-3"><ProblemStatusSelect problemId={p.id} trackingId={p.tracking_id} currentStatus={p.review_status} contestId={contestId} /></TableCell>
+              <TableCell className="px-4 py-3"><ProblemActionsCell problem={p} /></TableCell>
+            </TableRow>)}
+            {!filtered.length && <TableRow><TableCell colSpan={5} className="py-12 text-center text-sm text-white/50">Nenhuma questão neste filtro.</TableCell></TableRow>}
+          </TableBody>
+        </Table>
+      </div>
+    </>}
+  </PageLayout>;
 }

@@ -4,13 +4,14 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ContestDetail } from './ContestDetail';
+import { TooltipProvider } from '@/components/ui/tooltip';
 const mocks = vi.hoisted(() => ({ get: vi.fn(), patch: vi.fn(), toast: vi.fn() }));
 vi.mock('@/lib/api', () => ({ api: mocks }));
 vi.mock('@/components/ui/toast-context', () => ({ useToast: () => ({ toast: mocks.toast }) }));
 const detail = { contest_name: 'Treino atualizado', url: 'https://codeforces.com/gym/106687', rank: 3, progress: { solved_live: 0, upsolved: 0, pending_upsolve: 0, unattempted: 1, total: 1 } };
 const problem = { id: 7, title: 'Problema F', platform_id: '106687F', index: 'F', tags: [], rating: 1400, system_status: 'UNATTEMPTED', review_status: 'PENDING_TRIAGE' };
 beforeEach(() => { vi.clearAllMocks(); mocks.get.mockImplementation(async (url: string) => ({ data: url.endsWith('/problems') ? [problem] : detail })); });
-function mount(state?: object) { const client = new QueryClient({ defaultOptions: { queries: { retry: false } } }); render(<QueryClientProvider client={client}><MemoryRouter initialEntries={[{ pathname: '/contests/42', state }]}><Routes><Route path='/contests/:id' element={<ContestDetail />} /></Routes></MemoryRouter></QueryClientProvider>); return client; }
+function mount(state?: object) { const client = new QueryClient({ defaultOptions: { queries: { retry: false } } }); render(<TooltipProvider><QueryClientProvider client={client}><MemoryRouter initialEntries={[{ pathname: '/contests/42', state }]}><Routes><Route path='/contests/:id' element={<ContestDetail />} /></Routes></MemoryRouter></QueryClientProvider></TooltipProvider>); return client; }
 it('carrega nome e link pelo ID ao entrar diretamente sem state', async () => {
   mount(); expect(await screen.findByText(detail.contest_name)).toBeVisible();
   expect(screen.getByTitle('Abrir contest na plataforma')).toHaveAttribute('href', detail.url);
@@ -33,4 +34,21 @@ it('alterar revisão invalida os resumos e mantém status anterior no erro', asy
   await userEvent.click(await screen.findByRole('menuitem', { name: 'Concluído' }));
   await waitFor(() => expect(spy).toHaveBeenCalledWith({ queryKey: ['contest', 42] }));
   for (const key of ['dashboard', 'queue', 'contests']) expect(spy).toHaveBeenCalledWith({ queryKey: [key] });
+});
+
+it('preserva o resultado da prova no mapa e na tabela depois do upsolving', async () => {
+  const solved = { ...problem, system_status: 'UPSOLVED', review_status: 'DONE',
+    contest_result: { accepted: false, failed_attempts: 1, first_ac_seconds: null,
+      errors_before_ac: { WA: 1 }, errors_after_ac: {}, compilation_errors: 0, coverage: 'complete',
+      is_upsolved: true, upsolved_at: '2026-10-26T12:00:00Z', manual_completion: false } };
+  mocks.get.mockImplementation(async (url: string) => ({ data: url.endsWith('/problems') ? [solved] : detail }));
+  mount();
+  expect(await screen.findAllByText('−1')).toHaveLength(2);
+  expect(screen.getAllByText('Upsolvada')).toHaveLength(2);
+  expect(screen.queryByRole('columnheader', { name: 'Momento do AC' })).toBeNull();
+  expect(screen.getByRole('columnheader', { name: 'Resultado' })).toBeVisible();
+  await userEvent.click(screen.getByRole('button', { name: /No contest/ }));
+  expect(screen.queryByText('Problema F')).toBeNull();
+  await userEvent.click(screen.getByRole('button', { name: 'Ir para questão F' }));
+  expect(await screen.findByText('Problema F')).toBeVisible();
 });

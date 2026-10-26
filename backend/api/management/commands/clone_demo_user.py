@@ -106,6 +106,10 @@ class Command(BaseCommand):
                     upsolve_count=p.upsolve_count,
                     total_problems=p.total_problems,
                     rank=p.rank,
+                    rank_context=p.rank_context,
+                    penalty=p.penalty,
+                    session_start_time=p.session_start_time,
+                    results_synced_at=p.results_synced_at,
                 )
                 for p in src_parts
                 if p.contest_id not in existing_part_contest_ids
@@ -131,6 +135,8 @@ class Command(BaseCommand):
                         participant_type=s.participant_type,
                         verdict=s.verdict,
                         creation_time=s.creation_time,
+                        relative_time_seconds=s.relative_time_seconds,
+                        session_start_time=s.session_start_time,
                     ))
                     existing_sub_ids.add(demo_id)
             if new_subs:

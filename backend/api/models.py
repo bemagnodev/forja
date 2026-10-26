@@ -95,6 +95,10 @@ class ContestParticipation(models.Model):
     team = models.ForeignKey(Team, on_delete=models.CASCADE, null=True, blank=True, related_name='contest_participations')
     is_virtual = models.BooleanField(default=False)
     participation_date = models.DateTimeField(null=True, blank=True)
+    session_start_time = models.DateTimeField(null=True, blank=True)
+    results_synced_at = models.DateTimeField(null=True, blank=True, help_text="Cobertura completa da sessão importada")
+    rank_context = models.CharField(max_length=20, blank=True, default='')
+    penalty = models.IntegerField(null=True, blank=True)
 
     # Métricas salvas durante o sync para evitar cálculos pesados na UI
     solve_count = models.IntegerField(default=0, help_text="ACs feitos DURANTE o contest oficial")
@@ -134,6 +138,8 @@ class Submission(models.Model):
     participant_type = models.CharField(max_length=20, choices=ParticipantType.choices)
     verdict = models.CharField(max_length=50)
     creation_time = models.DateTimeField()
+    relative_time_seconds = models.BigIntegerField(null=True, blank=True)
+    session_start_time = models.DateTimeField(null=True, blank=True)
 
     def __str__(self):
         return f"{self.platform_submission_id} - {self.verdict} by {self.user.username}"
