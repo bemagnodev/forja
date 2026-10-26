@@ -172,6 +172,8 @@ test('mantém telas futuras acessíveis e oferece saída da conta', async () => 
     const link = document.querySelector(`a[href="${href}"]`)!;
     expect(link).toHaveTextContent('Em breve');
   }
-  await userEvent.click(screen.getByRole('button', { name: 'Sair da conta' }));
+  const button = screen.getByRole('button', { name: 'Logout' });
+  expect(button.querySelector('svg')).not.toBeNull();
+  await userEvent.click(button);
   expect(logout).toHaveBeenCalledOnce();
 });

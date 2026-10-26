@@ -125,8 +125,8 @@ export function Queue() {
   return (
     <PageLayout
       topbarTitle="Fila de Upsolving"
-      title="Pendências"
-      description="Organize seus próximos desafios e sessões de treinamento."
+      title="Fila"
+      description="Organize suas questões e sessões de treinamento"
       action={<AddItemDialog onCreate={(data) => createMutation.mutateAsync(data)} />}
     >
 

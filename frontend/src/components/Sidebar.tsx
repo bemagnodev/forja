@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import {
+  LogOut,
   Anvil,
   ListChecks,
   SlidersHorizontal,
@@ -354,7 +355,10 @@ export function Sidebar() {
             <span className="text-[9px] text-white/25 leading-none">Perfil · Em breve</span>
           </div>
         </Link>
-        <button onClick={() => { logout(); navigate('/login', { replace: true }); }} className="w-full rounded-lg px-3 py-2 text-left text-xs text-white/60 hover:bg-white/5 hover:text-white">Sair da conta</button>
+        <button onClick={() => { logout(); navigate('/login', { replace: true }); }} className="w-full flex items-center gap-2.5 rounded-lg px-2 py-2 text-left text-xs font-medium text-red-400 hover:bg-red-500/5 hover:text-red-300">
+          <span className="w-7 flex justify-center shrink-0"><LogOut aria-hidden="true" className="h-4 w-4" /></span>
+          <span>Logout</span>
+        </button>
       </div>
     </aside>
   );

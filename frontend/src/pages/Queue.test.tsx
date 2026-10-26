@@ -44,6 +44,8 @@ describe("Queue Page", () => {
         <Queue />
       </QueryClientProvider>
     );
+    expect(screen.getByRole('heading', { name: 'Fila' })).toBeInTheDocument();
+    expect(screen.getByText('Organize suas questões e sessões de treinamento')).toBeInTheDocument();
     
     // Wait for the filters to be rendered (they are shown when not loading and not error)
     await waitFor(() => {

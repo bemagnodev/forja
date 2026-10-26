@@ -20,11 +20,12 @@ export function ActivityHeatmap({ data, referenceDate }: { data: HeatmapData[]; 
   const columns = (leading + 365 + trailing) / 7;
   const months = days.filter((day, i) => day.date.getUTCDate() === 1 || i === 0);
   const color = (count: number) => count === 0 ? 'bg-zinc-800/60' : count < 3 ? 'bg-red-950' : count < 6 ? 'bg-red-800' : count < 10 ? 'bg-red-600' : 'bg-red-500';
-  return <section className="min-w-0 bg-zinc-900/50 border border-zinc-800 rounded-xl p-5" aria-label="Calendário anual">
+  return <section className="min-w-0 h-full flex flex-col bg-zinc-900/50 border border-zinc-800 rounded-xl p-5" aria-label="Calendário anual">
     <div className="flex flex-wrap gap-2 justify-between items-center mb-5">
       <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-widest">ATIVIDADE — ÚLTIMO ANO</h3>
       <span className="text-xs text-zinc-400">{days.filter(d => d.count > 0).length} dias ativos</span>
     </div>
+    <div className="my-auto">
     <div className="relative h-6 ml-8 text-[10px] text-zinc-400" aria-hidden="true">
       {months.map(day => <span key={day.key} className="absolute" style={{ left: `${Math.floor((leading + days.indexOf(day)) / 7) / columns * 100}%` }}>
         {day.date.toLocaleDateString('pt-BR', { month: 'short', timeZone: 'UTC' }).replace('.', '')}
@@ -41,6 +42,7 @@ export function ActivityHeatmap({ data, referenceDate }: { data: HeatmapData[]; 
         return day ? <div key={day.key} style={style} className={`w-full aspect-square rounded-[2px] ${color(day.count)}`} title={`${day.key}: ${day.count} submissões aceitas`} />
           : <span key={`padding-${position}`} style={style} data-calendar-padding aria-hidden="true" />;
       })}
+    </div>
     </div>
     <div className="flex justify-end items-center gap-1 mt-4 text-[10px] text-zinc-400">
       <span>Menos</span>{[0, 1, 3, 6, 10].map(n => <span key={n} className={`w-2.5 h-2.5 rounded-sm ${color(n)}`} />)}<span>Mais</span>

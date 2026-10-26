@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { Pencil } from "lucide-react";
 import { Input } from "@/components/ui/input";
 
 export function EditableDescription({ value, onSave, disabled = false }: {
@@ -23,11 +24,12 @@ export function EditableDescription({ value, onSave, disabled = false }: {
       onKeyDown={e => {
         if (e.key === 'Enter') { e.preventDefault(); void save(); }
         if (e.key === 'Escape' && !pending) { setEditing(false); setError(false); }
-      }} className="h-8 w-full text-xs" />
+      }} placeholder="Escreva uma descrição..." className="h-8 w-full text-xs text-white/80 caret-white bg-black/40 border-white/15 placeholder:text-white/25" />
     {error && <p role="alert" className="text-xs text-red-400">Não foi salvo. Enter para tentar novamente.</p>}
   </div> : <button disabled={disabled} onClick={() => { setText(value ?? ''); setEditing(true); }}
-    aria-label="Editar descrição" title={value || 'Adicionar nota'}
-    className="text-left block w-full truncate text-xs text-white/50 hover:text-white/80 disabled:opacity-50">
-    {value || 'Adicionar nota'}
+    aria-label={value ? "Editar descrição" : "Adicionar descrição"} title={value || "Adicionar descrição"}
+    className={`group/description text-left flex items-center gap-2 w-full min-w-0 text-xs hover:text-white/80 disabled:opacity-50 ${value ? 'text-white/50' : 'text-white/25'}`}>
+    <span className="truncate">{value || '—'}</span>
+    {!value && <Pencil aria-hidden="true" className="h-3 w-3 shrink-0 opacity-60 group-hover/description:opacity-100 group-focus-visible/description:opacity-100" />}
   </button>;
 }
