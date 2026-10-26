@@ -40,20 +40,21 @@ export function ActivityHeatmap({ data }: ActivityHeatmapProps) {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay: 0.5 }}
-      className="bg-zinc-900/50 backdrop-blur-md border border-zinc-800 rounded-xl p-5 flex flex-col h-full"
+      className="min-w-0 bg-zinc-900/50 backdrop-blur-md border border-zinc-800 rounded-xl p-5 flex flex-col h-full"
     >
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-wrap gap-2 justify-between items-center mb-6">
         <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-widest">ATIVIDADE — ÚLTIMO ANO</h3>
         <span className="text-xs text-zinc-500">{data.length} dias ativos</span>
       </div>
       
-      <div className="overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent mt-auto">
-        <div className="min-w-max">
-          <div className="grid grid-rows-7 grid-flow-col gap-[2px]">
-            {days.map((day, idx) => (
+      <div className="min-w-0 w-full max-w-[634px] mx-auto pb-2 mt-auto">
+          <div role="img" aria-label="Atividade de submissões nos últimos 365 dias"
+            className="grid grid-rows-7 grid-flow-col gap-[2px] w-full"
+            style={{ gridAutoColumns: 'minmax(0, 1fr)' }}>
+            {days.map(day => (
               <div
                 key={day.date}
-                className={`w-[14px] h-[14px] rounded-[2px] transition-all duration-300 hover:scale-125 ${getColor(day.count)}`}
+                className={`w-full aspect-square rounded-[2px] transition-all duration-300 hover:scale-125 ${getColor(day.count)}`}
                 title={`${day.date}: ${day.count} submissões`}
               />
             ))}
@@ -68,7 +69,6 @@ export function ActivityHeatmap({ data }: ActivityHeatmapProps) {
             <div className="w-[14px] h-[14px] rounded-[2px] bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]"></div>
             <span>Mais</span>
           </div>
-        </div>
       </div>
     </motion.div>
   );

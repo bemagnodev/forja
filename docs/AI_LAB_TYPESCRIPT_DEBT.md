@@ -1,5 +1,10 @@
 # TypeScript — dívida histórica fora da finalização do AI Lab
 
+Pendências visuais de 25/10/2026: o ajuste responsivo do gráfico anual removeu
+também o índice `idx` sem uso de `ActivityHeatmap.tsx`. Restam **9 diagnósticos
+em dois arquivos**: `Last7DaysWidget.tsx` e `api.test.ts`. Os registros anteriores
+abaixo descrevem o histórico, não a contagem atual.
+
 Atualização de 25/10/2026 (sincronização CF): o Dashboard passou a consultar dados
 via React Query, seguindo o padrão das outras páginas, e seus três diagnósticos
 ESLint foram resolvidos sem desativar regras. O import `motion` também foi
