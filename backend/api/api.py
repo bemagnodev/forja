@@ -577,6 +577,7 @@ class DashboardHeatmapSchema(Schema):
     count: int
 
 class Last7DaysSchema(Schema):
+    dates: List[str]
     activity: List[bool]
     total_solved: int
     average_difficulty: int
@@ -599,6 +600,8 @@ class DashboardRecentACSchema(Schema):
     url: Optional[str] = None
 
 class DashboardStatsSchema(Schema):
+    reference_date: str
+    timezone: str
     kpis: DashboardKPIsSchema
     heatmap: List[DashboardHeatmapSchema]
     last_7_days: Last7DaysSchema
@@ -912,6 +915,34 @@ class ContestProblemSchema(Schema):
         tracking = getattr(obj, '_tracking', None)
         return tracking.id if tracking else None
 
+def contest_progress(user, contest_ids):
+    """One catalogue total and user-scoped tracking query for list and detail."""
+    from django.db.models import Count
+    totals = Problem.objects.filter(contest_id__in=contest_ids).values('contest_id').annotate(total=Count('id'))
+    counts = {cid: dict(solved_live=0, pending_upsolve=0, upsolved=0, unattempted=0, total=0) for cid in contest_ids}
+    for row in totals:
+        counts[row['contest_id']]['total'] = row['total']
+        counts[row['contest_id']]['unattempted'] = row['total']
+    trackings = UserProblemTracking.objects.filter(user=user, problem__contest_id__in=contest_ids).values('problem__contest_id', 'system_status')
+    for row in trackings:
+        progress = counts[row['problem__contest_id']]
+        key = {'SOLVED_LIVE': 'solved_live', 'PENDING_UPSOLVE': 'pending_upsolve', 'UPSOLVED': 'upsolved', 'PRACTICE_AC': 'upsolved'}.get(row['system_status'])
+        if key:
+            progress[key] += 1
+            progress['unattempted'] -= 1
+    return counts
+
+
+@api.get("/contests/{contest_id}", response=ContestParticipationSchema)
+def contest_detail(request, contest_id: int):
+    from django.shortcuts import get_object_or_404
+    user = get_active_user(request)
+    participation = get_object_or_404(ContestParticipation.objects.select_related('contest'), user=user, contest_id=contest_id)
+    participation._progress = contest_progress(user, [contest_id])[contest_id]
+    participation._pending_count = participation._progress['pending_upsolve']
+    return participation
+
+
 @api.get("/contests", response=List[ContestParticipationSchema])
 def list_contest_participations(request):
     """Lista todos os contests que o usuário participou, com progresso dinâmico."""
@@ -931,26 +962,7 @@ def list_contest_participations(request):
 
     contest_ids = [p.contest_id for p in participations]
 
-    # Batch Query (Elimina o problema N+1)
-    trackings = UserProblemTracking.objects.filter(
-        user=user,
-        problem__contest_id__in=contest_ids
-    ).values('problem__contest_id', 'system_status')
-
-    counts_by_contest = {cid: {'solved_live': 0, 'pending_upsolve': 0, 'upsolved': 0, 'unattempted': 0, 'total': 0} for cid in contest_ids}
-
-    for t in trackings:
-        cid = t['problem__contest_id']
-        status = t['system_status']
-        counts_by_contest[cid]['total'] += 1
-        if status == 'SOLVED_LIVE':
-            counts_by_contest[cid]['solved_live'] += 1
-        elif status == 'PENDING_UPSOLVE':
-            counts_by_contest[cid]['pending_upsolve'] += 1
-        elif status == 'UPSOLVED':
-            counts_by_contest[cid]['upsolved'] += 1
-        elif status == 'UNATTEMPTED':
-            counts_by_contest[cid]['unattempted'] += 1
+    counts_by_contest = contest_progress(user, contest_ids)
 
     result = []
     for p in participations:

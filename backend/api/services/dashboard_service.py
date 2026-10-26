@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import timedelta, datetime, time
 from django.utils import timezone
 from django.db.models import Count, Q, Avg
 from collections import defaultdict
@@ -7,8 +7,10 @@ from api.models import Submission, UserProblemTracking, ContestParticipation, Pr
 def get_dashboard_stats(user):
     now = timezone.now()
     thirty_days_ago = now - timedelta(days=30)
-    one_year_ago = now - timedelta(days=365)
-    seven_days_ago = now - timedelta(days=7)
+    today = timezone.localdate(now)
+    one_year_ago = timezone.make_aware(datetime.combine(today - timedelta(days=364), time.min))
+    seven_days_ago = timezone.make_aware(datetime.combine(today - timedelta(days=6), time.min))
+    tomorrow = timezone.make_aware(datetime.combine(today + timedelta(days=1), time.min))
 
     # 1. Base Queries
     acs_qs = Submission.objects.filter(
@@ -32,12 +34,12 @@ def get_dashboard_stats(user):
 
     # 2. Heatmap & Streaks
     # Extrair dias com AC no último ano
-    acs_last_year = acs_qs.filter(creation_time__gte=one_year_ago).order_by('creation_time')
+    acs_last_year = acs_qs.filter(creation_time__gte=one_year_ago, creation_time__lt=tomorrow).order_by('creation_time')
     
     daily_counts = defaultdict(int)
     for sub in acs_last_year:
         # Pega a data local (ou UTC se preferir, simplificaremos pegando a string iso da data)
-        day_str = sub.creation_time.date().isoformat()
+        day_str = timezone.localdate(sub.creation_time).isoformat()
         daily_counts[day_str] += 1
 
     heatmap = [{"date": k, "count": v} for k, v in daily_counts.items()]
@@ -49,7 +51,7 @@ def get_dashboard_stats(user):
     temp_streak = 0
     
     # Usaremos iteracão de datas para calcular a streak corretamente
-    date_iter = now.date()
+    date_iter = today
     # Verifica se hoje tem AC, se não, começa de ontem (streak atual pode não ter sido feita hoje ainda)
     if date_iter.isoformat() not in daily_counts:
         date_iter -= timedelta(days=1)
@@ -86,13 +88,13 @@ def get_dashboard_stats(user):
     topics_7d = defaultdict(int)
     
     for i in range(6, -1, -1):
-        day = (now - timedelta(days=i)).date()
+        day = today - timedelta(days=i)
         day_str = day.isoformat()
         has_activity = daily_counts.get(day_str, 0) > 0
         last_7_days_activity.append(has_activity)
         
     # Extrair dados das questões da última semana
-    recent_acs = acs_qs.filter(creation_time__gte=seven_days_ago).select_related('problem')
+    recent_acs = acs_qs.filter(creation_time__gte=seven_days_ago, creation_time__lt=tomorrow).select_related('problem')
     
     for sub in recent_acs:
         if sub.problem.id not in recent_problems:
@@ -109,6 +111,7 @@ def get_dashboard_stats(user):
 
     last_7_days = {
         "activity": last_7_days_activity,
+        "dates": [(today - timedelta(days=i)).isoformat() for i in range(6, -1, -1)],
         "total_solved": last_7_days_solved_count,
         "average_difficulty": avg_diff,
         "top_topics": top_topics_7d
@@ -186,6 +189,8 @@ def get_dashboard_stats(user):
         })
 
     return {
+        "reference_date": today.isoformat(),
+        "timezone": timezone.get_current_timezone_name(),
         "kpis": kpis,
         "heatmap": heatmap,
         "last_7_days": last_7_days,
