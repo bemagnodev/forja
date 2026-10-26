@@ -38,9 +38,6 @@ export function TopicMastery({ data }: TopicMasteryProps) {
                   className="h-full bg-gradient-to-r from-red-800 to-red-500 rounded-full"
                 />
               </div>
-              <div className="flex justify-between mt-0.5">
-                <span className="text-[9px] text-zinc-600 font-medium">{topic.accuracy}% acerto</span>
-              </div>
             </div>
           );
         })}

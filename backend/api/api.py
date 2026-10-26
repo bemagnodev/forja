@@ -563,7 +563,7 @@ def get_stats(request):
 class TopicStatsSchema(Schema):
     name: str
     solved: int
-    accuracy: float
+    accuracy: Optional[float] = None
 
 class DashboardKPIsSchema(Schema):
     total_solved: int

@@ -48,5 +48,7 @@ def test_dashboard_stats_endpoint(api_client, base_user):
 
     assert 'topics' in data
     assert data['topics'][0]['name'] == 'math'
+    assert data['topics'][0]['solved'] == 1
+    assert data['topics'][0]['accuracy'] is None
 
     assert 'heatmap' in data

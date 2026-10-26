@@ -23,7 +23,7 @@ export interface Last7DaysStats {
 export interface TopicStat {
   name: string;
   solved: number;
-  accuracy: number;
+  accuracy: number | null;
 }
 
 export interface RecentContest {

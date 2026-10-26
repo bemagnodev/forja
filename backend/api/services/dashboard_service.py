@@ -116,7 +116,7 @@ def get_dashboard_stats(user):
 
     # 4. Difficulty Breakdown & Topics (Todos os problemas resolvidos)
     difficulty_breakdown = defaultdict(int)
-    topics_breakdown = defaultdict(lambda: {"solved": 0, "attempts": 0})
+    topics_breakdown = defaultdict(lambda: {"solved": 0})
     
     for t in solved_trackings:
         meta = t.problem.platform_metadata or {}
@@ -131,15 +131,13 @@ def get_dashboard_stats(user):
         for tag in meta.get('tags', []):
             topics_breakdown[tag]["solved"] += 1
             
-    # Mocking attempts para accuracy (como o BD não tem relation Tag -> Submissions direta)
-    # Para ser performático no MVP, podemos basear a accuracy numa heurística fixa ou simples.
-    # Vamos deixar accuracy genérica = 100% no momento, até termos tracking real de attempts por tag.
+    # A taxa por tópico ainda não é calculada; não publicar um percentual fictício.
     topics = []
     for tag, data in sorted(topics_breakdown.items(), key=lambda x: x[1]['solved'], reverse=True)[:15]:
         topics.append({
             "name": tag,
             "solved": data["solved"],
-            "accuracy": 100.0  # Placeholder
+            "accuracy": None
         })
 
     # 5. Recent Contests
