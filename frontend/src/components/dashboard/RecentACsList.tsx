@@ -22,7 +22,7 @@ export function RecentACsList({ data }: RecentACsListProps) {
 
   const formatDate = (isoStr: string) => {
     const d = new Date(isoStr);
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    return d.toLocaleDateString('pt-BR', { month: 'short', day: 'numeric' });
   };
 
   return (
@@ -33,7 +33,7 @@ export function RecentACsList({ data }: RecentACsListProps) {
       className="bg-zinc-900/50 backdrop-blur-md border border-zinc-800 rounded-xl p-5 flex flex-col"
     >
       <div className="flex justify-between items-center mb-6">
-        <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-widest">SUBMISSÕES RECENTES (AC)</h3>
+        <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-widest">QUESTÕES RECENTES</h3>
       </div>
 
       <div className="flex flex-col gap-2">

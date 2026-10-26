@@ -9,6 +9,7 @@ it('mostra resolvidas por tópico sem apresentar o placeholder como taxa de acer
     { name: 'math', solved: 4, accuracy: 100 },
     { name: 'dp', solved: 2, accuracy: null },
   ]} />);
+  expect(screen.getByText('RESOLVIDOS POR TÓPICO')).toBeInTheDocument();
   expect(screen.getByText('math')).toBeInTheDocument();
   expect(screen.getByText('4')).toBeInTheDocument();
   expect(screen.getByText('2')).toBeInTheDocument();

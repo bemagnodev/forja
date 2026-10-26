@@ -2,9 +2,10 @@ import { motion } from "framer-motion";
 
 interface DifficultyBreakdownProps {
   data: Record<string, number>;
+  totalSolved?: number;
 }
 
-export function DifficultyBreakdown({ data }: DifficultyBreakdownProps) {
+export function DifficultyBreakdown({ data, totalSolved }: DifficultyBreakdownProps) {
   // Configuração das faixas de dificuldade competitiva baseadas nos breakpoints do Codeforces
   const tiersConfig = [
     { label: "< 1200", min: 0, max: 1199, color: "bg-zinc-400" },
@@ -57,7 +58,7 @@ export function DifficultyBreakdown({ data }: DifficultyBreakdownProps) {
     >
       <div className="flex justify-between items-center mb-6">
         <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-widest">POR DIFICULDADE</h3>
-        <span className="text-xs text-zinc-500">{total} classificados</span>
+        <span className="text-xs text-zinc-500">{total}{totalSolved != null ? `/${totalSolved}` : ""} com rating</span>
       </div>
 
       <div className="flex flex-col flex-1 justify-between py-1">

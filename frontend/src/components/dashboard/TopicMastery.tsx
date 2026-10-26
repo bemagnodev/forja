@@ -16,8 +16,8 @@ export function TopicMastery({ data }: TopicMasteryProps) {
       className="bg-zinc-900/50 backdrop-blur-md border border-zinc-800 rounded-xl p-5 col-span-1 lg:col-span-2 h-full flex flex-col"
     >
       <div className="flex justify-between items-center mb-6">
-        <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-widest">DOMÍNIO DE TÓPICOS</h3>
-        <span className="text-xs text-zinc-500">{data.length} mapeados</span>
+        <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-widest">RESOLVIDOS POR TÓPICO</h3>
+        <span className="text-xs text-zinc-500">{data.length} mais frequentes</span>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-4">

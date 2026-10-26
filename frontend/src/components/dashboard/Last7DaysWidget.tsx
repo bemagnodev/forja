@@ -7,10 +7,6 @@ interface Last7DaysWidgetProps {
 }
 
 export function Last7DaysWidget({ data }: Last7DaysWidgetProps) {
-  const days = ['S', 'M', 'T', 'W', 'T', 'F', 'S']; // Supondo último dia = Sábado/Domingo (meramente ilustrativo para o visual 7 dias)
-  
-  // Como last_7_days.activity tem os últimos 7 dias sequenciais,
-  // Podemos mapear de 0 a 6
   return (
     <motion.div 
       initial={{ opacity: 0, y: 20 }}
@@ -20,10 +16,11 @@ export function Last7DaysWidget({ data }: Last7DaysWidgetProps) {
     >
       <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-6">ÚLTIMOS 7 DIAS</h3>
       
-      <div className="flex justify-between items-center mb-8 px-2">
+      <div className="flex justify-between items-center mb-5">
         {data.activity.map((isActive, idx) => (
-          <div key={idx} className="flex flex-col items-center gap-2">
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 ${
+          <div key={idx} className="flex flex-col items-center gap-2" title={data.dates?.[idx]}>
+            <span className="text-[10px] text-zinc-400">{data.dates?.[idx] ? new Date(`${data.dates[idx]}T00:00:00Z`).toLocaleDateString('pt-BR', { weekday: 'short', timeZone: 'UTC' }).replace('.', '') : '—'}</span>
+            <div className={`w-7 h-7 rounded-full flex items-center justify-center transition-all duration-300 ${
               isActive 
                 ? 'bg-red-500/20 text-red-500 shadow-[0_0_12px_rgba(239,68,68,0.3)]' 
                 : 'bg-zinc-800/50 text-zinc-600'
@@ -34,7 +31,7 @@ export function Last7DaysWidget({ data }: Last7DaysWidgetProps) {
         ))}
       </div>
 
-      <div className="grid grid-cols-2 gap-y-6 gap-x-4 mt-auto border-t border-zinc-800/50 pt-6">
+      <div className="grid grid-cols-2 gap-y-3 gap-x-4 mt-auto border-t border-zinc-800/50 pt-4">
         <div>
           <span className="block text-[10px] text-zinc-500 uppercase tracking-wider mb-1">Total Resolvido</span>
           <span className="text-2xl font-black text-zinc-100" style={{ fontFamily: 'Clash Display, system-ui, sans-serif' }}>

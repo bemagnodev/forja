@@ -55,7 +55,7 @@ export function Dashboard() {
           
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="min-w-0 lg:col-span-2">
-              <ActivityHeatmap data={stats.heatmap} />
+              <ActivityHeatmap data={stats.heatmap} referenceDate={stats.reference_date} />
             </div>
             <div className="lg:col-span-1">
               <Last7DaysWidget data={stats.last_7_days} />
@@ -64,7 +64,7 @@ export function Dashboard() {
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-1">
-              <DifficultyBreakdown data={stats.difficulty_breakdown} />
+              <DifficultyBreakdown data={stats.difficulty_breakdown} totalSolved={stats.kpis.total_solved} />
             </div>
             <div className="lg:col-span-2">
               <TopicMastery data={stats.topics} />

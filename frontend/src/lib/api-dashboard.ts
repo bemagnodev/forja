@@ -14,6 +14,7 @@ export interface HeatmapData {
 }
 
 export interface Last7DaysStats {
+  dates?: string[];
   activity: boolean[];
   total_solved: number;
   average_difficulty: number;
@@ -51,6 +52,8 @@ export interface RecentAC {
 }
 
 export interface DashboardStats {
+  reference_date: string;
+  timezone: string;
   kpis: DashboardKPIs;
   heatmap: HeatmapData[];
   last_7_days: Last7DaysStats;
