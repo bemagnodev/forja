@@ -1,4 +1,4 @@
-import { useId, useState } from "react";
+import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { ListPlus, Sparkles } from "lucide-react";
@@ -14,9 +14,8 @@ interface ProblemActionsCellProps {
 export function ProblemActionsCell({ problem }: ProblemActionsCellProps) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const [nativeNoticeFor, setNativeNoticeFor] = useState<number | null>(null);
-  const noticeId = useId();
-  const showNativeNotice = nativeNoticeFor === problem.id;
+  const [nativeBlockedFor, setNativeBlockedFor] = useState<number | null>(null);
+  const nativeBlocked = nativeBlockedFor === problem.id;
 
   const addToQueueMutation = useMutation({
     mutationFn: () =>
@@ -59,7 +58,8 @@ export function ProblemActionsCell({ problem }: ProblemActionsCellProps) {
     onError: (error) => {
       const info = classificationErrorInfo(error);
       if (info.diagnostic.code === 'native_rating_available') {
-        setNativeNoticeFor(problem.id);
+        setNativeBlockedFor(problem.id);
+        toast({ title: 'Classificação indisponível', description: NATIVE_RATING_MESSAGE, type: 'error' });
         queryClient.invalidateQueries({ queryKey: ['queue'] });
         queryClient.invalidateQueries({ queryKey: ['contest-problems'] });
         return;
@@ -79,18 +79,17 @@ export function ProblemActionsCell({ problem }: ProblemActionsCellProps) {
       {/* Botão de IA */}
       <button
         onClick={(e) => {
-          if (hasNativeRating(problem.rating) || showNativeNotice) {
-            setNativeNoticeFor(problem.id);
+          if (hasNativeRating(problem.rating) || nativeBlocked) {
+            toast({ title: 'Classificação indisponível', description: NATIVE_RATING_MESSAGE, type: 'error' });
             return;
           }
           predictMutation.mutate({ force: e.shiftKey });
         }}
         disabled={predictMutation.isPending}
-        title={hasNativeRating(problem.rating) || showNativeNotice
+        title={hasNativeRating(problem.rating) || nativeBlocked
           ? 'Esta questão já possui rating nativo da plataforma'
           : 'Estimar rating e tags com IA (Shift+Click para forçar recálculo)'}
         aria-label="Estimar rating e tags com IA"
-        aria-describedby={showNativeNotice ? noticeId : undefined}
         className="w-8 h-8 flex items-center justify-center rounded-lg text-fuchsia-400/70 hover:text-fuchsia-400 hover:bg-fuchsia-400/10 hover:shadow-[0_0_15px_rgba(232,121,249,0.2)] transition-all disabled:opacity-40"
       >
         {predictMutation.isPending ? (
@@ -110,9 +109,6 @@ export function ProblemActionsCell({ problem }: ProblemActionsCellProps) {
         <ListPlus className="w-4 h-4" />
       </button>
     </div>
-    {showNativeNotice && <p id={noticeId} role="status" className="max-w-52 whitespace-normal text-right text-[11px] leading-relaxed text-white/50">
-      {NATIVE_RATING_MESSAGE}
-    </p>}
     </div>
   );
 }

@@ -71,6 +71,7 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }
 
   return (
     <div
+      role={toast.type === 'error' ? 'alert' : 'status'}
       className={cn(
         "pointer-events-auto flex items-center gap-4 bg-zinc-950/90 backdrop-blur-xl border p-4 rounded-xl shadow-2xl transition-all duration-300 w-full md:min-w-[400px]",
         borders[toast.type]
@@ -90,7 +91,7 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }
           {toast.title}
         </h3>
         {toast.description && (
-          <p className="text-[11px] text-white/50 leading-relaxed truncate">
+          <p className="text-[11px] text-white/50 leading-relaxed whitespace-normal break-words">
             {toast.description}
           </p>
         )}

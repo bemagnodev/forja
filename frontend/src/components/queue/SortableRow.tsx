@@ -1,4 +1,4 @@
-import { useId, useState } from "react";
+import { useState } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, Sparkles } from "lucide-react";
@@ -77,9 +77,8 @@ export function SortableRow({
 }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const [nativeNoticeFor, setNativeNoticeFor] = useState<number | null>(null);
-  const noticeId = useId();
-  const showNativeNotice = item.linked_problem_id != null && nativeNoticeFor === item.linked_problem_id;
+  const [nativeBlockedFor, setNativeBlockedFor] = useState<number | null>(null);
+  const nativeBlocked = item.linked_problem_id != null && nativeBlockedFor === item.linked_problem_id;
 
   const predictMutation = useMutation({
     mutationFn: async ({ force }: { force?: boolean } = {}) => {
@@ -102,7 +101,8 @@ export function SortableRow({
     onError: (error) => {
       const info = classificationErrorInfo(error);
       if (info.diagnostic.code === 'native_rating_available') {
-        setNativeNoticeFor(item.linked_problem_id ?? null);
+        setNativeBlockedFor(item.linked_problem_id ?? null);
+        toast({ title: 'Classificação indisponível', description: NATIVE_RATING_MESSAGE, type: 'error' });
         queryClient.invalidateQueries({ queryKey: ['queue'] });
         queryClient.invalidateQueries({ queryKey: ['contest-problems'] });
         return;
@@ -208,18 +208,17 @@ export function SortableRow({
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (hasNativeRating(item.rating) || showNativeNotice) {
-                      setNativeNoticeFor(item.linked_problem_id ?? null);
+                    if (hasNativeRating(item.rating) || nativeBlocked) {
+                      toast({ title: 'Classificação indisponível', description: NATIVE_RATING_MESSAGE, type: 'error' });
                       return;
                     }
                     predictMutation.mutate({ force: e.shiftKey });
                   }}
                   disabled={predictMutation.isPending}
-                  title={hasNativeRating(item.rating) || showNativeNotice
+                  title={hasNativeRating(item.rating) || nativeBlocked
                     ? 'Esta questão já possui rating nativo da plataforma'
                     : 'Estimar rating e tags com IA (Shift+Click para forçar recálculo)'}
                   aria-label="Estimar rating e tags com IA"
-                  aria-describedby={showNativeNotice ? noticeId : undefined}
                   className="w-6 h-6 flex items-center justify-center rounded-lg border border-fuchsia-400/20 bg-fuchsia-400/10 text-fuchsia-400 hover:bg-fuchsia-400/20 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-400 disabled:opacity-40"
                 >
                   {predictMutation.isPending ? (
@@ -232,9 +231,6 @@ export function SortableRow({
             )}
           </div>
         </div>
-        {showNativeNotice && <p id={noticeId} role="status" className="mt-1.5 max-w-sm whitespace-normal text-[11px] leading-relaxed text-white/50">
-          {NATIVE_RATING_MESSAGE}
-        </p>}
       </TableCell>
 
       {/* ── RATING ── */}

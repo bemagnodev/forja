@@ -44,28 +44,32 @@ it.each(['queue', 'contest'].flatMap(kind => [0, 1200, 3800].map(rating => ({ ki
     const button = screen.getByRole('button', { name: 'Estimar rating e tags com IA' });
     expect(button).not.toHaveAttribute('title', expect.stringContaining('forçar'));
     await user.click(button);
-    expect(await screen.findByText(/já possui rating nativo/)).toBeVisible();
+    await waitFor(() => expect(toast).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'error', description: expect.stringContaining('já possui rating nativo'),
+    })));
+    expect(screen.queryByText(/já possui rating nativo/)).not.toBeInTheDocument();
     await user.keyboard('{Shift>}');
     await user.click(button);
     await user.keyboard('{/Shift}');
     await user.keyboard('{Enter}');
-    expect(button).toHaveAccessibleDescription(/já possui rating nativo/);
+    expect(button).not.toHaveAttribute('aria-describedby');
     expect(api.post).not.toHaveBeenCalled();
     expect(invalidate).not.toHaveBeenCalled();
-    expect(toast).not.toHaveBeenCalled();
   });
 
-it.each(['queue', 'contest'])('%s mostra a explicação abaixo quando o servidor detecta rating nativo novo', async kind => {
+it.each(['queue', 'contest'])('%s mostra toast vermelho quando o servidor detecta rating nativo novo', async kind => {
   const error = new AxiosError('Conflict');
   Object.assign(error, { response: { status: 409, data: { detail: 'Já possui rating nativo',
     diagnostic: { code: 'native_rating_available', stage: 'policy' } } } });
   vi.mocked(api.post).mockRejectedValue(error);
   const invalidate = mount(kind);
   await userEvent.setup().click(screen.getByRole('button', { name: 'Estimar rating e tags com IA' }));
-  expect(await screen.findByText(/já possui rating nativo/)).toBeVisible();
+  await waitFor(() => expect(toast).toHaveBeenCalledWith(expect.objectContaining({
+    type: 'error', description: expect.stringContaining('já possui rating nativo'),
+  })));
+  expect(screen.queryByText(/já possui rating nativo/)).not.toBeInTheDocument();
   await userEvent.setup().click(screen.getByRole('button', { name: 'Estimar rating e tags com IA' }));
   expect(api.post).toHaveBeenCalledTimes(1);
-  expect(toast).not.toHaveBeenCalled();
   expect(invalidate).toHaveBeenCalledWith({ queryKey: ['queue'] });
   expect(invalidate).toHaveBeenCalledWith({ queryKey: ['contest-problems'] });
 });
