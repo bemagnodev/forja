@@ -1,5 +1,20 @@
 import axios from 'axios';
 
+declare module 'axios' {
+  interface AxiosRequestConfig {
+    _retry?: boolean;
+    _session?: number;
+  }
+}
+let session = 0;
+export function resetApiSession() {
+  session += 1;
+  delete api.defaults.headers.common.Authorization;
+  processQueue(new Error('Sessão encerrada'));
+  isRefreshing = false;
+}
+
+
 // baseURL agora é configurado pra bater na Vercel (depois no env) ou localhost no dev
 const baseURL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000/api";
 
@@ -8,10 +23,12 @@ export const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
+  if (config._session != null && config._session !== session) throw new axios.CanceledError("Sessão encerrada");
+  config._session = session;
   const token = localStorage.getItem('access_token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
-  }
+  } else { delete config.headers.Authorization; }
   return config;
 });
 
@@ -34,9 +51,14 @@ const processQueue = (error: unknown, token: string | null = null) => {
 };
 
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    if (response.config._session !== session) throw new axios.CanceledError("Sessão encerrada");
+    return response;
+  },
   async (error) => {
     const originalRequest = error.config;
+    if (axios.isCancel(error) || !originalRequest || (originalRequest._session != null && originalRequest._session !== session)) return Promise.reject(error);
+    const requestSession = session;
 
     // Se for 401 e não for uma tentativa de login ou refresh
     if (
@@ -68,6 +90,7 @@ api.interceptors.response.use(
             refresh: refreshToken,
           });
 
+          if (requestSession !== session) throw new axios.CanceledError("Sessão encerrada");
           const newAccessToken = response.data.access;
           localStorage.setItem('access_token', newAccessToken);
           if (response.data.refresh) {
@@ -80,6 +103,7 @@ api.interceptors.response.use(
           processQueue(null, newAccessToken);
           return api(originalRequest);
         } catch (refreshError) {
+          if (requestSession !== session) return Promise.reject(refreshError);
           processQueue(refreshError, null);
           localStorage.removeItem('access_token');
           localStorage.removeItem('refresh_token');
@@ -88,7 +112,7 @@ api.interceptors.response.use(
           }
           return Promise.reject(refreshError);
         } finally {
-          isRefreshing = false;
+          if (requestSession === session) isRefreshing = false;
         }
       } else {
         localStorage.removeItem('access_token');

@@ -11,6 +11,9 @@ function renderSidebar() {
   return render(<QueryClientProvider client={queryClient}><MemoryRouter><Sidebar /></MemoryRouter></QueryClientProvider>);
 }
 
+const logout = vi.fn();
+vi.mock('@/contexts/useAuth', () => ({ useAuth: () => ({ logout }) }));
+
 vi.mock('@/lib/api', () => ({
   api: {
     get: vi.fn(),
@@ -160,4 +163,15 @@ describe('Sidebar', () => {
     expect(api.post).toHaveBeenCalledTimes(1);
     expect(screen.queryByText(/signed-url-or-secret/)).not.toBeInTheDocument();
   });
+});
+
+
+test('mantém telas futuras acessíveis e oferece saída da conta', async () => {
+  renderSidebar();
+  for (const href of ['/teams', '/notes', '/settings', '/profile']) {
+    const link = document.querySelector(`a[href="${href}"]`)!;
+    expect(link).toHaveTextContent('Em breve');
+  }
+  await userEvent.click(screen.getByRole('button', { name: 'Sair da conta' }));
+  expect(logout).toHaveBeenCalledOnce();
 });

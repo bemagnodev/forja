@@ -1,4 +1,5 @@
-import { Link, useLocation } from "react-router-dom";
+import { useAuth } from "@/contexts/useAuth";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import React, { useState, useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
@@ -68,6 +69,7 @@ function NavItem({
       />
 
       <span className="flex-1 truncate">{link.name}</span>
+      {['/teams', '/notes', '/settings'].includes(link.path) && <span className="text-[9px] text-white/40">Em breve</span>}
 
       {isActive && (
         <ChevronRight className="w-3 h-3 text-[#dc143c]/50 shrink-0" strokeWidth={2} />
@@ -79,6 +81,8 @@ function NavItem({
 // ─── Sidebar Principal ────────────────────────────────────
 export function Sidebar() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { logout } = useAuth();
   const queryClient = useQueryClient();
   const [logoError, setLogoError] = useState(false);
 
@@ -347,9 +351,10 @@ export function Sidebar() {
                 ? `${userProfile.first_name} ${userProfile.last_name}`.trim() || userProfile.username 
                 : userError ? 'Usuário' : 'Carregando...'}
             </span>
-            <span className="text-[9px] text-white/25 leading-none">MVP v0.1</span>
+            <span className="text-[9px] text-white/25 leading-none">Perfil · Em breve</span>
           </div>
         </Link>
+        <button onClick={() => { logout(); navigate('/login', { replace: true }); }} className="w-full rounded-lg px-3 py-2 text-left text-xs text-white/60 hover:bg-white/5 hover:text-white">Sair da conta</button>
       </div>
     </aside>
   );

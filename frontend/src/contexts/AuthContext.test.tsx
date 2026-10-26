@@ -1,6 +1,12 @@
-import { render, screen, act, renderHook } from '@testing-library/react';
+import { render as baseRender, screen, act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
-import { AuthProvider, useAuth } from './AuthContext';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { api } from '@/lib/api';
+import type { ReactNode } from 'react';
+import { AuthProvider } from './AuthContext';
+import { useAuth } from './useAuth';
+
+function render(ui: ReactNode) { return baseRender(<QueryClientProvider client={new QueryClient()}>{ui}</QueryClientProvider>); }
 
 function TestConsumer() {
   const { isAuthenticated, login, logout } = useAuth();
@@ -119,4 +125,22 @@ describe('AuthContext', () => {
 
     consoleSpy.mockRestore();
   });
+});
+
+
+test('logout cancela consultas antigas e limpa dados e cabeçalho antes de outra sessão', async () => {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  let finish!: (value: string) => void;
+  client.setQueryData(['queue'], ['private']);
+  const old = client.fetchQuery({ queryKey: ['dashboard'], queryFn: () => new Promise<string>(resolve => { finish = resolve; }) }).catch(() => undefined);
+  localStorage.setItem('access_token', 'old');
+  api.defaults.headers.common.Authorization = 'Bearer old';
+  baseRender(<QueryClientProvider client={client}><AuthProvider><TestConsumer /></AuthProvider></QueryClientProvider>);
+  act(() => screen.getByRole('button', { name: 'Logout' }).click());
+  expect(client.getQueryData(['queue'])).toBeUndefined();
+  expect(api.defaults.headers.common.Authorization).toBeUndefined();
+  act(() => screen.getByRole('button', { name: 'Login' }).click());
+  await act(async () => { finish('old private data'); await old; });
+  expect(client.getQueryData(['dashboard'])).toBeUndefined();
+  expect(localStorage.getItem('access_token')).toBe('access_123');
 });

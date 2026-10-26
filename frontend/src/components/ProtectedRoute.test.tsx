@@ -2,6 +2,7 @@ import { render, screen, act } from '@testing-library/react';
 import { MemoryRouter, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { ProtectedRoute } from './ProtectedRoute';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from '@/contexts/AuthContext';
 
 function LocationDisplay() {
@@ -42,11 +43,11 @@ describe('ProtectedRoute', () => {
     localStorage.setItem('access_token', 'valid_token');
 
     render(
-      <AuthProvider>
+      <QueryClientProvider client={new QueryClient()}><AuthProvider>
         <MemoryRouter initialEntries={['/protected']}>
           <TestApp />
         </MemoryRouter>
-      </AuthProvider>
+      </AuthProvider></QueryClientProvider>
     );
 
     expect(screen.getByText('Protected Content')).toBeInTheDocument();
@@ -55,11 +56,11 @@ describe('ProtectedRoute', () => {
 
   test('usuário não autenticado é redirecionado para /login', () => {
     render(
-      <AuthProvider>
+      <QueryClientProvider client={new QueryClient()}><AuthProvider>
         <MemoryRouter initialEntries={['/protected']}>
           <TestApp />
         </MemoryRouter>
-      </AuthProvider>
+      </AuthProvider></QueryClientProvider>
     );
 
     expect(screen.queryByText('Protected Content')).not.toBeInTheDocument();
@@ -69,11 +70,11 @@ describe('ProtectedRoute', () => {
 
   test('o redirecionamento substitui a entrada anterior no histórico, conforme replace', () => {
     render(
-      <AuthProvider>
+      <QueryClientProvider client={new QueryClient()}><AuthProvider>
         <MemoryRouter initialEntries={['/public']}>
           <TestApp />
         </MemoryRouter>
-      </AuthProvider>
+      </AuthProvider></QueryClientProvider>
     );
 
     expect(screen.getByTestId('location-display')).toHaveTextContent('/public');

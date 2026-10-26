@@ -1,24 +1,18 @@
-import axios, { InternalAxiosRequestConfig, AxiosResponse } from 'axios';
-import { beforeEach, describe, expect, test, vi } from 'vitest';
+import axios, { type InternalAxiosRequestConfig, type AxiosResponse } from 'axios';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 describe('Axios API & Interceptors (src/lib/api.ts)', () => {
-  let originalLocation: Location;
 
   beforeEach(() => {
     vi.resetModules();
     localStorage.clear();
     vi.restoreAllMocks();
 
-    originalLocation = window.location;
-    delete (window as { location?: unknown }).location;
-    window.location = {
-      pathname: '/dashboard',
-      href: '/dashboard',
-    } as unknown as Location;
+    vi.stubGlobal('location', { pathname: '/dashboard', href: '/dashboard' });
   });
 
   afterEach(() => {
-    window.location = originalLocation;
+    vi.unstubAllGlobals();
   });
 
   const getApiModule = async () => {

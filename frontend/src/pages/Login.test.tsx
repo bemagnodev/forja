@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { Login } from './Login';
 import { api } from '@/lib/api';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { ToastProvider } from '@/components/ui/toast';
 
@@ -25,13 +26,13 @@ describe('Login Page', () => {
 
   const renderLogin = () => {
     return render(
-      <AuthProvider>
+      <QueryClientProvider client={new QueryClient()}><AuthProvider>
         <ToastProvider>
           <MemoryRouter>
             <Login />
           </MemoryRouter>
         </ToastProvider>
-      </AuthProvider>
+      </AuthProvider></QueryClientProvider>
     );
   };
 

@@ -9,7 +9,7 @@ export function Teams() {
     >
       <div className="flex items-center justify-center py-32 border border-white/[0.05] rounded-2xl bg-white/[0.008]">
         <span className="text-[13px] text-white/40 font-medium tracking-wide">
-          Módulo de equipes em construção...
+          Em breve: organização de equipes e treinos conjuntos. Esta área ainda está em desenvolvimento.
         </span>
       </div>
     </PageLayout>
