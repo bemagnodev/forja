@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/components/ui/toast-context";
 import { api } from "@/lib/api";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
@@ -24,12 +25,16 @@ export function ProblemStatusSelect({
   contestId,
 }: ProblemStatusSelectProps) {
   const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   const mutation = useMutation({
     mutationFn: (review_status: string) =>
       api.patch(`/tracking/${problemId}`, { review_status }),
+    onError: () => toast({ title: "Não foi possível salvar o status", description: "O status anterior foi preservado.", type: "error" }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["contest-problems", contestId] });
+      queryClient.invalidateQueries({ queryKey: ['contest', contestId] });
+      for (const key of ['contests', 'dashboard', 'queue']) queryClient.invalidateQueries({ queryKey: [key] });
     },
   });
 

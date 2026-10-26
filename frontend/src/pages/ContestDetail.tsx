@@ -46,7 +46,16 @@ export function ContestDetail() {
   const contestId = Number(id);
   const [filter, setFilter] = useState<FilterType>("all");
   
-  const { contest_name, url, rank, progress } = location.state || {};
+  const detailQuery = useQuery({
+    queryKey: ['contest', contestId],
+    queryFn: async () => (await api.get<{
+      contest_name: string; url: string | null; rank: number | null;
+      progress: { solved_live: number; upsolved: number; total: number };
+    }>(`/contests/${contestId}`)).data,
+    enabled: Number.isInteger(contestId) && contestId > 0,
+    retry: false,
+  });
+  const { contest_name, url, rank, progress } = detailQuery.data ?? (!detailQuery.isError ? location.state ?? {} : {});
   
   const solve_count = progress?.solved_live || 0;
   const upsolve_count = progress?.upsolved || 0;
@@ -100,7 +109,7 @@ export function ContestDetail() {
       }
     >
       {/* Loading */}
-      {isLoading && (
+      {(isLoading || detailQuery.isPending) && (
         <div className="flex items-center justify-center py-32">
           <div className="flex flex-col items-center gap-4">
             <div className="w-6 h-6 rounded-full border-2 border-[#dc143c] border-t-transparent animate-spin" />
@@ -112,19 +121,19 @@ export function ContestDetail() {
       )}
 
       {/* Erro */}
-      {isError && (
+      {(isError || detailQuery.isError) && (
         <div className="rounded-2xl border flex items-center gap-4 border-red-500/20 bg-red-500/[0.04] p-5 text-red-400">
           <div className="w-8 h-8 rounded-full bg-red-500/10 border border-red-500/15 flex items-center justify-center shrink-0">
             <AlertCircle className="w-4 h-4" />
           </div>
           <div>
-            <p className="font-bold text-[14px]">Erro ao carregar problemas</p>
-            <p className="text-[12px] opacity-60 mt-0.5">Verifique se o Django está rodando.</p>
+            <p className="font-bold text-[14px]">Não foi possível carregar o contest</p>
+            <p className="text-[12px] opacity-60 mt-0.5">Tente novamente em instantes.</p>
           </div>
         </div>
       )}
 
-      {!isLoading && !isError && (
+      {!isLoading && !isError && !detailQuery.isPending && !detailQuery.isError && (
         <>
           {/* Top Stats Scorecards */}
           {(total_problems > 0 || rank !== undefined) && (
