@@ -66,6 +66,22 @@ A unified view of contest history, live solves, pending upsolving, and post-cont
 - **Problem state machine:** imported submission states and manual review states evolve together without overwriting completed or intentionally deferred work.
 - **Analytics and performance:** database aggregations and optimized Django queries generate dashboard metrics while automated tests protect critical API, dashboard, and queue flows.
 
+## AI Lab: evaluation before model selection
+
+The AI Playground includes three saved comparisons on the same **60 reviewed Codeforces problems**, with official ratings from **800 to 2400**:
+
+- Direct classification across Gemini 3.5 Flash-Lite, GPT-OSS 120B and GPT-OSS 20B.
+- Rubric prompting across the same three models.
+- A paired comparison of both prompts on the selected Gemini model.
+
+With direct classification, Gemini had the lowest observed rating MAE: **255.9 points** versus **394.9** for the median baseline, on the **59 problems with valid ratings across all models**. Tag F1 uses its own common valid subset; coverage, failures and historical calls are reported alongside quality.
+
+On the paired 60-problem Gemini comparison, rubric prompting increased MAE from **256.7 to 268.3**. The product therefore uses Gemini with a versioned prompt derived from direct classification. This is an empirical choice for this sample, not a claim that rubrics always perform worse or that the model is universally superior. Product ratings extend to 3500; quality above 2400 has not been evaluated here.
+
+The runner saves progress, supports bounded retries and resumption, and keeps prompt/configuration hashes. The public views read sanitized snapshots; private statements and raw model responses are not published. The benchmark does not run when a visitor opens the results page.
+
+[Results and limitations](docs/AI_LAB_BENCHMARK_AB_RESULTS.md) · [AI Lab architecture](docs/AI_LAB.md) · [Experiment operations](docs/AI_LAB_EXPERIMENTS.md)
+
 ## Architecture and technologies
 
 ```text
@@ -119,7 +135,7 @@ python -m pytest
 
 - **Team analytics:** aggregated training metrics, member comparisons, and shared upsolving progress.
 - **Collaborative notebook:** a shared library for algorithms, templates, snippets, and problem-solving notes.
-- **AI-assisted classification:** expand the experimental AI Playground by comparing different language models and exploring machine-learning approaches for estimating difficulty, suggesting tags, and organizing training data.
+- **Further classification experiments:** evaluate additional prompting strategies and machine-learning approaches against the existing benchmark before adopting them in the product.
 
 ## Author
 

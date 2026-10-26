@@ -1,5 +1,14 @@
 # TypeScript — dívida histórica fora da finalização do AI Lab
 
+## Atualização de 26/10/2026 — resolvida na rodada de acabamento
+
+As checagens explícitas de `tsconfig.app.json` e `tsconfig.node.json` passaram sem diagnósticos nesta rodada. A variável ilustrativa sem uso de Last7DaysWidget foi removida; imports de tipo/afterEach e o mock de location foram corrigidos, e os campos de controle de sessão/retry dos interceptadores foram tipados. Nenhuma regra foi desabilitada. Os testes dos interceptadores foram preservados.
+
+Os registros abaixo são históricos e não representam pendências atuais.
+
+## Histórico
+
+
 Pendências visuais de 25/10/2026: o ajuste responsivo do gráfico anual removeu
 também o índice `idx` sem uso de `ActivityHeatmap.tsx`. Restam **9 diagnósticos
 em dois arquivos**: `Last7DaysWidget.tsx` e `api.test.ts`. Os registros anteriores
