@@ -29,6 +29,9 @@ it('pagina os cards mas mantém indicadores e evolução de todo o recorte', asy
   expect(within(cards).getAllByRole('link')).toHaveLength(9);
   expect(screen.getByRole('region', { name: 'Evolução nos contests' })).toBeVisible();
   expect(screen.getByTestId('metric-contests')).toHaveTextContent('12');
+  expect(screen.getByRole('button', { name: 'Equipe' })).toBeVisible();
+  expect(screen.getByRole('button', { name: 'Individual' })).toBeVisible();
+  expect(screen.getByText('Pendências')).toBeVisible();
   await userEvent.click(screen.getByRole('button', { name: 'Próxima página' }));
   expect(within(cards).getAllByRole('link')).toHaveLength(3);
   expect(screen.getByTestId('metric-contests')).toHaveTextContent('12');
@@ -41,7 +44,7 @@ it('mantém o resultado da barra visível após o clique ou toque', async () => 
 });
 it('filtra por plataforma e busca, restaurando os filtros ao voltar', async () => {
   const mounted = mount(); await screen.findByRole('region', { name: 'Histórico de contests' });
-  await userEvent.click(screen.getByRole('button', { name: 'Codeforces regular' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Individual' }));
   expect(within(screen.getByRole('region', { name: 'Histórico de contests' })).getAllByRole('link')).toHaveLength(1);
   await userEvent.type(screen.getByRole('searchbox', { name: 'Buscar contest' }), 'inexistente');
   expect(screen.getByText('Nenhum contest neste recorte')).toBeVisible();

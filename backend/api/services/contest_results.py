@@ -18,10 +18,12 @@ def cf_submission_timing(raw):
     explicit = raw.get('author', {}).get('startTimeSeconds')
     if type(relative) is not int or relative < 0 or type(epoch) is not int:
         return empty
-    if type(explicit) is int and explicit != epoch - relative:
+    # The API independently rounds absolute and relative seconds. Prefer Party's
+    # stable start for the session, tolerating only that one-second difference.
+    if type(explicit) is int and abs(explicit - (epoch - relative)) > 1:
         return empty
     try:
-        start = datetime.fromtimestamp(epoch - relative, tz=timezone.utc)
+        start = datetime.fromtimestamp(explicit if type(explicit) is int else epoch - relative, tz=timezone.utc)
     except (ValueError, OverflowError, OSError):
         return empty
     return {'relative_time_seconds': relative, 'session_start_time': start}
@@ -49,6 +51,13 @@ def participation_start(participation, rows):
     return next(iter(candidates)) if len(candidates) == 1 else None
 
 
+def in_participation_window(start, duration, creation_time, session_start_time=None, relative_time_seconds=None):
+    """The provider's relative clock handles fractional-second session starts."""
+    if session_start_time == start and type(relative_time_seconds) is int:
+        return 0 <= relative_time_seconds < duration
+    return start <= creation_time < start + timedelta(seconds=duration)
+
+
 def build_contest_results(participation, problem_ids, submissions, statuses=None):
     statuses = statuses or {}
     rows = sorted({s.platform_submission_id: s for s in submissions
@@ -64,7 +73,8 @@ def build_contest_results(participation, problem_ids, submissions, statuses=None
     for row in rows:
         if end and row.participant_type == 'PRACTICE' and row.verdict == 'OK' and row.creation_time >= end:
             practice_acs.setdefault(row.problem_id, row.creation_time)
-        if not start or not end or row.participant_type != kind or not start <= row.creation_time < end:
+        if not start or not end or row.participant_type != kind or not in_participation_window(
+                start, duration, row.creation_time, row.session_start_time, row.relative_time_seconds):
             continue
         if participation.is_virtual and row.session_start_time is None:
             # A matching wall-clock window cannot identify an old virtual session.
@@ -90,7 +100,9 @@ def build_contest_results(participation, problem_ids, submissions, statuses=None
         results[pid] = {
             'accepted': accepted,
             'failed_attempts': sum(before.values()) if complete else None,
-            'first_ac_seconds': int((first_ac.creation_time - start).total_seconds()) if first_ac else None,
+            'first_ac_seconds': (first_ac.relative_time_seconds if first_ac.session_start_time == start
+                                 and first_ac.relative_time_seconds is not None
+                                 else int((first_ac.creation_time - start).total_seconds())) if first_ac else None,
             'errors_before_ac': dict(before), 'errors_after_ac': dict(after),
             'compilation_errors': sum(s.verdict == 'COMPILATION_ERROR' for s in attempts),
             'coverage': 'complete' if complete else 'partial',

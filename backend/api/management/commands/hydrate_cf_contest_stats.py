@@ -1,5 +1,5 @@
 """Explicit historical enrichment: never replays tracking or advances the sync cursor."""
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone as dt_timezone
 
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
@@ -7,7 +7,7 @@ from django.utils import timezone
 
 from api.models import ContestParticipation, Submission, User
 from api.services.codeforces_client import CodeforcesClient
-from api.services.contest_results import cf_submission_timing, participation_start
+from api.services.contest_results import cf_submission_timing, participation_start, in_participation_window
 from api.services.cf_sync_runtime import exclusive_cf_sync
 
 
@@ -63,13 +63,19 @@ class Command(BaseCommand):
         end = start + timedelta(seconds=part.contest.duration_seconds) if start and part.contest.duration_seconds else None
         kind = 'VIRTUAL' if part.is_virtual else 'CONTESTANT'
         relevant = {sid for sid, row in existing.items() if start and end
-            and row.participant_type == kind and start <= row.creation_time < end
+            and row.participant_type == kind and in_participation_window(start, part.contest.duration_seconds,
+                row.creation_time, row.session_start_time, row.relative_time_seconds)
             and (row.session_start_time is None or row.session_start_time == start)}
-        source_relevant = {sid for sid, raw in source_rows.items() if start and end
-            and raw.get('author', {}).get('participantType') == kind
-            and isinstance(raw.get('creationTimeSeconds'), int)
-            and start.timestamp() <= raw['creationTimeSeconds'] < end.timestamp()
-            and cf_submission_timing(raw)['session_start_time'] in [None, start]}
+        source_relevant = set()
+        if start and end:
+            for sid, raw in source_rows.items():
+                epoch = raw.get('creationTimeSeconds')
+                source_timing = cf_submission_timing(raw)
+                if (raw.get('author', {}).get('participantType') == kind and type(epoch) is int
+                        and source_timing['session_start_time'] in [None, start]
+                        and in_participation_window(start, part.contest.duration_seconds,
+                            datetime.fromtimestamp(epoch, tz=dt_timezone.utc), **source_timing)):
+                    source_relevant.add(sid)
         complete = bool(start and end and relevant == source_relevant and all(
             cf_submission_timing(source_rows[sid])['session_start_time'] == start
             and source_rows[sid].get('verdict') == existing[sid].verdict for sid in source_relevant))

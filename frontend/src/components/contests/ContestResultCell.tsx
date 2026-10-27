@@ -31,12 +31,13 @@ export function ContestResultCell({ result, systemStatus, label = '' }: {
     : result.upsolved_at ? `AC depois da prova · ${new Date(result.upsolved_at).toLocaleString('pt-BR')}`
     : 'AC importado; relação temporal com a prova não confirmada';
 
-  return <div className="flex min-w-20 flex-col items-center justify-center gap-1.5">
+  return <div className="flex min-w-16 items-center justify-center">
     <Tooltip open={open} onOpenChange={setOpen} triggerId={id}>
-      <TooltipTrigger id={id} closeOnClick={false} onClick={() => setOpen(true)} aria-label={`${label ? `${label}: ` : ''}${description}${attempts != null ? `, ${attempts} ${attempts === 1 ? 'erro' : 'erros'}` : ''}${accepted ? `, ${time}` : ''}`}
-        className="flex min-h-11 min-w-14 flex-col items-center justify-center rounded-lg px-2 py-1 transition-colors hover:bg-white/[0.06] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400">
-        <span className={`text-[15px] font-bold tabular-nums ${accepted ? 'text-emerald-400' : accepted === false ? 'text-sky-400' : 'text-white/40'}`}>{sign}</span>
-        {accepted && <span className="text-[11px] font-medium tabular-nums text-white/65">{time}</span>}
+      <TooltipTrigger id={id} closeOnClick={false} onClick={() => setOpen(true)} aria-label={`${label ? `${label}: ` : ''}${description}${attempts != null ? `, ${attempts} ${attempts === 1 ? 'erro' : 'erros'}` : ''}${accepted ? `, ${time}` : ''}${upsolved ? ', Upsolvada' : ''}`}
+        className="flex min-h-11 min-w-14 items-center justify-center gap-1.5 rounded-lg px-1.5 py-1 transition-colors hover:bg-white/[0.04] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forja">
+        <span className="flex flex-col items-center"><span className={`text-[15px] font-bold leading-5 tabular-nums ${accepted ? 'text-emerald-400' : accepted === false ? 'text-sky-400' : 'text-white/40'}`}>{sign}</span>
+        {accepted && <span className="text-[10px] font-medium leading-4 tabular-nums text-white/55">{time}</span>}</span>
+        {upsolved && <span title="Upsolvada" className="rounded border border-sky-400/20 bg-sky-400/[0.06] px-1 py-0.5 text-[8px] font-bold tracking-wide text-sky-300"><span aria-hidden="true">UP</span><span className="sr-only">Upsolvada</span></span>}
       </TooltipTrigger>
       <TooltipContent role="tooltip" className="block max-w-72 space-y-2 rounded-xl border border-white/10 bg-[#17191f] p-3 text-left text-xs leading-relaxed text-white shadow-xl">
         <p className="font-semibold">{label && `${label} · `}{description}</p>
@@ -48,6 +49,5 @@ export function ContestResultCell({ result, systemStatus, label = '' }: {
         {upsolved && <p className="border-t border-white/10 pt-2 text-sky-300">{upsolveDescription}</p>}
       </TooltipContent>
     </Tooltip>
-    {upsolved && <span className="rounded border border-sky-400/20 bg-sky-400/[0.08] px-1.5 py-0.5 text-[9px] font-semibold tracking-wide text-sky-300">Upsolvada</span>}
   </div>;
 }

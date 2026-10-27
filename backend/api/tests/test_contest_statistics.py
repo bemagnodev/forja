@@ -136,6 +136,30 @@ def test_hydration_network_failure_keeps_existing_metadata(base_user, contest_da
 
 @pytest.mark.django_db
 @responses.activate
+def test_hydration_accepts_independently_rounded_seconds(base_user, contest_data):
+    _, part, a, _ = contest_data
+    part.is_virtual = True
+    part.results_synced_at = None
+    part.save()
+    add_submission(base_user, a, 1, 'WRONG_ANSWER', 101, 'VIRTUAL')
+    add_submission(base_user, a, 2, 'OK', 302, 'VIRTUAL')
+    rows = [{'id': sid, 'creationTimeSeconds': int(START.timestamp()) + seconds,
+        'relativeTimeSeconds': seconds - 1, 'author': {'participantType': 'VIRTUAL', 'startTimeSeconds': int(START.timestamp())},
+        'verdict': verdict, 'problem': {'contestId': 123, 'index': 'A'}}
+        for sid, seconds, verdict in [(2, 302, 'OK'), (1, 101, 'WRONG_ANSWER')]]
+    responses.get('https://codeforces.com/api/user.status', json={'status': 'OK', 'result': rows})
+    responses.get('https://codeforces.com/api/user.status', json={'status': 'OK', 'result': []})
+    call_command('hydrate_cf_contest_stats', handle=base_user.cf_handle, contest_id=123, apply=True, stdout=StringIO())
+    part.refresh_from_db()
+    assert part.results_synced_at is not None
+    from api.services.contest_results import contest_results
+    result = contest_results(part, [a])[a.id]
+    assert result['failed_attempts'] == 1
+    assert result['first_ac_seconds'] == 301
+
+
+@pytest.mark.django_db
+@responses.activate
 def test_hydration_defaults_to_preview_and_only_updates_metadata(base_user, contest_data):
     contest, part, a, _ = contest_data
     row = add_submission(base_user, a, 12, 'OK', 300)

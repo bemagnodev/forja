@@ -18,13 +18,13 @@ export function ContestMetrics({ participations }: { participations: ContestPart
   return (
     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
       {metrics.map(({ label, value, icon: Icon, color, bg, border }) => (
-        <div key={label} data-testid={label === 'Contests' ? 'metric-contests' : undefined} className={`rounded-xl border ${border} ${bg} px-4 py-3 flex items-center gap-3`}>
+        <div key={label} data-testid={label === 'Contests' ? 'metric-contests' : undefined} className="flex items-center gap-3 rounded-xl border border-zinc-800 bg-zinc-900/50 px-4 py-3 transition-colors hover:border-forja/30">
           <div className={`w-8 h-8 rounded-lg ${bg} border ${border} flex items-center justify-center shrink-0`}>
             <Icon className={`w-4 h-4 ${color}`} strokeWidth={1.75} />
           </div>
           <div>
             <p className={`text-[22px] font-extrabold leading-none ${color}`}>{value}</p>
-            <p className="text-[10px] text-white/55 tracking-wide font-medium mt-1">{label === 'AC Live' ? 'ACs na prova' : label === 'Dívidas Abertas' ? 'Para estudar' : label === 'Upsolvados' ? 'Upsolvadas' : label}</p>
+            <p className="text-[10px] text-white/55 tracking-wide font-medium mt-1">{label === 'AC Live' ? 'ACs na prova' : label === 'Dívidas Abertas' ? 'Pendências' : label === 'Upsolvados' ? 'Upsolvadas' : label}</p>
           </div>
         </div>
       ))}

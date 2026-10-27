@@ -8,13 +8,18 @@ o resultado obtido durante a prova.
 
 - Histórico com busca, filtros, ordenação e três linhas de cards: 9/6/3 conforme
   a largura. Voltar do detalhe recupera filtros, página e rolagem.
-- Abaixo dos cards, evolução das últimas 10/20 participações do recorte. A série
-  de upsolving começa desligada. Indicadores não se limitam à página dos cards.
+- Abas Todos / Equipe / Individual usam temporariamente Gym/regular como convenção.
+  Cards mostram data DD/MM/AAAA, logo da plataforma e ícone de grupo/pessoa.
+- Abaixo dos cards, evolução das últimas 10/20 participações do recorte em abas
+  Resoluções / Ranking / Penalidade. ACs e upsolving têm barras lado a lado; a série
+  posterior começa desligada. Indicadores não se limitam à página dos cards.
 - Faixa de questões e coluna Resultado compartilham o mesmo componente: `+`,
   `+2`, `−2`, `−`, tempo HH:MM e selo Upsolvada.
 - O contador inclui erros de julgamento anteriores ao primeiro AC, ou todos os
   da sessão se não houve AC. O tooltip separa vereditos, erros posteriores ao AC
   e CE; compilação não entra no contador principal.
+- O marcador lateral `UP` identifica upsolving sem aumentar a altura da linha.
+  Tags mostram até dois itens em uma linha, com lista completa no tooltip.
 - `+?`, `−?`, `?` e tempo `—` indicam informação parcial; não equivalem a zero
   tentativas. O selo de uma conclusão manual explicita a ausência de AC confirmado.
 - Gym é tratado como treino de equipe apenas no agrupamento visual. Não há nova
@@ -37,6 +42,11 @@ novos dados sem baixar todo o histórico a cada clique.
 - `accepted`, `failed_attempts`, `first_ac_seconds` e `coverage`;
 - `errors_before_ac`, `errors_after_ac` e `compilation_errors`;
 - `is_upsolved`, `upsolved_at` e `manual_completion`.
+
+Tempos absolutos e relativos podem diferir em um segundo por arredondamento da
+API. Nessa condição, preservar o início explícito da Party e usar o tempo relativo
+da submissão para o placar, inclusive no último segundo da participação. Diferenças
+maiores continuam sendo rejeitadas. A mesma regra vale para leitura e enriquecimento.
 
 As leituras não fazem HTTP externo nem salvam tracking. A apuração busca as
 submissões em lote, deduplica IDs e seleciona a sessão compatível com a
@@ -99,7 +109,8 @@ npm.cmd run build
 ```
 
 AtCoder virtual, revisão com IA e classificação em lote permanecem fora desta
-entrega. Nenhuma migração ou hidratação de produção foi executada na validação.
+entrega. Testes automatizados não acessam produção. A recuperação operacional
+autorizada em 26/10/2026 está registrada no [relatório de dados](reviews/2026-10-26-contests-data-recovery.md).
 
 ## Testes manuais após o deploy
 

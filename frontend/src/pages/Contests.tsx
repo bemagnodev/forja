@@ -30,7 +30,7 @@ function responsivePageSize() {
   if (typeof window.matchMedia !== "function") return 9;
   return window.matchMedia("(min-width: 1280px)").matches ? 9 : window.matchMedia("(min-width: 640px)").matches ? 6 : 3;
 }
-const selectClass = "rounded-lg border border-white/10 bg-[#111217] px-3 py-2.5 text-xs text-white/70 outline-none focus-visible:ring-2 focus-visible:ring-sky-400";
+const selectClass = "rounded-lg border border-zinc-800 bg-zinc-900/60 px-3 py-2.5 text-xs text-zinc-300 outline-none focus-visible:ring-2 focus-visible:ring-forja";
 
 export function Contests() {
   const [view, setView] = useState(readView);
@@ -77,7 +77,7 @@ export function Contests() {
     </div> : <>
       <div className="mb-6 flex flex-col gap-4">
         <div className="flex flex-wrap gap-2">
-          {[["all", "Todos"], ["CF_GYM", "Gym"], ["CF_OFFICIAL", "Codeforces regular"]].map(([value, label]) => <button key={value} aria-pressed={view.platform === value} onClick={() => update({ platform: value })} className={`rounded-lg border px-4 py-2 text-xs font-medium transition-colors ${view.platform === value ? "border-red-400/30 bg-red-400/10 text-red-300" : "border-white/10 text-white/60 hover:bg-white/5"}`}>{label}</button>)}
+          {[["all", "Todos"], ["CF_GYM", "Equipe"], ["CF_OFFICIAL", "Individual"]].map(([value, label]) => <button key={value} aria-pressed={view.platform === value} onClick={() => update({ platform: value })} className={`rounded-lg border px-4 py-2 text-xs font-semibold transition-colors ${view.platform === value ? "border-forja/40 bg-forja/10 text-red-300" : "border-zinc-800 text-zinc-500 hover:border-forja/30 hover:text-zinc-200"}`}>{label}</button>)}
         </div>
         <div className="flex flex-wrap gap-3">
           <label className="relative min-w-44 flex-1"><Search className="absolute left-3 top-3 size-3.5 text-white/35" /><input type="search" aria-label="Buscar contest" placeholder="Buscar contest..." value={view.search} onChange={e => update({ search: e.target.value })} className={`${selectClass} w-full pl-9`} /></label>
@@ -89,7 +89,7 @@ export function Contests() {
       <ContestMetrics participations={filtered} />
       {!participations.length ? <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-6 py-16 text-center"><Swords className="mx-auto mb-4 size-8 text-white/25" /><p className="font-medium text-white/80">Nenhum contest sincronizado</p><p className="mt-2 text-xs text-white/50">Sincronize sua conta para acompanhar seus treinos.</p></div> : <>
         <section aria-label="Histórico de contests">
-          <div className="mb-3 flex items-center justify-between text-xs text-white/50"><span>{filtered.length} contests neste recorte</span>{view.platform === "CF_GYM" && <span>Gym · treinos em equipe</span>}</div>
+          <div className="mb-3 flex items-center justify-between text-xs text-white/50"><span>{filtered.length} contests neste recorte</span></div>
           {visible.length ? <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">{visible.map(p => <ContestCard key={p.id} participation={p} onNavigate={recordScroll} />)}</div> : <div className="rounded-xl border border-dashed border-white/10 py-14 text-center"><p className="text-sm text-white/65">Nenhum contest neste recorte</p><button className="mt-3 text-xs text-sky-300 underline" onClick={() => setView(defaults)}>Limpar filtros</button></div>}
           <nav aria-label="Paginação de contests" className="mt-5 flex items-center justify-between gap-3">
             <p className="text-[11px] text-white/50">Página {page} de {pages}</p>

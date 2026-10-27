@@ -142,3 +142,19 @@ def test_cf_timing_rejects_invalid_or_contradictory_metadata():
     assert cf_submission_timing(raw)['relative_time_seconds'] is None
     raw['relativeTimeSeconds'] = 300
     assert cf_submission_timing(raw)['session_start_time'] is None
+
+
+def test_cf_independently_rounded_seconds_keep_the_explicit_party_start():
+    raw = {'creationTimeSeconds': int(START.timestamp()) + 182, 'relativeTimeSeconds': 181,
+           'author': {'participantType': 'VIRTUAL', 'startTimeSeconds': int(START.timestamp())}}
+    assert cf_submission_timing(raw) == {'relative_time_seconds': 181, 'session_start_time': START}
+    value = result([submission(1, 'OK', 182, relative_time_seconds=181)])
+    assert value['first_ac_seconds'] == 181
+    raw['creationTimeSeconds'] += 1
+    assert cf_submission_timing(raw)['session_start_time'] is None
+
+
+def test_last_virtual_second_uses_the_provider_relative_clock():
+    value = result([submission(1, 'OK', 18000, relative_time_seconds=17999)])
+    assert value['accepted'] is True
+    assert value['first_ac_seconds'] == 17999
