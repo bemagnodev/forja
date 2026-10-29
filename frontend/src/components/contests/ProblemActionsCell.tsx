@@ -74,7 +74,7 @@ export function ProblemActionsCell({ problem }: ProblemActionsCellProps) {
 
   return (
     <div className="flex flex-col items-end gap-1">
-    <div className="flex items-center justify-end gap-1 relative opacity-70 group-hover/row:opacity-100 focus-within:opacity-100 transition-all duration-200">
+    <div className="flex items-center justify-end gap-1 relative ">
 
       {/* Botão de IA */}
       <button
@@ -90,7 +90,8 @@ export function ProblemActionsCell({ problem }: ProblemActionsCellProps) {
           ? 'Esta questão já possui rating nativo da plataforma'
           : 'Estimar rating e tags com IA (Shift+Click para forçar recálculo)'}
         aria-label="Estimar rating e tags com IA"
-        className="w-11 h-11 sm:w-8 sm:h-8 flex items-center justify-center rounded-lg text-fuchsia-400/80 hover:text-fuchsia-400 hover:bg-fuchsia-400/10 focus-visible:outline focus-visible:outline-sky-400 transition-all disabled:opacity-40"
+        data-available={!(hasNativeRating(problem.rating) || nativeBlocked)}
+        className="data-[available=false]:text-zinc-500 data-[available=false]:hover:bg-white/5 w-11 h-11 sm:w-8 sm:h-8 flex items-center justify-center rounded-lg text-fuchsia-400/80 hover:text-fuchsia-400 hover:bg-fuchsia-400/10 focus-visible:outline focus-visible:outline-forja transition-all disabled:opacity-40"
       >
         {predictMutation.isPending ? (
           <div className="w-4 h-4 border-2 border-fuchsia-400/30 border-t-fuchsia-400 rounded-full animate-spin" />
@@ -104,7 +105,7 @@ export function ProblemActionsCell({ problem }: ProblemActionsCellProps) {
         onClick={() => addToQueueMutation.mutate()}
         disabled={addToQueueMutation.isPending}
         title="Adicionar à Fila (Upsolving)"
-        className="w-11 h-11 sm:w-8 sm:h-8 flex items-center justify-center rounded-lg text-white/60 hover:text-[#dc143c] hover:bg-[#dc143c]/10 focus-visible:outline focus-visible:outline-sky-400 transition-all disabled:opacity-40"
+        className="w-11 h-11 sm:w-8 sm:h-8 flex items-center justify-center rounded-lg text-white/60 hover:text-white hover:bg-zinc-800/60 focus-visible:outline focus-visible:outline-forja transition-all disabled:opacity-40"
       >
         <ListPlus className="w-4 h-4" />
       </button>

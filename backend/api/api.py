@@ -472,7 +472,7 @@ def _prediction_response(ai_result, metadata, selected_model, problem_data=None,
 
 
 @api.post("/ai-lab/problems/{problem_id}/classify", response=AIPredictionSchema)
-def explore_problem(request, problem_id: int, model_name: Optional[str] = None):
+def explore_problem(request, problem_id: int, model_name: Optional[str] = None, preview_scenario: Optional[str] = None):
     from django.shortcuts import get_object_or_404
     from ninja.errors import HttpError
     try:
@@ -480,6 +480,12 @@ def explore_problem(request, problem_id: int, model_name: Optional[str] = None):
     except ValueError as exc:
         raise HttpError(400, str(exc)) from None
     problem = get_object_or_404(Problem, id=problem_id)
+    from django.conf import settings
+    if getattr(settings, 'VISUAL_PREVIEW', False):
+        from .visual_preview import simulated_prediction
+        return simulated_prediction(problem, selected_model, preview_scenario)
+    if preview_scenario is not None:
+        raise HttpError(400, 'Simulação disponível somente na prévia local')
     ai_result, problem_data = _classify_for_ui(problem, selected_model)
     return _prediction_response(ai_result, problem.platform_metadata or {}, selected_model, problem_data)
 

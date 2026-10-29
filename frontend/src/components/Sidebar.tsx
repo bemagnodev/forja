@@ -211,7 +211,7 @@ export function Sidebar() {
   const handleSyncAt = makeSyncHandler("atcoder", setSyncStateAt, setSyncMessageAt);
 
   return (
-    <aside className="w-56 shrink-0 min-h-screen flex flex-col border-r border-white/[0.07] bg-[#080808]">
+    <aside className="w-56 shrink-0 min-h-full flex flex-col border-r border-white/[0.07] bg-[#080808]">
 
       {/* ── Logo ── */}
       <div className="h-14 flex items-center px-4 border-b border-white/[0.07] gap-2.5 shrink-0">
@@ -355,7 +355,7 @@ export function Sidebar() {
             <span className="text-[9px] text-white/25 leading-none">Perfil · Em breve</span>
           </div>
         </Link>
-        <button onClick={() => { logout(); navigate('/login', { replace: true }); }} className="w-full flex items-center gap-2.5 rounded-lg px-2 py-2 text-left text-xs font-medium text-red-400 hover:bg-red-500/5 hover:text-red-300">
+        <button onClick={() => { logout(); navigate('/login', { replace: true }); }} className="w-full flex items-center gap-2.5 rounded-lg px-2 py-2 text-left text-xs font-medium text-red-400 hover:bg-zinc-800/60 hover:text-zinc-100">
           <span className="w-7 flex justify-center shrink-0"><LogOut aria-hidden="true" className="h-4 w-4" /></span>
           <span>Logout</span>
         </button>

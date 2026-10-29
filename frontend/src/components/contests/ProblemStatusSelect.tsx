@@ -9,7 +9,7 @@ const STATUS_OPTIONS = [
   { value: "DOABLE",         label: "Dá pra fazer", dot: "#fbbf24", bg: "bg-amber-500/10", text: "text-amber-500", border: "border-amber-500/20" },
   { value: "DONE",           label: "Concluído", dot: "#34d399", bg: "bg-emerald-500/10", text: "text-emerald-500", border: "border-emerald-500/20" },
   { value: "FUTURE",         label: "Futuro",    dot: "#c084fc", bg: "bg-purple-500/10", text: "text-purple-400", border: "border-purple-500/20" },
-  { value: "IGNORED",        label: "Ignorada",  dot: "#ffffff26", bg: "bg-white/5", text: "text-white/30", border: "border-white/10" },
+  { value: "IGNORED",        label: "Ignorada",  dot: "#ffffff26", bg: "bg-white/5", text: "text-white/55", border: "border-white/10" },
 ] as const;
 
 interface ProblemStatusSelectProps {
@@ -44,7 +44,7 @@ export function ProblemStatusSelect({
     <DropdownMenu>
       <DropdownMenuTrigger
           disabled={mutation.isPending}
-          className={`inline-flex items-center gap-1.5 text-[10px] font-bold tracking-wider uppercase px-2 py-1 rounded-md border whitespace-nowrap cursor-pointer hover:scale-[1.03] transition-all active:scale-95 disabled:opacity-50 disabled:cursor-wait ${current.bg} ${current.text} ${current.border} focus:outline-none`}
+          className={`inline-flex items-center gap-1.5 text-[11px] font-bold tracking-wider uppercase px-2 py-1 rounded-md border whitespace-nowrap cursor-pointer  transition-all  disabled:opacity-50 disabled:cursor-wait ${current.bg} ${current.text} ${current.border} focus-visible:ring-2 focus-visible:ring-forja`}
       >
           <span 
             className="w-2 h-2 rounded-full shrink-0" 

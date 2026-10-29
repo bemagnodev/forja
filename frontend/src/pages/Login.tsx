@@ -86,7 +86,7 @@ export function Login() {
             <Button 
               type="submit" 
               disabled={loading}
-              className="w-full mt-4 bg-primary hover:bg-primary/90 text-white font-bold py-6 rounded-xl transition-all uppercase tracking-widest text-sm"
+              className="w-full mt-4 bg-primary hover:bg-zinc-800 text-white font-bold py-6 rounded-xl transition-all uppercase tracking-widest text-sm"
             >
               {loading ? 'Acessando...' : 'Entrar'}
             </Button>

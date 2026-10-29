@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, expect, it, vi } from 'vitest';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
@@ -15,6 +15,17 @@ function mount(state?: object) { const client = new QueryClient({ defaultOptions
 it('carrega nome e link pelo ID ao entrar diretamente sem state', async () => {
   mount(); expect(await screen.findByText(detail.contest_name)).toBeVisible();
   expect(screen.getByTitle('Abrir contest na plataforma')).toHaveAttribute('href', detail.url);
+});
+it('prioriza a tabela, mantém o placar acessível e remove apenas o prefixo correspondente ao índice', async () => {
+  mocks.get.mockImplementation(async (url: string) => ({ data: url.endsWith('/problems') ? [{ ...problem, title: 'F. Problema F' }, { ...problem, id: 8, index: 'G', title: 'A. Outro título' }] : detail }));
+  mount();
+  expect(await screen.findByText('Problema F')).toBeVisible();
+  expect(screen.getByText('A. Outro título')).toBeVisible();
+  expect(screen.queryByText('F. Problema F')).toBeNull();
+  const scoreboard = screen.getByRole('region', { name: 'Placar da prova' });
+  expect(screen.getByRole('table').compareDocumentPosition(scoreboard) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(screen.getByRole('link', { name: 'Ver placar' })).toHaveAttribute('href', '#placar-da-prova');
+  expect(scoreboard).not.toHaveTextContent('UP = Upsolving');
 });
 it('substitui metadados antigos da navegação pela resposta atual', async () => {
   mount({ contest_name: 'Nome antigo', progress: { total: 99 } });
@@ -44,11 +55,36 @@ it('preserva o resultado da prova no mapa e na tabela depois do upsolving', asyn
   mocks.get.mockImplementation(async (url: string) => ({ data: url.endsWith('/problems') ? [solved] : detail }));
   mount();
   expect(await screen.findAllByText('−1')).toHaveLength(2);
-  expect(screen.getAllByText('Upsolvada')).toHaveLength(2);
+  const row = screen.getByText('Problema F').closest('tr')!;
+  expect(within(row.cells[0]).getByText('UP')).toBeVisible();
+  expect(within(row.cells[1]).queryByText('UP')).toBeNull();
+  const scoreboard = screen.getByRole('region', { name: 'Placar da prova' });
+  expect(within(screen.getByRole('button', { name: 'Ir para questão F' }).parentElement!).queryByText('UP')).toBeNull();
+  expect(within(scoreboard).queryByText('UP')).toBeNull();
   expect(screen.queryByRole('columnheader', { name: 'Momento do AC' })).toBeNull();
   expect(screen.getByRole('columnheader', { name: 'Resultado' })).toBeVisible();
   await userEvent.click(screen.getByRole('button', { name: /No contest/ }));
   expect(screen.queryByText('Problema F')).toBeNull();
   await userEvent.click(screen.getByRole('button', { name: 'Ir para questão F' }));
   expect(await screen.findByText('Problema F')).toBeVisible();
+});
+
+it.each([
+  ['AC posterior', { is_upsolved: true, manual_completion: false }, 'UPSOLVED'],
+  ['conclusão manual', { is_upsolved: true, manual_completion: true }, 'UPSOLVED'],
+  ['status sem histórico', null, 'UPSOLVED'],
+])('não mostra a tag UP no placar: %s', async (_, result, status) => {
+  mocks.get.mockImplementation(async (url: string) => ({ data: url.endsWith('/problems') ? [{ ...problem, system_status: status, contest_result: result && { accepted: false, failed_attempts: 0, first_ac_seconds: null, errors_before_ac: {}, errors_after_ac: {}, compilation_errors: 0, coverage: 'partial', upsolved_at: null, ...result } }] : detail }));
+  mount();
+  const jump = await screen.findByRole('button', { name: 'Ir para questão F' });
+  expect(within(jump).queryByText('UP')).toBeNull();
+  expect(within(screen.getByRole('region', { name: 'Placar da prova' })).queryByText('UP')).toBeNull();
+  expect(within(screen.getByText('Problema F').closest('tr')!).getByText('UP')).toBeVisible();
+});
+
+it('não mostra UP para questão sem resolução posterior', async () => {
+  mount();
+  await screen.findByText('Problema F');
+  const scoreboard = screen.getByRole('region', { name: 'Placar da prova' });
+  expect(within(scoreboard).queryByText('UP', { exact: true })).toBeNull();
 });

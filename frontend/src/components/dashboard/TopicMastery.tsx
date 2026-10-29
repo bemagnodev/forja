@@ -42,7 +42,7 @@ export function TopicMastery({ data }: TopicMasteryProps) {
           );
         })}
         {data.length === 0 && (
-          <div className="col-span-3 text-center py-8 text-sm text-zinc-600">Nenhum dado de tópicos.</div>
+          <div className="col-span-3 text-center py-8 text-sm text-zinc-400">Nenhum dado de tópicos.</div>
         )}
       </div>
     </motion.div>

@@ -27,7 +27,7 @@ it('pagina os cards mas mantém indicadores e evolução de todo o recorte', asy
   mount();
   const cards = await screen.findByRole('region', { name: 'Histórico de contests' });
   expect(within(cards).getAllByRole('link')).toHaveLength(9);
-  expect(screen.getByRole('region', { name: 'Evolução nos contests' })).toBeVisible();
+  expect(screen.getByRole('region', { name: 'Resultados por contest' })).toBeVisible();
   expect(screen.getByTestId('metric-contests')).toHaveTextContent('12');
   expect(screen.getByRole('button', { name: 'Equipe' })).toBeVisible();
   expect(screen.getByRole('button', { name: 'Individual' })).toBeVisible();
@@ -38,7 +38,7 @@ it('pagina os cards mas mantém indicadores e evolução de todo o recorte', asy
 });
 it('mantém o resultado da barra visível após o clique ou toque', async () => {
   mount();
-  const chart = await screen.findByRole('region', { name: 'Evolução nos contests' });
+  const chart = await screen.findByRole('region', { name: 'Resultados por contest' });
   await userEvent.click(within(chart).getByRole('button', { name: /^Treino 1:/ }));
   expect(within(chart).getByRole('status')).toHaveTextContent('Treino 1');
 });

@@ -13,13 +13,13 @@ function renderDashboard() {
 vi.mock("@/lib/api-dashboard", () => ({ fetchDashboardStats: vi.fn() }));
 afterEach(() => { cleanup(); vi.clearAllMocks(); });
 
-it("shows Refresh in the page header and retries loading when clicked", async () => {
+it("shows Atualizar in the page header and retries loading when clicked", async () => {
   vi.mocked(fetchDashboardStats).mockRejectedValue(new Error("Falha simulada"));
   const user = userEvent.setup();
   renderDashboard();
   expect(await screen.findByText("Falha simulada")).toBeVisible();
   expect(fetchDashboardStats).toHaveBeenCalledTimes(1);
-  const refresh = screen.getByRole("button", { name: "Refresh" });
+  const refresh = screen.getByRole("button", { name: "Atualizar" });
   expect(refresh).toBeVisible();
   await user.click(refresh);
   await waitFor(() => expect(fetchDashboardStats).toHaveBeenCalledTimes(2));

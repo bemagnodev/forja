@@ -65,7 +65,7 @@ it("Explorar exibe aviso textual e permite inspecionar e recolher dados do scrap
   mount("explore");
   await user.type(screen.getByPlaceholderText(/Busque por ID/), "7A");
   await user.click(await screen.findByText("Synthetic"));
-  await user.click(screen.getByRole("button", { name: /Categorizar/ }));
+  await user.click(screen.getByRole("button", { name: /Classificar questão/ }));
   expect(await screen.findByText(warning)).toBeVisible();
   expect(screen.getByText("3500")).toBeVisible();
   const details = screen.getByRole("button", { name: "Dados Brutos do Scraper" });

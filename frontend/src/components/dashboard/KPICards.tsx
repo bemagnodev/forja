@@ -10,7 +10,7 @@ export function KPICards({ kpis }: KPICardsProps) {
   const cards = [
     {
       title: "TOTAL RESOLVIDO",
-      value: kpis.total_solved,
+      value: kpis.total_solved.toLocaleString('pt-BR'),
       subtitle: "INCLUI CONCLUSÕES MANUAIS",
       icon: <Trophy className="w-5 h-5 text-red-500/80" />,
       delay: 0.1,
@@ -24,7 +24,7 @@ export function KPICards({ kpis }: KPICardsProps) {
     },
     {
       title: "TAXA DE ACEITAÇÃO",
-      value: `${kpis.acceptance_rate}%`,
+      value: `${kpis.acceptance_rate.toLocaleString('pt-BR')}%`,
       subtitle: "SUBMISSÕES ACEITAS / TOTAL",
       icon: <CheckCircle2 className="w-5 h-5 text-emerald-500/80" />,
       delay: 0.3,
@@ -46,18 +46,15 @@ export function KPICards({ kpis }: KPICardsProps) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: card.delay }}
-          className="relative group bg-zinc-900/50 backdrop-blur-md border border-zinc-800 rounded-xl p-5 overflow-hidden transition-all duration-300 hover:bg-zinc-900 hover:border-red-900/50"
+          className="relative group bg-zinc-900/50 backdrop-blur-md border border-zinc-800 rounded-xl p-5 overflow-hidden transition-all duration-300 hover:bg-zinc-900 "
         >
-          {/* Sutil Glow de Hover */}
-          <div className="absolute inset-0 bg-gradient-to-br from-red-500/0 via-red-500/0 to-red-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-          
           <div className="flex justify-between items-start mb-4">
             <h3 className="text-[11px] font-bold text-zinc-500 uppercase tracking-widest">{card.title}</h3>
             {card.icon}
           </div>
           
           <div className="flex flex-col">
-            <span className="text-4xl font-black text-zinc-100 tracking-tight" style={{ fontFamily: 'Clash Display, system-ui, sans-serif' }}>
+            <span className="text-4xl font-black text-zinc-100 tracking-tight">
               {card.value}
             </span>
             <span className="text-xs text-zinc-500 mt-2 font-medium tracking-wide">

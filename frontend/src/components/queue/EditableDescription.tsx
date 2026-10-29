@@ -28,7 +28,7 @@ export function EditableDescription({ value, onSave, disabled = false }: {
     {error && <p role="alert" className="text-xs text-red-400">Não foi salvo. Enter para tentar novamente.</p>}
   </div> : <button disabled={disabled} onClick={() => { setText(value ?? ''); setEditing(true); }}
     aria-label={value ? "Editar descrição" : "Adicionar descrição"} title={value || "Adicionar descrição"}
-    className={`group/description text-left flex items-center gap-2 w-full min-w-0 text-xs hover:text-white/80 disabled:opacity-50 ${value ? 'text-white/50' : 'text-white/25'}`}>
+    className={`group/description text-left flex items-center gap-2 w-full min-w-0 text-xs hover:text-white/80 disabled:opacity-50 ${value ? 'text-white/50' : 'text-white/50'}`}>
     <span className="truncate">{value || '—'}</span>
     {!value && <Pencil aria-hidden="true" className="h-3 w-3 shrink-0 opacity-60 group-hover/description:opacity-100 group-focus-visible/description:opacity-100" />}
   </button>;

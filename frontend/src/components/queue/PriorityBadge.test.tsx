@@ -10,7 +10,7 @@ describe("PriorityBadge", () => {
 
   it("renders FUTURE correctly", () => {
     render(<PriorityBadge priority="FUTURE" />);
-    expect(screen.getByText("FUTURO")).toBeInTheDocument();
+    expect(screen.getByText("Futuro")).toBeInTheDocument();
   });
 
   it("returns null for unknown priority", () => {

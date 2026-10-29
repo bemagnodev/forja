@@ -22,7 +22,7 @@ it('shows extraction diagnostics in Explore without retrying the classification'
   render(<QueryClientProvider client={client}><AILab /></QueryClientProvider>);
   await user.type(screen.getByPlaceholderText(/Busque por ID/), '7A');
   await user.click(await screen.findByText('Synthetic'));
-  await user.click(screen.getByRole('button', { name: /Categorizar/ }));
+  await user.click(screen.getByRole('button', { name: /Classificar questão/ }));
   expect(await screen.findByRole('alert')).toHaveTextContent('A IA não foi chamada.');
   await user.click(screen.getByText('Detalhes técnicos'));
   expect(screen.getByText('explore-trace')).toBeVisible();
@@ -39,13 +39,13 @@ it("classifica com o modelo escolhido e limpa a previsão ao trocar a seleção"
   await user.click(screen.getByRole("button", { name: "GPT-OSS 20B" }));
   await user.type(screen.getByPlaceholderText(/Busque por ID/), "7A");
   await user.click(await screen.findByText("Synthetic problem"));
-  await user.click(screen.getByRole("button", { name: /Categorizar/ }));
+  await user.click(screen.getByRole("button", { name: /Classificar questão/ }));
   await waitFor(() => expect(api.post).toHaveBeenCalledWith("/ai-lab/problems/7/classify", null, { params: { model_name: "openai/gpt-oss-20b" } }));
   expect(await screen.findByText("Justificativa sintética")).toBeVisible();
   expect(screen.getByText(/Modelo: openai\/gpt-oss-20b/)).toBeVisible();
   expect(screen.queryByText(/Cada classificação faz uma nova chamada/)).not.toBeInTheDocument();
   expect(screen.queryByText(/Produto: ratings/)).not.toBeInTheDocument();
-  await user.click(screen.getByRole("button", { name: /Categorizar/ }));
+  await user.click(screen.getByRole("button", { name: /Classificar questão/ }));
   await waitFor(() => expect(api.post).toHaveBeenCalledTimes(2));
   await user.click(screen.getByRole("button", { name: "GPT-OSS 120B" }));
   expect(screen.queryByText("Justificativa sintética")).not.toBeInTheDocument();
@@ -60,7 +60,7 @@ it("aproveita partes válidas sem fabricar delta para rating inválido", async (
   render(<QueryClientProvider client={client}><AILab /></QueryClientProvider>);
   await user.type(screen.getByPlaceholderText(/Busque por ID/), "7A");
   await user.click(await screen.findByText("Synthetic problem"));
-  await user.click(screen.getByRole("button", { name: /Categorizar/ }));
+  await user.click(screen.getByRole("button", { name: /Classificar questão/ }));
   expect(await screen.findByText("Resultado parcial")).toBeVisible();
   expect(screen.getByText(/1 tag\(s\) descartada/)).toBeVisible();
   expect(screen.getByText("Explicação parcial")).toBeVisible();

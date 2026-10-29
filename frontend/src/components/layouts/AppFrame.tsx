@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Menu, X } from 'lucide-react';
+import { visualPreview } from '@/lib/visual-preview';
 
 /** The desktop sidebar becomes a dismissible drawer on narrow screens. */
 export function AppFrame({ sidebar, children }: { sidebar: ReactNode; children: ReactNode }) {
@@ -29,9 +30,10 @@ export function AppFrame({ sidebar, children }: { sidebar: ReactNode; children: 
     return () => document.removeEventListener('keydown', keyboard);
   }, [open]);
   return <div className="flex h-screen w-full flex-col overflow-hidden bg-[#050505] text-foreground">
+    {visualPreview && <div role="note" className="shrink-0 border-b border-amber-400/20 bg-amber-400/[0.07] px-4 py-1.5 text-center text-[11px] text-amber-200">Prévia local · cópia do banco · alterações locais · sincronização desativada · IA simulada</div>}
     <header className="flex h-12 shrink-0 items-center justify-between border-b border-white/10 bg-[#080808] px-4 sm:hidden">
       <span className="text-sm font-bold text-white/90">Forja</span>
-      <button ref={toggle} aria-label={open ? 'Fechar menu' : 'Abrir menu'} aria-expanded={open} aria-controls="app-navigation" onClick={() => setOpen(v => !v)} className="rounded-lg p-2 text-white/75 focus-visible:outline focus-visible:outline-sky-400">{open ? <X className="size-5" /> : <Menu className="size-5" />}</button>
+      <button ref={toggle} aria-label={open ? 'Fechar menu' : 'Abrir menu'} aria-expanded={open} aria-controls="app-navigation" onClick={() => setOpen(v => !v)} className="rounded-lg p-2 text-white/75 focus-visible:outline focus-visible:outline-forja">{open ? <X className="size-5" /> : <Menu className="size-5" />}</button>
     </header>
     <div className="flex min-h-0 flex-1">
       {open && <button aria-label="Fechar navegação" onClick={() => { setOpen(false); toggle.current?.focus(); }} className="fixed inset-0 z-40 bg-black/60 sm:hidden" />}

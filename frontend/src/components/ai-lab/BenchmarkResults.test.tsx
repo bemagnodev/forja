@@ -47,6 +47,22 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("Benchmark salvo", () => {
+  it('expõe as amostras pareadas junto da comparação, antes de abrir a metodologia', async () => {
+    mount();
+    await screen.findByRole('heading', { name: result.label });
+    expect(screen.getByText('MAE e ±200: 2/2 itens em comum · F1: 2/2 · Cobertura: conjunto completo (2)')).toBeVisible();
+    expect(screen.getByText('0–400 pontos · menor erro é melhor')).toBeVisible();
+  });
+  it('mantém a seleção do ponto ao focar o detalhe e a limpa ao fechar', async () => {
+    mount();
+    const point = await screen.findByRole('button', { name: /Oficial 1000, estimado 1100/ });
+    await userEvent.click(point);
+    expect(point).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('heading', { name: 'Problema 101A' })).toHaveFocus();
+    await userEvent.keyboard('{Escape}');
+    expect(point).toHaveAttribute('aria-pressed', 'false');
+    expect(point).toHaveFocus();
+  });
   it("exibe e copia os prompts registrados sem executar IA", async () => {
     const user = userEvent.setup();
     const copy = vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue();

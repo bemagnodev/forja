@@ -155,19 +155,21 @@ export function Queue() {
 
       {/* Filters and Controls */}
       {!isLoading && !isError && (
-        <div className="flex items-center justify-between mb-4 mt-2">
-          <div className="flex gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-4 mt-2">
+          <div className="flex flex-wrap gap-2">
             {["ALL", "P0", "P1", "P2", "UPSOLVING", "FUTURE"].map(p => (
               <button
                 key={p}
+                aria-pressed={priorityFilter === p}
                 onClick={() => setPriorityFilter(p)}
-                className={`px-3 py-1 rounded-full text-[11px] font-bold tracking-wider transition-colors border ${priorityFilter === p ? "bg-[#dc143c]/20 text-[#dc143c] border-[#dc143c]" : "bg-white/5 text-white/40 border-white/10 hover:bg-white/10"}`}
+                className={`px-3 py-1 rounded-full text-[11px] font-bold tracking-wider transition-colors border ${priorityFilter === p ? "bg-[#dc143c]/20 text-red-300 border-forja/50" : "bg-white/5 text-white/60 border-white/10 hover:bg-white/10"}`}
               >
-                {p === "ALL" ? "TODAS" : p}
+                {p === "ALL" ? "TODAS" : p === "FUTURE" ? "Futuro" : p}
               </button>
             ))}
           </div>
           
+          <div className="flex flex-wrap items-center gap-4">
           <label className="flex items-center gap-2 cursor-pointer">
             <span className="text-[11px] font-bold tracking-wider text-white/50 uppercase select-none">Agrupar por Contest</span>
             <div className={`w-8 h-4 rounded-full transition-colors relative ${groupByContest ? 'bg-[#dc143c]' : 'bg-white/10'}`}>
@@ -175,6 +177,7 @@ export function Queue() {
             </div>
             <input type="checkbox" className="sr-only" checked={groupByContest} onChange={(e) => setGroupByContest(e.target.checked)} />
           </label>
+          </div>
         </div>
       )}
 
@@ -182,10 +185,10 @@ export function Queue() {
       {!isLoading && !isError && (
         <div className="border border-white/[0.07] rounded-2xl overflow-hidden bg-[#080808]/70 backdrop-blur-xl">
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-            <Table className="table-fixed">
+            <Table className="table-fixed min-w-[960px]">
               <colgroup>
-                <col style={{ width: '64px' }} /><col style={{ width: '27%' }} />
-                <col style={{ width: '110px' }} /><col style={{ width: '76px' }} />
+                <col style={{ width: '88px' }} /><col style={{ width: '27%' }} />
+                <col style={{ width: '118px' }} /><col style={{ width: '100px' }} />
                 <col style={{ width: '22%' }} /><col style={{ width: '84px' }} /><col />
               </colgroup>
               <TableHeader><TableRow className="bg-black/35 border-b border-white/[0.07]">
@@ -202,8 +205,10 @@ export function Queue() {
                           <Inbox className="w-6 h-6" strokeWidth={1.5} />
                         </div>
                         <div>
-                          <p className="text-[14px] font-bold text-white/70">A fila está vazia.</p>
-                          <p className="text-[12px] text-white/40 mt-0.5">Sua dívida técnica foi completamente paga! 🎉</p>
+                          <p className="text-[14px] font-bold text-white/80">{priorityFilter !== "ALL" && items.some(i => !i.is_completed) ? "Nenhum item nesta prioridade." : "A fila está vazia."}</p>
+                          {priorityFilter !== "ALL" && items.some(i => !i.is_completed)
+                            ? <button onClick={() => setPriorityFilter('ALL')} className="mt-2 text-xs text-red-300 hover:underline">Limpar filtro</button>
+                            : <p className="text-xs text-white/60 mt-1">Adicione questões ou sessões para organizar o próximo estudo.</p>}
                         </div>
                       </div>
                     </TableCell>

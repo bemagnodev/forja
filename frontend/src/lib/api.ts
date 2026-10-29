@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { resolveApiUrl } from './visual-preview';
 
 declare module 'axios' {
   interface AxiosRequestConfig {
@@ -15,8 +16,7 @@ export function resetApiSession() {
 }
 
 
-// baseURL agora é configurado pra bater na Vercel (depois no env) ou localhost no dev
-const baseURL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000/api";
+const baseURL = resolveApiUrl(import.meta.env.MODE, import.meta.env.VITE_API_URL);
 
 export const api = axios.create({
   baseURL,

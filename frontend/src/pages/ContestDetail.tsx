@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { SelectControl } from '@/components/ui/select-control';
 import { PageLayout } from "@/components/layouts/PageLayout";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ProblemStatusSelect } from "@/components/contests/ProblemStatusSelect";
@@ -9,11 +10,20 @@ import { ProblemActionsCell } from "@/components/contests/ProblemActionsCell";
 import { CompactProblemTags } from '@/components/contests/CompactProblemTags';
 import { ContestIdentity } from '@/components/contests/ContestIdentity';
 import { ContestResultCell } from "@/components/contests/ContestResultCell";
-import { AlertCircle, ArrowLeft, ExternalLink, Sparkles, Search, CalendarDays, Clock3 } from "lucide-react";
+import { AlertCircle, ArrowLeft, ExternalLink, Sparkles, Search, CalendarDays, Clock3, ChartNoAxesColumn } from "lucide-react";
 import type { ContestProblem } from "@/components/contests/types";
 import type { ContestParticipation } from "@/components/contests/ContestCard";
 import { getRatingColor } from "@/lib/ratings";
 import { hasNativeRating } from "@/lib/product-classification";
+
+function UpsolveBadge() {
+  return <span title="Upsolvada" className="ml-1 inline-flex shrink-0 rounded border border-sky-400/20 bg-sky-400/[0.06] px-1.5 py-0.5 align-middle text-[9px] font-bold tracking-wide text-sky-300">UP</span>;
+}
+
+function displayProblemTitle(title: string, index: string) {
+  const prefix = `${index}. `;
+  return title.startsWith(prefix) ? title.slice(prefix.length) : title;
+}
 
 type Filter = "all" | "live" | "upsolved" | "pending" | "unattempted";
 const FILTERS: { key: Filter; label: string }[] = [
@@ -59,7 +69,7 @@ export function ContestDetail() {
   });
   const detail = detailQuery.data ?? (!detailQuery.isError ? location.state as ContestParticipation | null : null);
   const problems = problemsQuery.data ?? [];
-  const filtered = problems.filter(p => matches(p, filter) && `${p.index} ${p.title}`.toLocaleLowerCase().includes(search.toLocaleLowerCase()))
+  const filtered = problems.filter(p => matches(p, filter) && `${p.index} ${displayProblemTitle(p.title, p.index)}`.toLocaleLowerCase().includes(search.toLocaleLowerCase()))
     .sort((a, b) => {
       if (sort === "rating") return (a.rating ?? a.ai_rating ?? Infinity) - (b.rating ?? b.ai_rating ?? Infinity);
       if (sort === "time") return (a.contest_result?.first_ac_seconds ?? Infinity) - (b.contest_result?.first_ac_seconds ?? Infinity);
@@ -94,50 +104,36 @@ export function ContestDetail() {
       <p className="flex items-center gap-2 font-semibold"><AlertCircle className="size-4" />Não foi possível carregar o contest</p>
       <button className="mt-3 underline" onClick={() => { detailQuery.refetch(); problemsQuery.refetch(); }}>Tentar novamente</button>
     </div> : loading ? <p className="py-20 text-center text-sm text-white/60">Carregando problemas...</p> : <>
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-zinc-800 bg-zinc-900/40 px-4 py-4 sm:px-5">
-        <div className="space-y-3">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-zinc-800 bg-zinc-900/40 px-4 py-4 sm:px-5">
+        <div className="space-y-2">
           <ContestIdentity platform={detail?.contest_platform ?? ''} virtual={!!detail?.is_virtual} />
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px] text-zinc-500">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px] text-zinc-400">
             {detail?.participation_date && <span className="inline-flex items-center gap-1.5"><CalendarDays className="size-3.5" />{new Date(detail.participation_date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>}
             {!!detail?.duration_seconds && <span className="inline-flex items-center gap-1.5"><Clock3 className="size-3.5" />{Math.floor(detail.duration_seconds / 60)} min</span>}
             {rankKnown && detail?.penalty != null && <span>Penalidade <strong className="ml-1 font-medium tabular-nums text-zinc-300">{detail.penalty}</strong></span>}
           </div>
         </div>
         {detail?.url && <div className="flex items-center gap-2">
-          <a href={detail.url} target="_blank" rel="noopener noreferrer" title="Abrir contest na plataforma" className="inline-flex items-center gap-2 rounded-lg border border-forja/25 bg-forja/[0.06] px-3 py-2 text-[11px] font-medium text-red-300 transition-colors hover:border-forja/50 hover:bg-forja/10">Abrir contest<ExternalLink className="size-3" /></a>
-          <a href={`${detail.url}/standings`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-lg border border-zinc-800 px-3 py-2 text-[11px] text-zinc-400 hover:border-forja/30 hover:text-zinc-200">Placar<ExternalLink className="size-3" /></a>
+          <a href={detail.url} target="_blank" rel="noopener noreferrer" title="Abrir contest na plataforma" className="inline-flex items-center gap-2 rounded-lg border border-forja/25 bg-forja/[0.06] px-3 py-2 text-[11px] font-medium text-red-300 transition-colors hover:bg-zinc-800/60">Abrir contest<ExternalLink className="size-3" /></a>
+          <a href={`${detail.url}/standings`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-lg border border-zinc-800 px-3 py-2 text-[11px] text-zinc-400 hover:text-zinc-200">Placar<ExternalLink className="size-3" /></a>
         </div>}
       </div>
-      <div className="mb-6 grid grid-cols-2 gap-3 xl:grid-cols-4">
-        {metrics.map(m => <div key={m.label} className="rounded-xl border border-zinc-800 bg-zinc-900/50 px-4 py-4 transition-colors hover:border-forja/25">
-          <p className="mb-2 text-[11px] font-medium text-white/55">{m.label}</p><p className={`text-2xl font-bold tabular-nums ${m.color}`}>{m.value}</p>
+      <div className="mb-4 grid grid-cols-2 gap-2 xl:grid-cols-4">
+        {metrics.map(m => <div key={m.label} className="rounded-xl border border-zinc-800 bg-zinc-900/50 px-4 py-3">
+          <p className="mb-1 text-[11px] font-medium text-white/55">{m.label}</p><p className={`text-2xl font-bold tabular-nums ${m.color}`}>{m.value}</p>{m.label === "Erros na prova" && <p className="mt-1 text-[11px] text-zinc-400">{Object.entries(verdicts).map(([key, value]) => `${key} ${value}`).join(" · ")}</p>}
         </div>)}
       </div>
-      <div className="mb-5 flex flex-wrap gap-2 text-[11px] text-white/65">
-        {Object.entries(verdicts).map(([key, value]) => <span key={key} className="rounded-md border border-white/10 px-2 py-1">{key} <strong className="ml-1 text-white/85">{value}</strong></span>)}
-        {partial && <span className="text-zinc-500">Histórico parcial · Alguns horários e tentativas ainda não puderam ser confirmados</span>}
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2 text-xs text-zinc-400">
+        <span>{partial ? 'Histórico parcial · Alguns horários e tentativas ainda não puderam ser confirmados' : 'Histórico da prova e estudo posterior preservados'}</span>
+        <a href="#placar-da-prova" className="results-navigation"><ChartNoAxesColumn className="size-3.5" />Ver placar</a>
       </div>
-      <section aria-label="Placar por questão" className="mb-6 overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/40">
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/[0.07] px-4 py-3 text-[11px]">
-          <span className="border-l-2 border-forja pl-2 font-semibold text-zinc-300">Resultado da prova</span>
-        </div>
-        <div className="flex overflow-x-auto">
-          {[...problems].sort((a, b) => a.index.localeCompare(b.index, "en", { numeric: true })).map(p => <div key={p.id} className="flex min-w-20 flex-1 flex-col items-center border-r border-white/[0.05] py-2 last:border-0">
-            <button aria-label={`Ir para questão ${p.index}`} onClick={() => goToProblem(p.id)} className="mb-1 rounded px-3 py-1 text-xs font-bold text-white/65 hover:text-red-300 focus-visible:outline focus-visible:outline-forja">{p.index}</button>
-            <ContestResultCell result={p.contest_result} systemStatus={p.system_status} label={p.index} />
-          </div>)}
-          {!problems.length && <p className="p-5 text-sm text-white/50">Nenhuma questão disponível.</p>}
-        </div>
-      </section>
       <div className="mb-4 flex flex-col gap-4">
         <div className="flex flex-wrap gap-2">{FILTERS.map(f => <button key={f.key} aria-pressed={filter === f.key} onClick={() => setFilter(f.key)} className={`rounded-lg border px-3 py-2 text-xs font-medium transition-colors ${filter === f.key ? "border-forja/40 bg-forja/10 text-red-300" : "border-white/10 text-white/55 hover:bg-white/5"}`}>
           {f.label} <span className="ml-1.5 opacity-60">{problems.filter(p => matches(p, f.key)).length}</span>
         </button>)}</div>
         <div className="flex flex-wrap items-center gap-3">
-          <label className="relative flex-1"><Search className="absolute left-3 top-3 size-3.5 text-white/35" /><input type="search" aria-label="Buscar questão" placeholder="Buscar questão..." value={search} onChange={e => setSearch(e.target.value)} className={`${inputClass} w-full min-w-40 pl-9`} /></label>
-          <select aria-label="Ordenar questões" value={sort} onChange={e => setSort(e.target.value)} className={inputClass}>
-            <option value="index">Ordem da prova</option><option value="rating">Menor rating</option><option value="time">Momento do AC</option><option value="errors">Mais erros</option>
-          </select>
+          <label className="relative flex-1"><Search className="absolute left-3 top-3 size-3.5 text-white/55" /><input type="search" aria-label="Buscar questão" placeholder="Buscar questão..." value={search} onChange={e => setSearch(e.target.value)} className={`${inputClass} w-full min-w-40 pl-9`} /></label>
+          <SelectControl label="Ordenar questões" value={sort} onValueChange={setSort} options={[{ value: 'index', label: 'Ordem da prova' }, { value: 'rating', label: 'Menor rating' }, { value: 'time', label: 'Momento do AC' }, { value: 'errors', label: 'Mais erros' }]} />
         </div>
       </div>
       <div className="overflow-hidden rounded-xl border border-white/[0.09] bg-[#0c0d11]">
@@ -146,13 +142,14 @@ export function ContestDetail() {
             {["Questão", "Resultado", "Rating / tags", "Triagem", "Ações"].map(h => <TableHead key={h} className="px-4 py-4 text-[11px] font-semibold text-white/55">{h}</TableHead>)}
           </TableRow></TableHeader>
           <TableBody>
-            {filtered.map(p => <TableRow key={p.id} id={`questao-${p.id}`} className={`group/row border-white/[0.05] transition-colors ${selected?.id === p.id ? "bg-forja/[0.045]" : "hover:bg-white/[0.025]"}`}>
+            {filtered.map(p => <TableRow key={p.id} id={`questao-${p.id}`} className={`group/row border-white/[0.05] transition-colors ${selected?.id === p.id ? "bg-forja/[0.045]" : "hover:bg-zinc-800/60"}`}>
               <TableCell className="w-[32%] min-w-44 max-w-80 whitespace-normal px-4 py-2.5"><div className="flex items-start gap-3">
-                <span className="pt-0.5 text-xs font-bold text-white/35">{p.index}</span>
-                {p.url ? <a href={p.url} target="_blank" rel="noopener noreferrer" className="text-[13px] font-medium leading-relaxed text-white/85 hover:text-red-300">{p.title}</a> : <span className="text-[13px] text-white/85">{p.title}</span>}
+                <span className="pt-0.5 text-xs font-bold text-white/55">{p.index}</span>
+                {p.url ? <a href={p.url} target="_blank" rel="noopener noreferrer" className="text-[13px] font-medium leading-relaxed text-white/85 hover:text-zinc-100">{displayProblemTitle(p.title, p.index)}</a> : <span className="text-[13px] text-white/85">{displayProblemTitle(p.title, p.index)}</span>}
+                {(p.contest_result?.is_upsolved ?? p.system_status === 'UPSOLVED') && <UpsolveBadge />}
               </div></TableCell>
               <TableCell className="px-3 py-2"><ContestResultCell result={p.contest_result} systemStatus={p.system_status} label={p.index} /></TableCell>
-              <TableCell className="min-w-52 max-w-80 px-4 py-2">
+              <TableCell className="min-w-44 max-w-72 px-4 py-2">
                 <div className="flex items-center gap-3"><div className="flex shrink-0 items-center gap-1.5 text-xs font-bold tabular-nums" style={{ color: getRatingColor(p.rating ?? p.ai_rating ?? null) }}>
                   {!hasNativeRating(p.rating) && p.ai_rating != null && <Sparkles className="size-3 text-fuchsia-400" aria-label="Rating estimado por IA" />}
                   {p.rating ?? p.ai_rating ?? "—"}
@@ -166,6 +163,20 @@ export function ContestDetail() {
           </TableBody>
         </Table>
       </div>
+      <section id="placar-da-prova" aria-label="Placar da prova" className="mt-6 scroll-mt-4 overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/40">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/[0.07] px-4 py-3 text-[11px]">
+          <div><h3 className="text-lg font-semibold text-zinc-100">Placar da prova</h3><p className="mt-1 text-zinc-400">Resultado durante a prova; resoluções posteriores indicadas separadamente.</p></div>
+        </div>
+        <p className="px-4 pt-3 text-[11px] text-zinc-400">+ AC (vermelho se houve erros) · − tentativa sem AC · — não tentada · ? dados parciais · Role para ver todas as questões.</p><div className="flex overflow-x-auto">
+          {[...problems].sort((a, b) => a.index.localeCompare(b.index, "en", { numeric: true })).map(p => <div key={p.id} className="flex min-w-20 flex-1 flex-col items-center border-r border-white/[0.05] py-2 last:border-0">
+            <div className="mb-1 flex min-h-8 items-center justify-center gap-1 px-2">
+              <button aria-label={`Ir para questão ${p.index}`} onClick={() => goToProblem(p.id)} className="rounded px-2 py-1 text-xs font-bold text-white/65 hover:bg-zinc-800/60 focus-visible:outline focus-visible:outline-forja">{p.index}</button>
+            </div>
+            <ContestResultCell result={p.contest_result} systemStatus={p.system_status} label={p.index} />
+          </div>)}
+          {!problems.length && <p className="p-5 text-sm text-white/50">Nenhuma questão disponível.</p>}
+        </div>
+      </section>
     </>}
   </PageLayout>;
 }

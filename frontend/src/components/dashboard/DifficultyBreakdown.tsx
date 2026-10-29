@@ -85,7 +85,7 @@ export function DifficultyBreakdown({ data, totalSolved }: DifficultyBreakdownPr
           );
         })}
         {activeTiers.length === 0 && (
-          <div className="text-center py-4 text-sm text-zinc-600">Nenhum dado de dificuldade.</div>
+          <div className="text-center py-4 text-sm text-zinc-400">Nenhum dado de dificuldade.</div>
         )}
       </div>
     </motion.div>

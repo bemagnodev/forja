@@ -7,7 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import type { QueueItem } from "./types";
-import { priorityConfig, priorityOptions } from "./constants";
+import { priorityOptions } from "./constants";
 import { PlatformIcon } from "./PlatformIcon";
 import { PriorityBadge } from "./PriorityBadge";
 import { EditableDescription } from "./EditableDescription";
@@ -19,15 +19,16 @@ import { classificationErrorInfo } from "@/lib/classification-error";
 import { hasNativeRating, NATIVE_RATING_MESSAGE } from "@/lib/product-classification";
 
 function RatingBadge({ rating, isAi = false }: { rating: number | null; isAi?: boolean }) {
-  if (rating == null) return <span className="text-[11px] text-white/18 font-mono select-none">—</span>;
+  if (rating == null) return <span className="text-[11px] text-white/50 font-mono select-none">—</span>;
 
   const colorStyle = { color: getRatingColor(rating) };
 
   return (
-    <div className="flex items-center justify-center gap-1.5" title={isAi ? "Rating estimado por IA" : undefined}>
-      {isAi && <Sparkles className="w-3 h-3 text-fuchsia-400 opacity-80" />}
+    <div className="mx-auto grid w-fit grid-cols-[18px_4ch] items-center gap-1.5" title={isAi ? "Rating estimado por IA" : undefined}>
+      <span className="flex size-[18px] items-center justify-center">{isAi && <Sparkles aria-label="Rating estimado por IA" className="size-[18px] text-fuchsia-400" />}</span>
       <span 
-        className="text-[16px] font-mono tracking-tighter font-black"
+        data-slot="queue-rating-value"
+        className="text-right text-[16px] font-mono tabular-nums font-bold"
         style={colorStyle}
       >
         {rating}
@@ -128,28 +129,20 @@ export function SortableRow({
     ...(isDragging ? { position: "relative" as const, zIndex: 50, opacity: 0.8 } : {}),
   };
 
-  const pc = priorityConfig[item.priority];
-
-  // Acento lateral via box-shadow inset — usa opacity na borda se necessário
-  const rowStyle = {
-    ...style,
-    boxShadow: `inset 2px 0 0 ${pc?.border ?? "transparent"}`,
-  };
-
   return (
     <TableRow
       ref={setNodeRef}
-      style={rowStyle}
-      className="border-b border-white/[0.05] transition-colors duration-150 group relative hover:bg-white/[0.025] bg-transparent"
+      style={style}
+      className="border-b border-white/[0.05] transition-colors duration-150 group relative hover:bg-zinc-800/60 bg-transparent"
     >
       {/* ── CHECK: grip + checkbox ── */}
-      <TableCell className="py-0 pl-5 pr-2 align-middle">
+      <TableCell className="py-0 pl-4 pr-5 align-middle">
         <div className="flex items-center gap-2 h-full py-3.5">
           <button
             {...attributes}
             {...listeners}
             aria-label={`Reordenar ${item.title}`} disabled={disabled}
-            className="cursor-grab active:cursor-grabbing p-0.5 text-white/[0.12] hover:text-white/30 transition-colors focus:outline-none"
+            className="cursor-grab active:cursor-grabbing p-0.5 rounded text-white/40 hover:text-white/70 transition-colors focus-visible:ring-2 focus-visible:ring-forja"
           >
             <GripVertical className="w-3.5 h-3.5" />
           </button>
@@ -159,14 +152,14 @@ export function SortableRow({
               aria-label={`Concluir ${item.title}`}
               checked={item.is_completed}
               onCheckedChange={() => onToggle(item.id, item.is_completed, item.title)}
-              className="border-white/15 hover:border-white/30 transition-all duration-200"
+              className="border-white/30 hover:border-white/50 transition-all duration-200"
             />
           </div>
         </div>
       </TableCell>
 
       {/* ── QUESTÃO / ESTUDO ── */}
-      <TableCell className="py-3.5 px-3 align-middle">
+      <TableCell className="py-3.5 pl-4 pr-3 align-middle">
         <div className="grid grid-cols-[20px_minmax(0,1fr)_24px] items-center gap-2.5 w-full">
           <PlatformIcon platform={item.source_platform} type={item.item_type} />
           
@@ -188,12 +181,12 @@ export function SortableRow({
                   href={item.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-[13px] font-medium text-white/80 hover:text-sky-400 hover:underline transition-colors truncate leading-snug"
+                  className="text-[13px] font-medium text-white/80 hover:underline underline-offset-4 transition-colors truncate leading-snug"
                 >
                   {displayTitle}
                 </a>
               ) : (
-                <span title={displayTitle} className="text-[13px] font-medium text-white/80 group-hover:text-white transition-colors truncate leading-snug">
+                <span title={displayTitle} className="text-[13px] font-medium text-white/80 transition-colors truncate leading-snug">
                   {displayTitle}
                 </span>
               );
@@ -226,7 +219,8 @@ export function SortableRow({
                     ? 'Esta questão já possui rating nativo da plataforma'
                     : 'Estimar rating e tags com IA (Shift+Click para forçar recálculo)'}
                   aria-label="Estimar rating e tags com IA"
-                  className="w-6 h-6 flex items-center justify-center rounded-lg border border-fuchsia-400/20 bg-fuchsia-400/10 text-fuchsia-400 hover:bg-fuchsia-400/20 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-400 disabled:opacity-40"
+                  data-available={!(hasNativeRating(item.rating) || nativeBlocked)}
+                  className="data-[available=false]:border-white/10 data-[available=false]:bg-white/[0.02] data-[available=false]:text-zinc-500 w-7 h-7 flex items-center justify-center rounded-lg border border-fuchsia-400/20 bg-fuchsia-400/10 text-fuchsia-400 hover:bg-fuchsia-400/20 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-400 disabled:opacity-40"
                 >
                   {predictMutation.isPending ? (
                     <div className="w-3 h-3 border-2 border-fuchsia-400/30 border-t-fuchsia-400 rounded-full animate-spin" />
@@ -242,12 +236,12 @@ export function SortableRow({
       {/* ── PRIORIDADE ── */}
       <TableCell className="py-3.5 px-4 align-middle text-center">
         <DropdownMenu>
-          <DropdownMenuTrigger disabled={disabled} aria-label={`Prioridade de ${item.title}`} className="focus:outline-none cursor-pointer hover:scale-[1.03] transition-all active:scale-95">
+          <DropdownMenuTrigger disabled={disabled} aria-label={`Prioridade de ${item.title}`} className="rounded-md cursor-pointer transition-colors focus-visible:ring-2 focus-visible:ring-forja">
             <PriorityBadge priority={item.priority} />
           </DropdownMenuTrigger>
           <DropdownMenuContent
             align="end"
-            className="bg-[#0d0d0d]/98 backdrop-blur-xl border-white/[0.09] min-w-[168px] shadow-xl p-1 rounded-xl"
+            className="bg-[#0d0d0d] backdrop-blur-xl border-white/[0.09] min-w-[168px] shadow-xl p-1 rounded-xl"
           >
             {priorityOptions.map((opt) => (
               <DropdownMenuItem
@@ -267,7 +261,7 @@ export function SortableRow({
       </TableCell>
 
       {/* ── RATING ── */}
-      <TableCell className="py-3.5 px-3 align-middle text-center">
+      <TableCell className="py-3.5 px-2 align-middle text-center">
         <RatingBadge rating={item.rating ?? item.ai_rating ?? null} isAi={!hasNativeRating(item.rating) && item.ai_rating != null} />
       </TableCell>
 
@@ -282,9 +276,9 @@ export function SortableRow({
                 {(item.tags?.length > 0 ? item.tags : item.ai_tags || []).slice(0, 2).map((tag, index) => (
                   <span
                     key={tag}
-                    className={`${index === 0 ? "shrink-0 max-w-[45%]" : "shrink min-w-0"} truncate text-[10px] px-1.5 py-[2.5px] rounded uppercase tracking-wider font-bold border transition-colors ${
+                    className={`${index === 0 ? "shrink-0 max-w-[45%]" : "shrink min-w-0"} truncate text-[11px] px-1.5 py-[2.5px] rounded font-medium border transition-colors ${
                       !item.tags?.length && item.ai_tags && item.ai_tags.length > 0 
-                      ? "bg-fuchsia-500/10 border-fuchsia-500/20 text-fuchsia-300"
+                      ? "bg-white/[0.04] border-white/[0.08] text-white/65"
                       : "bg-white/[0.06] border-white/[0.08] text-white/55"
                     }`}
                   >
@@ -292,7 +286,7 @@ export function SortableRow({
                   </span>
                 ))}
                 {(item.tags?.length > 0 ? item.tags : item.ai_tags || []).length > 2 && (
-                  <span className="shrink-0 text-[9px] px-1.5 py-[2px] rounded bg-white/[0.03] text-white/35 font-bold border border-white/[0.06]">
+                  <span className="shrink-0 text-[9px] px-1.5 py-[2px] rounded bg-white/[0.03] text-white/60 font-bold border border-white/[0.06]">
                     +{(item.tags?.length > 0 ? item.tags : item.ai_tags || []).length - 2}
                   </span>
                 )}
@@ -311,7 +305,7 @@ export function SortableRow({
             </TooltipContent>
           </Tooltip>
         ) : (
-          <span className="text-[11px] text-white/18 select-none">—</span>
+          <span className="text-[11px] text-white/50 select-none">—</span>
         )}
       </TableCell>
 
@@ -319,7 +313,7 @@ export function SortableRow({
       <TableCell className="py-3.5 px-3 align-middle">
         {item.contest_name ? (
           <Tooltip>
-            <TooltipTrigger className="text-[11px] font-mono font-bold tracking-wider text-white/35 hover:text-white/60 transition-colors cursor-default uppercase">
+            <TooltipTrigger className="text-[11px] font-mono font-bold tracking-wider text-white/60 hover:text-white/60 transition-colors cursor-default uppercase">
                 {abbreviateContest(item.contest_name)}
             </TooltipTrigger>
             <TooltipContent
@@ -331,7 +325,7 @@ export function SortableRow({
             </TooltipContent>
           </Tooltip>
         ) : (
-          <span className="text-[11px] text-white/18 select-none">—</span>
+          <span className="text-[11px] text-white/50 select-none">—</span>
         )}
       </TableCell>
 

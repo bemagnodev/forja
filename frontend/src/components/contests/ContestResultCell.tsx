@@ -21,8 +21,9 @@ export function ContestResultCell({ result, systemStatus, label = '' }: {
   const accepted = result ? result.accepted : (systemStatus === 'SOLVED_LIVE' ? true : null);
   const partial = !result || result.coverage !== 'complete';
   const attempts = result?.failed_attempts;
+  const attempted = attempts == null || attempts > 0 || (result?.compilation_errors ?? 0) > 0;
   const sign = accepted === true ? `+${attempts == null ? '?' : attempts || ''}`
-    : accepted === false ? `−${attempts == null ? '?' : attempts || ''}` : '?';
+    : accepted === false ? (!attempted && !partial ? '—' : `−${attempts == null ? '?' : attempts || ''}`) : '?';
   const time = formatContestTime(result?.first_ac_seconds);
   const upsolved = result?.is_upsolved ?? systemStatus === 'UPSOLVED';
   const description = accepted ? 'AC no contest' : accepted === false ? 'Sem AC no contest' : 'Resultado parcial';
@@ -35,9 +36,8 @@ export function ContestResultCell({ result, systemStatus, label = '' }: {
     <Tooltip open={open} onOpenChange={setOpen} triggerId={id}>
       <TooltipTrigger id={id} closeOnClick={false} onClick={() => setOpen(true)} aria-label={`${label ? `${label}: ` : ''}${description}${attempts != null ? `, ${attempts} ${attempts === 1 ? 'erro' : 'erros'}` : ''}${accepted ? `, ${time}` : ''}${upsolved ? ', Upsolvada' : ''}`}
         className="flex min-h-11 min-w-14 items-center justify-center gap-1.5 rounded-lg px-1.5 py-1 transition-colors hover:bg-white/[0.04] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forja">
-        <span className="flex flex-col items-center"><span className={`text-[15px] font-bold leading-5 tabular-nums ${accepted ? 'text-emerald-400' : accepted === false ? 'text-sky-400' : 'text-white/40'}`}>{sign}</span>
+        <span className="flex flex-col items-center"><span className={`text-[15px] font-bold leading-5 tabular-nums ${accepted ? (attempts != null && attempts > 0 ? 'text-red-400' : 'text-emerald-400') : accepted === false && attempted ? 'text-red-400' : 'text-white/40'}`}>{sign}</span>
         {accepted && <span className="text-[10px] font-medium leading-4 tabular-nums text-white/55">{time}</span>}</span>
-        {upsolved && <span title="Upsolvada" className="rounded border border-sky-400/20 bg-sky-400/[0.06] px-1 py-0.5 text-[8px] font-bold tracking-wide text-sky-300"><span aria-hidden="true">UP</span><span className="sr-only">Upsolvada</span></span>}
       </TooltipTrigger>
       <TooltipContent role="tooltip" className="block max-w-72 space-y-2 rounded-xl border border-white/10 bg-[#17191f] p-3 text-left text-xs leading-relaxed text-white shadow-xl">
         <p className="font-semibold">{label && `${label} · `}{description}</p>

@@ -87,19 +87,19 @@ export function AddItemDialog({ onCreate }: { onCreate: (data: QueueCreateInput)
   return (
     <Dialog open={open} onOpenChange={(v) => { if (pending) return; setOpen(v); if (!v) resetForm(); }}>
       <DialogTrigger
-          className="bg-[#dc143c] hover:bg-[#dc143c]/90 hover:-translate-y-0.5 shadow-md shadow-[#dc143c]/10 text-white text-[12px] font-semibold gap-2 h-9 px-5 transition-all rounded-lg border border-[#dc143c]/30 inline-flex items-center justify-center cursor-pointer active:scale-95 duration-200"
+          className="bg-[#dc143c] hover:bg-zinc-800  shadow-md shadow-[#dc143c]/10 text-white text-[12px] font-semibold gap-2 h-9 px-5 transition-all rounded-lg border border-[#dc143c]/30 inline-flex items-center justify-center cursor-pointer  duration-200"
       >
           <Plus className="w-3.5 h-3.5" strokeWidth={2.5} />
           Novo Item
       </DialogTrigger>
 
-      <DialogContent className="bg-[#080808]/99 backdrop-blur-2xl border border-white/[0.09] text-white w-[95vw] sm:max-w-lg rounded-2xl p-0 overflow-hidden mx-auto max-h-[90vh] flex flex-col shadow-[0_24px_64px_rgba(0,0,0,0.65)]">
+      <DialogContent className="bg-[#080808] backdrop-blur-2xl border border-white/[0.09] text-white w-[95vw] sm:max-w-lg rounded-2xl p-0 overflow-hidden mx-auto max-h-[90vh] flex flex-col shadow-[0_24px_64px_rgba(0,0,0,0.65)]">
         {/* Cabeçalho */}
         <div className="px-6 py-4 border-b border-white/[0.07] shrink-0">
           <DialogTitle className="text-[15px] text-white font-bold tracking-tight">
             Criar Novo Item
           </DialogTitle>
-          <p className="text-[11px] text-white/30 mt-0.5">Adicione uma questão ou sessão de estudo</p>
+          <p className="text-[11px] text-white/60 mt-0.5">Adicione uma questão ou sessão de estudo</p>
         </div>
 
         {/* Corpo */}
@@ -107,7 +107,7 @@ export function AddItemDialog({ onCreate }: { onCreate: (data: QueueCreateInput)
 
           {/* Tipo */}
           <div className="space-y-2">
-            <label className="text-[10px] uppercase text-white/30 font-bold tracking-widest">Tipo</label>
+            <label className="text-[11px] uppercase text-white/60 font-bold tracking-widest">Tipo</label>
             <div className="flex gap-2">
               <button
                 onClick={() => { setItemType("PROBLEM"); setSelectedProblem(null); }}
@@ -139,7 +139,7 @@ export function AddItemDialog({ onCreate }: { onCreate: (data: QueueCreateInput)
             <>
               {/* Plataforma */}
               <div className="space-y-2">
-                <label className="text-[10px] uppercase text-white/30 font-bold tracking-widest">Plataforma</label>
+                <label className="text-[11px] uppercase text-white/60 font-bold tracking-widest">Plataforma</label>
                 <div className="flex gap-2">
                   {[
                     { value: "CODEFORCES", label: "Codeforces" },
@@ -165,10 +165,10 @@ export function AddItemDialog({ onCreate }: { onCreate: (data: QueueCreateInput)
 
               {/* Busca */}
               <div className="space-y-2">
-                <label className="text-[10px] uppercase text-white/30 font-bold tracking-widest flex items-center gap-2">
+                <label className="text-[11px] uppercase text-white/60 font-bold tracking-widest flex items-center gap-2">
                   Buscar Questão
                   {!platform && (
-                    <span className="text-[9px] text-amber-400/60 normal-case tracking-normal font-normal">
+                    <span className="text-[11px] text-amber-300/80 normal-case tracking-normal font-normal">
                       (selecione uma plataforma primeiro)
                     </span>
                   )}
@@ -180,7 +180,7 @@ export function AddItemDialog({ onCreate }: { onCreate: (data: QueueCreateInput)
                     value={selectedProblem ? `${selectedProblem.platform_id} - ${selectedProblem.title}` : searchQuery}
                     onChange={(e) => { setSearchQuery(e.target.value); setSelectedProblem(null); }}
                     placeholder={platform ? "Busque por ID ou nome (ex: 1A, Theatre)" : "Selecione a plataforma acima"}
-                    className="pl-10 h-10 bg-black/40 border-white/[0.09] text-white placeholder:text-white/18 rounded-xl text-[13px] disabled:opacity-40"
+                    className="pl-10 h-10 bg-black/40 border-white/[0.09] text-white placeholder:text-white/40 rounded-xl text-[13px] disabled:opacity-40"
                   />
                   {selectedProblem && (
                     <button
@@ -194,7 +194,7 @@ export function AddItemDialog({ onCreate }: { onCreate: (data: QueueCreateInput)
 
                 {/* Resultados de busca */}
                 {searchResults.length > 0 && !selectedProblem && (
-                  <div className="border border-white/[0.09] rounded-xl max-h-44 overflow-y-auto bg-[#0a0a0a]/98 shadow-xl">
+                  <div className="border border-white/[0.09] rounded-xl max-h-44 overflow-y-auto bg-[#0a0a0a] shadow-xl">
                     {searchResults.map((p) => (
                       <button
                         key={p.id}
@@ -219,21 +219,21 @@ export function AddItemDialog({ onCreate }: { onCreate: (data: QueueCreateInput)
           {/* Seção STUDY_SESSION */}
           {itemType === "STUDY_SESSION" && (
             <div className="space-y-2">
-              <label className="text-[10px] uppercase text-white/30 font-bold tracking-widest">
+              <label className="text-[11px] uppercase text-white/60 font-bold tracking-widest">
                 Objetivo do Estudo
               </label>
               <Input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="Ex: Estudar DP em árvores, Segment Tree lazy"
-                className="h-10 bg-black/40 border-white/[0.09] text-white placeholder:text-white/18 rounded-xl text-[13px]"
+                className="h-10 bg-black/40 border-white/[0.09] text-white placeholder:text-white/40 rounded-xl text-[13px]"
               />
             </div>
           )}
 
           {/* Prioridade */}
           <div className="space-y-2">
-            <label className="text-[10px] uppercase text-white/30 font-bold tracking-widest">Prioridade</label>
+            <label className="text-[11px] uppercase text-white/60 font-bold tracking-widest">Prioridade</label>
             <div className="flex gap-2">
               {priorityOptions.map((opt) => {
                 const active = priority === opt.value;
@@ -261,14 +261,14 @@ export function AddItemDialog({ onCreate }: { onCreate: (data: QueueCreateInput)
 
           {/* Descrição opcional */}
           <div className="space-y-2">
-            <label className="text-[10px] uppercase text-white/30 font-bold tracking-widest">
+            <label className="text-[11px] uppercase text-white/60 font-bold tracking-widest">
               Descrição <span className="text-white/18 ml-1 font-normal normal-case tracking-normal">(opcional)</span>
             </label>
             <Input
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Ex: Focar em DP com bitmask..."
-              className="h-9 bg-black/40 border-white/[0.09] text-white placeholder:text-white/15 rounded-xl text-[12px]"
+              className="h-9 bg-black/40 border-white/[0.09] text-white placeholder:text-white/40 rounded-xl text-[12px]"
             />
           </div>
         </div>
@@ -285,7 +285,7 @@ export function AddItemDialog({ onCreate }: { onCreate: (data: QueueCreateInput)
           <Button
             onClick={handleSubmit}
             disabled={pending || (!title.trim() && !selectedProblem)}
-            className="bg-[#dc143c] hover:bg-[#dc143c]/90 hover:scale-[1.02] active:scale-95 text-white font-bold h-9 px-7 rounded-lg transition-all duration-200 disabled:opacity-35 text-[12px] border border-[#dc143c]/60 shadow-lg shadow-[#dc143c]/20"
+            className="bg-[#dc143c] hover:bg-zinc-800   text-white font-bold h-9 px-7 rounded-lg transition-all duration-200 disabled:opacity-35 text-[12px] border border-[#dc143c]/60 shadow-lg shadow-[#dc143c]/20"
           >
             {pending ? "Criando..." : "Criar Item"}
           </Button>

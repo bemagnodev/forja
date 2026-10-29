@@ -4,6 +4,12 @@ import { ActivityHeatmap } from './ActivityHeatmap';
 
 afterEach(() => { cleanup(); vi.useRealTimers(); });
 
+it('não sobrepõe o mês inicial quase encerrado ao rótulo do mês seguinte', () => {
+  render(<ActivityHeatmap referenceDate="2026-10-29" data={[]} />);
+  expect(screen.getAllByText('out')).toHaveLength(1);
+  expect(screen.getByText('nov')).toBeVisible();
+});
+
 it('não quebra a página se a data de referência ainda não veio da API', () => {
   render(<ActivityHeatmap referenceDate="" data={[]} />);
   expect(screen.getByText(/Calendário indisponível/)).toBeVisible();

@@ -18,15 +18,21 @@ it('shows a green plus and HH:MM for the first AC, without +0', () => {
 });
 it('shows failed judgements before AC and truncates seconds', () => {
   mount({ failed_attempts: 2, first_ac_seconds: 4109 });
-  expect(screen.getByText('+2')).toBeVisible(); expect(screen.getByText('01:08')).toBeVisible();
+  expect(screen.getByText('+2')).toHaveClass('text-red-400'); expect(screen.getByText('01:08')).toBeVisible();
 });
 it('keeps the original minus and adds Upsolvada after practice', () => {
   mount({ accepted: false, failed_attempts: 2, first_ac_seconds: null, is_upsolved: true });
-  expect(screen.getByText('−2')).toHaveClass('text-sky-400'); expect(screen.getByText('Upsolvada')).toBeVisible();
+  expect(screen.getByText('−2')).toHaveClass('text-red-400'); expect(screen.queryByText('UP')).toBeNull();
   expect(screen.queryByText('+2')).toBeNull();
 });
 it('shows only a minus for an unattempted problem', () => {
-  mount({ accepted: false, first_ac_seconds: null }); expect(screen.getByText('−')).toBeVisible();
+  mount({ accepted: false, first_ac_seconds: null }); expect(screen.getByText('—')).toBeVisible();
+});
+it('não chama de não tentada uma questão com somente erros de compilação', async () => {
+  mount({ accepted: false, first_ac_seconds: null, compilation_errors: 2 });
+  expect(screen.getByText('−')).toHaveClass('text-red-400');
+  await userEvent.click(screen.getByRole('button'));
+  expect(await screen.findByRole('tooltip')).toHaveTextContent('CE: 2');
 });
 it('opens verdict details on hover, keyboard focus, and click', async () => {
   mount({ failed_attempts: 2, errors_before_ac: { WA: 1, TLE: 1 }, errors_after_ac: { RE: 1 }, compilation_errors: 2 });
