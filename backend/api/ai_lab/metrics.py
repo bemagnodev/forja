@@ -1,8 +1,23 @@
-"""Pure metrics with separate validity intersections for rating and tags."""
+"""Paired rating metrics and explicitly versioned tag scoring policies."""
 
 from statistics import median
 
 RATING_BANDS = ((800, 1100), (1200, 1500), (1600, 1900), (2000, 2400))
+LEGACY_TAG_SCORING = "valid-intersection-v1"
+FULL_DATASET_TAG_SCORING = "full-dataset-v1"
+
+
+def _returned_tags(prediction: dict) -> set:
+    """Keep unknown labels as false positives; never map synonyms or translations."""
+    if prediction.get("responded") is False:
+        return set()
+    raw = prediction.get("raw")
+    value = raw.get("tags") if isinstance(raw, dict) and "tags" in raw else prediction.get("tags")
+    if not isinstance(value, list):
+        return set()
+    # Tuples cannot collide with any string label; malformed members count as extras.
+    return {" ".join(tag.lower().split()) if isinstance(tag, str) else ("invalid-member", index)
+            for index, tag in enumerate(value)}
 
 
 def compare_by_band(references: dict, runs: dict) -> list[dict]:
@@ -16,7 +31,9 @@ def compare_by_band(references: dict, runs: dict) -> list[dict]:
     return result
 
 
-def compare_runs(references: dict, runs: dict) -> dict:
+def compare_runs(references: dict, runs: dict, *, tag_scoring=LEGACY_TAG_SCORING) -> dict:
+    if tag_scoring not in (LEGACY_TAG_SCORING, FULL_DATASET_TAG_SCORING):
+        raise ValueError("Unknown tag scoring policy")
     keys, total = set(references), len(references)
     intersections = {}
     for task in ("rating", "tags"):
@@ -24,7 +41,11 @@ def compare_runs(references: dict, runs: dict) -> dict:
                  for run in runs.values()
                  if not run or not all(p.get(f"{task}_status") == "not_applicable" for p in run.values())]
         intersections[task] = sorted(set.intersection(*valid)) if valid else []
-    report = {"rating_intersection": intersections["rating"], "tags_intersection": intersections["tags"], "total": total, "runs": {}}
+    if tag_scoring == FULL_DATASET_TAG_SCORING:
+        # Retain the historical field name for readers; this policy evaluates all keys.
+        intersections["tags"] = sorted(keys)
+    report = {"rating_intersection": intersections["rating"], "tags_intersection": intersections["tags"],
+              "tag_scoring": tag_scoring, "total": total, "runs": {}}
     for name, predictions in runs.items():
         rows = {k: predictions[k] for k in keys if k in predictions}
         rating_keys, tag_keys = intersections["rating"], intersections["tags"]
@@ -32,7 +53,9 @@ def compare_runs(references: dict, runs: dict) -> dict:
         tp = fp = fn = 0
         tags_applicable = not rows or not all(p.get("tags_status") == "not_applicable" for p in rows.values())
         for key in tag_keys if tags_applicable else []:
-            actual, predicted = set(references[key]["tags"]), set(rows[key]["tags"])
+            actual = set(references[key]["tags"])
+            predicted = (_returned_tags(rows.get(key, {})) if tag_scoring == FULL_DATASET_TAG_SCORING
+                         else set(rows[key]["tags"]))
             tp += len(actual & predicted)
             fp += len(predicted - actual)
             fn += len(actual - predicted)
@@ -42,6 +65,11 @@ def compare_runs(references: dict, runs: dict) -> dict:
                   "tags_micro_f1": 2 * tp / (2 * tp + fp + fn) if 2 * tp + fp + fn else None,
                   "pending": total - len(rows), "responded": sum(bool(p.get("responded")) for p in rows.values()),
                   "latency_median": median(durations) if durations else None}
+        if tag_scoring == FULL_DATASET_TAG_SCORING:
+            result.update(tags_true_positive=tp if tags_applicable else None,
+                          tags_false_positive=fp if tags_applicable else None,
+                          tags_false_negative=fn if tags_applicable else None,
+                          tags_evaluated=total if tags_applicable else None)
         for task in ("rating", "tags"):
             if task == "tags" and not tags_applicable:
                 result.update(tags_valid=None, tags_coverage=None, tags_failure_rate=None, tags_failures={})

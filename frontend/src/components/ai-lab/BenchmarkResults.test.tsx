@@ -13,7 +13,7 @@ const metric = {
   rating_failures: {}, tags_valid: 2, tags_coverage: 1, tags_failure_rate: 0, tags_failures: {},
 };
 const result = {
-  id: "pilot", label: "Experimento Codeforces 1", version: "v1", split: "development",
+  id: "pilot", label: "Experimento Codeforces 1", version: "v1", split: "development", tag_scoring: "full-dataset-v1",
   dataset: { version: "v1", split: "development", total: 2, hash: "dataset-hash", seed: 42 },
   prompt: { hash: "prompt-hash" }, intersections: { rating: ["101A", "102B"], tags: ["101A", "102B"] },
   bands: [{ label: "800–1100", total: 1, compared: 1, mae: { baseline: 400, gemini: 100 } }, { label: "1200–1500", total: 1, compared: 1, mae: { baseline: 200, gemini: 100 } }],
@@ -47,10 +47,36 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("Benchmark salvo", () => {
+  it("mantém as três abas e o layout direto, sem textos editoriais nem diagnósticos recolhidos", async () => {
+    const comparisons = ["1. Modelos", "2. Prompts", "3. Raciocínio"].map((label, i) => ({ id: `exp-${i}`, label }));
+    vi.mocked(api.get).mockImplementation(async url => ({ data: url === "/ai-lab/benchmarks"
+      ? { benchmarks: comparisons }
+      : { ...result, label: "3. Raciocínio", description: "Mesmo prompt, dois níveis", conclusion: "Ganho modesto nesta rodada.",
+          runs: [{ ...result.runs[1], label: "High", parameters: { thinking_level: "high", timeout_seconds: 90 },
+            token_usage: { total_tokens: 2000, compared_items: 2, items_with_usage: 2 } }],
+          prompts: [{ version: "classification_v3", hash: "private-hash", label: "C · Exemplos", description: "Quatro exemplos.", private_examples: true }] }
+    }) as Awaited<ReturnType<typeof api.get>>);
+    mount();
+    await screen.findByRole("heading", { name: "3. Raciocínio" });
+    expect(screen.queryByText("Ganho modesto nesta rodada.")).not.toBeInTheDocument();
+    expect(screen.queryByText("Mesmo prompt, dois níveis")).not.toBeInTheDocument();
+    expect(screen.queryByText("Conclusão desta rodada")).not.toBeInTheDocument();
+    expect(screen.queryByText("Detalhes por faixa e questão")).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Tempo e consumo" })).not.toBeInTheDocument();
+    expect(screen.getByRole("table", { name: "Erro médio por faixa de rating oficial" })).toBeVisible();
+    expect(screen.getByRole("img", { name: /Rating previsto versus oficial/ })).toBeVisible();
+    const nav = screen.getByRole("navigation", { name: "Experimentos do benchmark" });
+    expect(within(nav).getAllByRole("button")).toHaveLength(3);
+    await userEvent.click(within(nav).getByRole("button", { name: "3. Raciocínio" }));
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith("/ai-lab/benchmarks/exp-2"));
+    await userEvent.click(screen.getByText("Técnica e prompt"));
+    expect(screen.getByText(/Exemplos privados/)).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Copiar prompt" })).not.toBeInTheDocument();
+  });
   it('expõe as amostras pareadas junto da comparação, antes de abrir a metodologia', async () => {
     mount();
     await screen.findByRole('heading', { name: result.label });
-    expect(screen.getByText('MAE e ±200: 2/2 itens em comum · F1: 2/2 · Cobertura: conjunto completo (2)')).toBeVisible();
+    expect(screen.getByText('MAE e ±200: 2/2 itens em comum · F1: 2 problemas')).toBeVisible();
     expect(screen.getByText('0–400 pontos · menor erro é melhor')).toBeVisible();
   });
   it('mantém a seleção do ponto ao focar o detalhe e a limpa ao fechar', async () => {
@@ -89,11 +115,13 @@ describe("Benchmark salvo", () => {
     expect(api.get).toHaveBeenCalledTimes(2);
   });
 
-  it("mantém cobertura das tags sem o bloco operacional nem rodapés repetidos", async () => {
+  it("remove cobertura e subtítulo de tags, mantendo quatro colunas e a metodologia", async () => {
     mount();
-    const table = await screen.findByRole("table", { name: "Comparação de qualidade e cobertura dos modelos" });
+    const table = await screen.findByRole("table", { name: "Comparação de qualidade dos modelos" });
     const row = within(table).getByRole("row", { name: /Gemini sintético/ });
-    expect(within(row).getByText("Tags válidas: 2/2")).toBeVisible();
+    expect(within(table).getAllByRole("columnheader")).toHaveLength(4);
+    expect(within(table).queryByRole("columnheader", { name: /Cobertura/ })).not.toBeInTheDocument();
+    expect(within(row).queryByText(/Tags válidas/)).not.toBeInTheDocument();
     expect(screen.queryByText('Detalhes da avaliação')).not.toBeInTheDocument();
     expect(screen.queryByText(/Ordenado pelo menor erro médio/)).not.toBeInTheDocument();
     expect(screen.queryByText(/Amostra:/)).not.toBeInTheDocument();
@@ -134,7 +162,7 @@ describe("Benchmark salvo", () => {
 
   it("usa escala fixa de mil pontos sem alterar o MAE exibido", async () => {
     mount();
-    const table = await screen.findByRole("table", { name: "Comparação de qualidade e cobertura dos modelos" });
+    const table = await screen.findByRole("table", { name: "Comparação de qualidade dos modelos" });
     expect(within(table).getByRole("meter", { name: "Erro médio: Gemini sintético" })).toHaveAttribute("aria-valuemax", "1000");
     expect(within(table).getByRole("meter", { name: "Erro médio: Gemini sintético" })).toHaveAttribute("aria-valuenow", "100");
     expect(within(table).getByRole("meter", { name: "Erro médio: Mediana" }).firstElementChild).toHaveStyle({ width: "30%" });
@@ -157,6 +185,8 @@ describe("Benchmark salvo", () => {
     await userEvent.setup().click(await screen.findByRole("button", { name: "Ajuda: F1 de tags" }));
     const help = await screen.findByRole("tooltip");
     expect(help).toHaveTextContent("extras e as que faltaram");
+    expect(help).toHaveTextContent("Tags desconhecidas contam como falsos positivos");
+    expect(help).toHaveTextContent("todas as 2 questões");
     expect(help).toHaveTextContent("Não representa a porcentagem de problemas totalmente corretos");
     await userEvent.setup().click(screen.getByText('Sobre o experimento'));
     expect(screen.getByText(/rating 2\/2; tags 2\/2/)).toBeVisible();
@@ -175,11 +205,11 @@ describe("Benchmark salvo", () => {
     expect(screen.getByText(/Tags estimadas:/)).toHaveTextContent("saída inválida");
   });
 
-  it("mostra qualidade e cobertura sem histórico operacional e sem chamar IA", async () => {
+  it("mostra qualidade sem coluna de cobertura, histórico operacional ou chamadas de IA", async () => {
     mount();
-    const row = await within(await screen.findByRole("table", { name: "Comparação de qualidade e cobertura dos modelos" })).findByRole("row", { name: /Gemini sintético/ });
+    const row = await within(await screen.findByRole("table", { name: "Comparação de qualidade dos modelos" })).findByRole("row", { name: /Gemini sintético/ });
     expect(within(row).getByText("100,0")).toBeInTheDocument();
-    expect(within(row).getByText("2/2 (100%)")).toBeInTheDocument();
+    expect(within(row).getByText("0,800")).toBeInTheDocument();
     expect(screen.queryByText(/authentication: 2/)).not.toBeInTheDocument();
     const rows = screen.getAllByRole("row");
     expect(rows.findIndex(r => r.textContent?.includes("Gemini sintético"))).toBeLessThan(rows.findIndex(r => r.textContent?.includes("Mediana")));
@@ -210,8 +240,8 @@ describe("Benchmark salvo", () => {
   it("consulta o conjunto selecionado sem executar experimento", async () => {
     const user = userEvent.setup();
     mount();
-    await within(await screen.findByRole("table", { name: "Comparação de qualidade e cobertura dos modelos" })).findByRole("row", { name: /Gemini sintético/ });
-    await user.selectOptions(screen.getByLabelText("Conjunto de resultados"), "final");
+    await within(await screen.findByRole("table", { name: "Comparação de qualidade dos modelos" })).findByRole("row", { name: /Gemini sintético/ });
+    await user.click(screen.getByRole("button", { name: "Final sintético" }));
     await waitFor(() => expect(api.get).toHaveBeenCalledWith("/ai-lab/benchmarks/final"));
   });
 
@@ -237,8 +267,8 @@ describe("Benchmark salvo", () => {
         rating_failure_rate: 0.5, pending: 1, responded: 1,
       } }] } }) as Awaited<ReturnType<typeof api.get>>);
     mount();
-    const row = await within(await screen.findByRole("table", { name: "Comparação de qualidade e cobertura dos modelos" })).findByRole("row", { name: /Gemini sintético/ });
-    expect(within(row).getByText("0/2 (0%)")).toBeInTheDocument();
+    const row = await within(await screen.findByRole("table", { name: "Comparação de qualidade dos modelos" })).findByRole("row", { name: /Gemini sintético/ });
+    expect(within(row).getAllByText("—").length).toBeGreaterThan(0);
     expect(screen.getByText(/Nenhum item válido em comum para rating/)).toBeInTheDocument();
   });
 
@@ -248,7 +278,7 @@ describe("Benchmark salvo", () => {
       : { ...result, runs: [{ ...result.runs[1], metrics: { ...metric, mae: null } }, result.runs[0]] }
     }) as Awaited<ReturnType<typeof api.get>>);
     mount();
-    const table = await screen.findByRole("table", { name: "Comparação de qualidade e cobertura dos modelos" });
+    const table = await screen.findByRole("table", { name: "Comparação de qualidade dos modelos" });
     expect(within(table).getAllByRole("row")[1]).toHaveTextContent("Mediana");
   });
 });

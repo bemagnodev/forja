@@ -4,6 +4,74 @@ import json
 import pytest
 
 
+def test_full_dataset_tag_policy_is_exported_and_scores_raw_unknown_labels(showcase, tmp_path):
+    from api.ai_lab.results import export_snapshot, read_snapshot
+    from api.ai_lab.runner import save_json
+    root, manifest = showcase
+    index = json.loads((root / "showcase.json").read_text(encoding="utf-8"))
+    index["benchmarks"][0]["tag_scoring"] = "full-dataset-v1"
+    save_json(root / "showcase.json", index)
+    path = root / "runs/model-a/run.json"
+    run = json.loads(path.read_text(encoding="utf-8"))
+    key = manifest["items"][0]["key"]
+    run["predictions"][key].update(tags=None, tags_status="invalid_output", raw={"tags": ["unknown"]})
+    save_json(path, run)
+    output = tmp_path / "public/pilot-v1.json"
+    export_snapshot(root, "pilot-v1", output)
+    data = read_snapshot(output.parent, "pilot-v1")
+    assert data["tag_scoring"] == "full-dataset-v1"
+    assert len(data["intersections"]["tags"]) == 12
+    model = next(r for r in data["runs"] if r["provider"] != "baseline")
+    assert model["metrics"]["tags_micro_f1"] == pytest.approx(22 / 24)
+    assert model["metrics"]["tags_false_positive"] == 1
+    assert model["metrics"]["tags_false_negative"] == 1
+    assert model["metrics"]["tags_evaluated"] == 12
+    assert '"raw"' not in output.read_text(encoding="utf-8")
+
+
+def test_curated_snapshots_have_three_comparisons_and_no_private_examples():
+    from pathlib import Path
+    from api.ai_lab.results import list_snapshots, read_snapshot
+    root = Path(__file__).resolve().parents[2] / "ai_lab/published"
+    selected = list_snapshots(root)
+    assert [item["label"] for item in selected] == ["1. Modelos", "2. Prompts", "3. Raciocínio"]
+    models, prompts, thinking = [read_snapshot(root, item["id"]) for item in selected]
+    assert len(models["intersections"]["rating"]) == 60
+    assert len(prompts["intersections"]["rating"]) == 60
+    assert len(thinking["intersections"]["rating"]) == 59
+    assert len(thinking["intersections"]["tags"]) == 60
+    assert any(run["id"] == "cf60-gpt20-a-v1-recovered-524d" for run in models["runs"])
+    reference_baseline = {p["key"]: p["predictions"]["cf60-baseline-grid100-v2"] for p in models["problems"]}
+    for comparison in (models, prompts, thinking):
+        assert comparison["tag_scoring"] == "full-dataset-v1"
+        assert len(comparison["intersections"]["tags"]) == 60
+        assert comparison["dataset"]["version"] == "cf-rating-v1"
+        baselines = [run for run in comparison["runs"] if run["provider"] == "baseline"]
+        assert len(baselines) == 1
+        baseline = baselines[0]
+        assert baseline["id"] == "cf60-baseline-grid100-v2"
+        assert baseline["metrics"]["rating_valid"] == 60
+        assert baseline["metrics"]["tags_micro_f1"] is None
+        assert baseline["generation_attempts"] == 0
+        assert {p["key"]: p["predictions"][baseline["id"]] for p in comparison["problems"]} == reference_baseline
+        errors = [abs(reference_baseline[p["key"]]["rating"] - p["reference"]["rating"])
+                  for p in comparison["problems"] if p["key"] in comparison["intersections"]["rating"]]
+        assert baseline["metrics"]["mae"] == pytest.approx(sum(errors) / len(errors))
+        for model in (run for run in comparison["runs"] if run["provider"] != "baseline"):
+            metrics = model["metrics"]
+            assert metrics["tags_evaluated"] == 60
+            tp, fp, fn = (metrics[key] for key in ("tags_true_positive", "tags_false_positive", "tags_false_negative"))
+            assert metrics["tags_micro_f1"] == pytest.approx(2 * tp / (2 * tp + fp + fn))
+    a_models = next(r for r in models["runs"] if r["id"] == "cf60-gemini35-a-v1")
+    a_prompts = next(r for r in prompts["runs"] if r["id"] == "cf60-gemini35-a-v1")
+    assert a_models["metrics"] == a_prompts["metrics"]
+    assert [run["label"] for run in prompts["runs"] if run["provider"] != "baseline"] == ["A · Direto", "B · Rubrica", "C · Exemplos"]
+    private = next(p for p in prompts["prompts"] if p["version"] == "classification_v3")
+    assert private["private_examples"] and "text" not in private
+    assert {r["parameters"]["thinking_level"] for r in thinking["runs"] if r["provider"] != "baseline"} == {"minimal", "high"}
+    assert all(r["token_usage"]["items_with_usage"] == 59 for r in thinking["runs"] if r["provider"] != "baseline")
+
+
 def test_published_index_curates_order_and_hides_other_files(showcase, tmp_path):
     from api.ai_lab.results import export_snapshot, list_snapshots, read_snapshot
     from api.ai_lab.runner import save_json
@@ -54,6 +122,7 @@ def test_reviewed_prompt_export_uses_recorded_text_and_deduplicates(showcase, tm
     export_snapshot(root, "pilot-v1", output)
     data = read_snapshot(output.parent, "pilot-v1")
     assert len(data["prompts"]) == 1
+    assert data["dataset"]["version"] == "cf-rating-v1"
     prompt = data["prompts"][0]
     assert prompt["text"] == recorded and "{taxonomy}" not in prompt["text"]
     assert prompt["hash"] == run["configuration"]["prompt_hash"]
@@ -292,3 +361,52 @@ def test_operational_history_counts_each_recorded_failed_attempt(showcase):
     path.write_text(json.dumps(run), encoding="utf-8")
     model = next(r for r in read_benchmark(root, "pilot-v1")["runs"] if r["id"] == "model-a")
     assert model["historical_failures"] == {"timeout": 2}
+
+
+def test_presentation_metadata_and_paired_resources_are_sanitized(showcase, tmp_path):
+    from api.ai_lab.results import export_snapshot, read_snapshot
+    from api.ai_lab.runner import save_json
+    root, manifest = showcase
+    index = json.loads((root / "showcase.json").read_text())
+    index["benchmarks"][0].update(description="Mesmo prompt, níveis diferentes", conclusion="Ganho modesto", run_labels={"model-a": "High"})
+    save_json(root / "showcase.json", index)
+    path = root / "runs/model-a/run.json"
+    run = json.loads(path.read_text())
+    run["configuration"].update(generation={"thinking_level": "high", "private": "PRIVATE"}, timeout_seconds=90)
+    for prediction in run["predictions"].values():
+        prediction["raw"]["_usage"] = {"total_tokens": 30, "thinking_tokens": 20, "secret": 999}
+    key = manifest["items"][0]["key"]
+    run["predictions"][key].update(rating=None, rating_status="transport_error", responded=False)
+    save_json(path, run)
+    output = tmp_path / "public/pilot-v1.json"
+    export_snapshot(root, "pilot-v1", output)
+    data = read_snapshot(output.parent, "pilot-v1")
+    model = data["runs"][1]
+    assert data["description"] == "Mesmo prompt, níveis diferentes"
+    assert data["conclusion"] == "Ganho modesto"
+    assert model["label"] == "High"
+    assert model["parameters"] == {"thinking_level": "high", "timeout_seconds": 90}
+    assert model["token_usage"] == {"total_tokens": 330, "thinking_tokens": 220, "items_with_usage": 11, "compared_items": 11}
+    assert "PRIVATE" not in output.read_text() and '"secret"' not in output.read_text()
+
+
+def test_fewshot_publishes_only_reviewed_metadata_not_examples(showcase, tmp_path, monkeypatch):
+    from api.ai_lab import results
+    from api.ai_lab.dataset import content_hash
+    from api.ai_lab.runner import save_json
+    root, _ = showcase
+    text = "PRIVATE-EXAMPLES"
+    monkeypatch.setattr(results, "PRIVATE_PROMPTS", {"classification_v3": {"label": "C · Exemplos", "description": "Quatro exemplos revisados.", "hash": content_hash(text)}})
+    path = root / "runs/model-a/run.json"
+    run = json.loads(path.read_text())
+    run["configuration"].update(prompt_version="classification_v3", prompt=text, prompt_hash=content_hash(text))
+    save_json(path, run)
+    index = json.loads((root / "showcase.json").read_text())
+    index["benchmarks"][0]["publish_prompts"] = True
+    save_json(root / "showcase.json", index)
+    output = tmp_path / "public/pilot-v1.json"
+    results.export_snapshot(root, "pilot-v1", output)
+    prompt = results.read_snapshot(output.parent, "pilot-v1")["prompts"][0]
+    assert prompt["private_examples"] is True and "text" not in prompt
+    assert prompt["hash"] == content_hash(text)
+    assert "PRIVATE-EXAMPLES" not in output.read_text()

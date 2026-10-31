@@ -1,5 +1,81 @@
 # Operação local de experimentos do AI Lab
 
+## Raciocínio explícito do Gemini — 29/10/2026
+
+O comando `run_ai_benchmark` aceita `--thinking-level minimal|low|medium|high`
+somente em inferência com `gemini-3.5-flash-lite`. A opção é omitida por padrão:
+produto e runs históricas continuam com sua configuração anterior. O nível
+explícito é salvo em `configuration.generation.thinking_level`, com
+`adapter_version=2`, e enviado em `ThinkingConfig`. Alterar ou remover o nível
+na retomada exige outro `run-id`. Não combinar com status/exportação ou baseline.
+
+`--timeout-seconds` permite um timeout explícito maior que zero e de até 120
+segundos, também restrito às runs desse modelo. O valor é salvo em
+`configuration.timeout_seconds` e enviado ao cliente HTTP em milissegundos.
+Omitir a opção mantém 30 segundos no Gemini; o produto não muda. Alterar o
+timeout de uma run existente é recusado pela comparação de configuração.
+
+Quando retornados em uma resposta interpretável, `raw._usage.thinking_tokens`
+e `raw._finish_reason` guardam tokens de raciocínio e motivo de término; nenhum
+conteúdo interno de raciocínio é solicitado. Falhas de parsing continuam com
+a categoria histórica, sem metadados adicionais. Métricas publicadas não mudam
+automaticamente para incluir esses campos.
+
+O plano de encerramento está em
+[encerramento do benchmark](plans/2026-10-29-encerramento-benchmark-plan.md).
+O piloto usa duas runs novas nas mesmas 12 questões de desenvolvimento e prompt A,
+com timeout comum de 30 segundos. O primeiro orçamento é de 12 tentativas por
+configuração, incluindo retries, e pode deixar pendências se houver falhas.
+As autorizações e os tetos históricos não autorizam novos experimentos.
+
+Após a autorização específica do modelo, orçamento e plano gratuito, exemplo de
+execução no ambiente local já configurado:
+
+```powershell
+.\.venv\Scripts\python.exe manage.py run_ai_benchmark --dataset-version cf-rating-v1 --split development --classifier gemini --model gemini-3.5-flash-lite --allow-model gemini-3.5-flash-lite --prompt classification_v1 --thinking-level minimal --run-id gemini35-thinking-minimal-dev-v1 --max-requests 12 --settings core.settings_ai_lab_local
+```
+
+Para `high`, usar outra run e `--thinking-level high`. Manter configuração e
+dataset iguais entre níveis; não somar os 12 de desenvolvimento aos 60 finais
+para apresentar uma métrica única. Aumento do timeout requer configuração
+explícita/versionada e runs novas para ambos os níveis, sem editar as anteriores.
+
+Na primeira verificação real, minimal respondeu e high recebeu dois HTTP 504
+perto de 30 segundos. Esses três registros foram preservados. O usuário
+autorizou testar ambos com 90 segundos em runs novas, com teto agregado de 30
+tentativas incluindo essas três verificações. Isso não autoriza ampliação
+automática do orçamento para a avaliação final.
+
+O piloto de 90 segundos terminou com 12/12 respostas válidas por configuração,
+usando 27 das 30 tentativas agregadas (incluindo a verificação de 30 segundos).
+MAE minimal/high: 350,0/308,3; F1: 0,64/0,60. O ganho de MAE se concentrou em
+poucos itens. Após discutir essa fragilidade, o usuário decidiu ampliar a
+investigação para os 60 finais existentes. Essa decisão substitui a regra
+conservadora de não ampliar por ganho concentrado; não é uma confirmação
+independente do resultado do piloto.
+
+A ampliação usa prompt A, timeout de 90 segundos e duas runs novas:
+`cf60-gemini35-thinking-minimal-90s-v1` e
+`cf60-gemini35-thinking-high-90s-v1`. O teto inicial é de 60 tentativas por run,
+120 no total incluindo retries, separado da autorização do piloto. Falhas podem
+deixar pendências; ampliar esse orçamento exige nova decisão do usuário.
+O lote finito privado alterna blocos de cinco tentativas entre níveis, registra
+logs em `var/ai_lab/thinking-final-2026-10-29.*.log` e salva ao terminar
+`var/ai_lab/thinking-90s-final-comparison-2026-10-29.json`. A comparação principal
+usa as duas runs novas; comparações adicionais com A/B/C históricos registram
+as interseções válidas e a diferença temporal das execuções. Não há publicação
+automática ou alterações no produto.
+
+O primeiro lote ampliado atingiu o teto de 120 tentativas, incluindo 24 erros
+transitórios registrados, e deixou 12 questões pendentes em minimal e 11 em high.
+O usuário autorizou até 40 tentativas adicionais: teto acumulado de 160, 80 por
+configuração. A continuação usa os mesmos IDs e parâmetros, preservando as
+respostas anteriores e a falha que esgotou três tentativas. Um snapshot privado
+dos hashes permite conferir essa preservação. Logs da continuação:
+`var/ai_lab/thinking-final-continued-2026-10-29.*.log`; novo relatório sem
+sobrescrever o parcial:
+`var/ai_lab/thinking-90s-final-comparison-continued-2026-10-29.json`.
+
 ## Apresentação final em 19/10/2026
 
 A vitrine seleciona três comparações em `api/ai_lab/published/index.json`, com

@@ -1,5 +1,25 @@
 # AI Lab: experimentos locais e vitrine de resultados
 
+## Vitrine reorganizada em 31/10/2026
+
+A seleção atual tem três comparações: **1. Modelos**, **2. Prompts** e
+**3. Raciocínio**. A seleção usa três abas, mantendo o layout anterior:
+tabela, mapa por faixa e dispersão diretamente visíveis, com detalhe da questão
+ao selecionar um ponto. Após revisão do usuário, foram retirados os textos
+editoriais, o bloco de conclusão, os cards de tempo/consumo e o accordion novo
+dos diagnósticos. Os metadados continuam preservados nos snapshots. O prompt C
+publica apenas metadados, sem os quatro exemplos privados.
+
+A tabela usa quatro colunas, sem Cobertura ou subtítulo Tags válidas. O F1
+micro dos três experimentos é calculado nas 60 questões: tags extras ou
+desconhecidas contam como falsos positivos; tags oficiais ausentes, inclusive
+sem resposta, como falsos negativos. O experimento 1 inclui a recuperação
+registrada da 524D no GPT-OSS 20B e agora compara os mesmos 60 ratings.
+
+Resultados e fontes: [fechamento dos experimentos](AI_LAB_BENCHMARK_FINAL_RESULTS.md).
+Os snapshots e índices anteriores foram preservados. As seções históricas
+abaixo descrevem a vitrine A/B de 19/10; C e raciocínio já foram concluídos.
+
 Operação das novas runs `managed-v1`, prompts selecionáveis, recuperação
 automática limitada e consulta de progresso: [roteiro de experimentos](AI_LAB_EXPERIMENTS.md).
 As políticas de tentativa única descritas abaixo são históricas dos pilotos;
@@ -10,7 +30,7 @@ local. Baseline, Gemini/Groq, métricas gerais/por faixa, recuperação limitada
 API de leitura e interface estão implementados. Modelos Google e Groq;
 OpenRouter e persistência Django ficam fora da entrega atual.
 
-### Vitrine atual — três comparações finais
+### Histórico de 19/10 — três comparações A/B
 
 O índice `backend/api/ai_lab/published/index.json` seleciona e ordena somente:
 classificação direta, classificação com rubrica e impacto da rubrica no Gemini.

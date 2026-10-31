@@ -21,6 +21,10 @@ class Command(LocalDatasetCommand):
         parser.add_argument("--split", choices=("development", "final"), default="development")
         parser.add_argument("--run-id", default="gemini-pilot-v1")
         parser.add_argument("--model")
+        parser.add_argument("--thinking-level", choices=("minimal", "low", "medium", "high"),
+                            help="Explicit reasoning level for Gemini 3.5 Flash-Lite experiments")
+        parser.add_argument("--timeout-seconds", type=float,
+                            help="Explicit Gemini 3.5 Flash-Lite timeout (greater than 0, at most 120 seconds)")
         parser.add_argument("--prompt", default="classification_v1", help="Filename stem under api/ai_lab/prompts")
         parser.add_argument("--examples-file", help="Private few-shot JSON under var/ai_lab")
         parser.add_argument("--max-attempts", type=int, default=3, help="Total attempts per item in new managed runs (1..3)")
@@ -38,6 +42,19 @@ class Command(LocalDatasetCommand):
     def handle(self, *args, **options):
         version = command_version(options)
         root = guarded_root(options)
+        thinking_level = options["thinking_level"]
+        timeout_seconds = options["timeout_seconds"]
+        if thinking_level is not None or timeout_seconds is not None:
+            if (options["classifier"] != "gemini" or options["model"] != "gemini-3.5-flash-lite"
+                    or options["status"] or options["export_showcase"]):
+                raise CommandError("Thinking/timeout overrides require a Gemini 3.5 Flash-Lite inference run")
+            from api.ai_lab.providers.gemini import generation_parameters, request_timeout_seconds
+            try:
+                generation_parameters(options["model"], thinking_level)
+                if timeout_seconds is not None:
+                    request_timeout_seconds(timeout_seconds)
+            except ValueError as exc:
+                raise CommandError(str(exc)) from None
         examples_path = None
         if options["examples_file"]:
             examples_path = Path(options["examples_file"]).resolve()
@@ -112,7 +129,8 @@ class Command(LocalDatasetCommand):
                 if output.exists():
                     saved_config = json.loads(output.read_text(encoding="utf-8"))["configuration"]
                     managed = saved_config.get("execution_policy") == "managed-v1"
-                    if not managed and (options["prompt"] != "classification_v1" or options["max_attempts"] != 3
+                    if not managed and (thinking_level is not None or timeout_seconds is not None
+                                        or options["prompt"] != "classification_v1" or options["max_attempts"] != 3
                                         or options["request_interval"] != 5 or options["max_wait"] != 60):
                         raise ValueError("Legacy run policy cannot change; use a new run ID")
                 else:
@@ -124,8 +142,17 @@ class Command(LocalDatasetCommand):
                     configuration["adapter_version"] = 1
                     configuration["timeout_seconds"] = 45 if provider == "groq" else 30
                     if provider == "gemini":
-                        configuration["generation"] = {"response_mime_type": "application/json", "schema_version": 1}
-                run = run_local(manifest, configuration, output, get_generator(provider, model),
+                        from api.ai_lab.providers.gemini import generation_parameters
+                        configuration["generation"] = generation_parameters(model, thinking_level)
+                        if timeout_seconds is not None:
+                            configuration["timeout_seconds"] = timeout_seconds
+                        if thinking_level is not None or timeout_seconds is not None:
+                            configuration["adapter_version"] = 2
+                generation_options = {key: value for key, value in
+                                      (("thinking_level", thinking_level), ("timeout_seconds", timeout_seconds))
+                                      if value is not None}
+                generator = get_generator(provider, model, **generation_options)
+                run = run_local(manifest, configuration, output, generator,
                                 max_requests=options["max_requests"], retry_failures=options["retry_failures"],
                                 examples_path=examples_path, development=development)
         except (ValueError, FileExistsError, FileNotFoundError) as exc:

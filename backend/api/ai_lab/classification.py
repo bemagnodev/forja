@@ -5,14 +5,25 @@ import json
 from .contracts import TAGS
 
 
-def get_generator(provider: str, model: str):
+def get_generator(provider: str, model: str, *, thinking_level=None, timeout_seconds=None):
     from .catalog import get_model
 
     get_model(provider, model)
+    options = {key: value for key, value in (("thinking_level", thinking_level), ("timeout_seconds", timeout_seconds))
+               if value is not None}
+    if options and (provider != "gemini" or model != "gemini-3.5-flash-lite"):
+        raise ValueError("Thinking/timeout overrides require Gemini 3.5 Flash-Lite experiments")
     if provider == "gemini":
         from .providers.gemini import generate
     else:
         from .providers.groq import generate
+    if options:
+        from functools import partial
+        from .providers.gemini import generation_parameters, request_timeout_seconds
+        generation_parameters(model, thinking_level)
+        if timeout_seconds is not None:
+            request_timeout_seconds(timeout_seconds)
+        return partial(generate, **options)
     return generate
 
 

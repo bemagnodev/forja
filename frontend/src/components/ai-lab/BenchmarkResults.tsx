@@ -40,6 +40,7 @@ export interface BenchmarkRun {
 export interface RatingBand { label: string; total: number; compared: number; mae: Record<string, number | null> }
 interface BenchmarkSummary { id: string; label: string; version: string; split: string }
 interface Benchmark extends BenchmarkSummary {
+  tag_scoring?: string;
   dataset: { version: string; split: string; total: number; hash: string; seed: number };
   prompt: { hash: string | null };
   prompts?: PublishedPrompt[];
@@ -90,37 +91,39 @@ export function BenchmarkResults() {
   const problem = data?.problems.find(p => p.key === problemKey);
   const prediction = problem && graphRun ? problem.predictions[graphRun.id] : null;
   return <TooltipProvider delay={100}><div className="space-y-4 text-zinc-300">
-    {data && <header className="grid gap-3 border-b border-zinc-800 pb-3 md:grid-cols-[minmax(0,1fr)_minmax(16rem,22rem)] md:items-center">
+    {listing.data.length > 1 && <nav aria-label="Experimentos do benchmark" className="flex flex-wrap gap-2 border-b border-zinc-800 pb-4">
+      {listing.data.map(item => <button key={item.id} type="button" aria-pressed={id === item.id}
+        onClick={() => { setSelectedId(item.id); setModelId(""); setKeys([]); setProblemKey(""); }}
+        className={`rounded-lg border px-4 py-2.5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${id === item.id ? "border-forja/40 bg-forja/10 text-red-300" : "border-zinc-800 bg-zinc-950 text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200"}`}>
+        {item.label}
+      </button>)}
+    </nav>}
+    {data && <header className="grid gap-3 border-b border-zinc-800 pb-3">
       <div>
         <div className="flex flex-wrap items-center gap-3"><h2 className="text-lg font-bold tracking-tight text-zinc-100">{data.label}</h2><span className="rounded-md border border-forja/25 bg-forja/10 px-2.5 py-1 text-xs font-semibold text-red-400">{data.dataset.total} problemas</span></div>
         <p className="mt-2 text-xs text-zinc-400">{data.dataset.split === "development" ? "Desenvolvimento · resultado exploratório" : "Avaliação final"} · {promptLabel}</p>
       </div>
-      {listing.data.length > 1 && <label className="min-w-0 flex flex-col gap-1.5 text-xs text-zinc-400">Conjunto de resultados<select className={selectClass} aria-label="Conjunto de resultados" value={id} onChange={event => { setSelectedId(event.target.value); setModelId(""); setKeys([]); }}>{listing.data.map(item => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>}
     </header>}
     {detail.isPending && <p role="status">Carregando comparação…</p>}
     {data && <>
-      <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-1"><p className="text-xs text-zinc-400">MAE e ±200: {data.intersections.rating.length}/{data.dataset.total} itens em comum · F1: {data.intersections.tags.length}/{data.dataset.total} · Cobertura: conjunto completo ({data.dataset.total})</p>
+      <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-1"><p className="text-xs text-zinc-400">MAE e ±200: {data.intersections.rating.length}/{data.dataset.total} itens em comum · F1: {data.tag_scoring === "full-dataset-v1" ? `${data.dataset.total} problemas` : `${data.intersections.tags.length}/${data.dataset.total} itens válidos em comum`}</p>
       <details className="text-xs text-zinc-400"><summary className="w-fit cursor-pointer rounded py-1 outline-none focus-visible:ring-2 focus-visible:ring-primary">Sobre o experimento</summary><div className="mt-3 space-y-2 leading-relaxed">
         <p>{data.dataset.total} problemas textuais do Codeforces, entre 800 e 2400. Técnica: {promptLabel}. O baseline usa a mediana do desenvolvimento e estima apenas rating.</p>
-        <p>Métricas nos mesmos itens válidos: rating {data.intersections.rating.length}/{data.dataset.total}; tags {data.intersections.tags.length}/{data.dataset.total}. A cobertura considera o conjunto inteiro. A dispersão usa as previsões válidas do modelo selecionado.</p>
+        <p>Métricas: rating {data.intersections.rating.length}/{data.dataset.total}; tags {data.intersections.tags.length}/{data.dataset.total}. {data.tag_scoring === "full-dataset-v1" ? "O F1 inclui todas as questões: tags extras ou desconhecidas contam como falsos positivos; tags oficiais ausentes, inclusive sem resposta, contam como falsos negativos. Apenas maiúsculas e espaços são normalizados, sem tradução ou sinônimos." : "O F1 histórico considera apenas os itens com tags válidas em comum."} A dispersão usa as previsões válidas do modelo selecionado.</p>
         {data.selection_note && <p>{data.selection_note}</p>}
       </div></details></div>
       {!data.intersections.rating.length && <p className="text-sm text-orange-300">Nenhum item válido em comum para rating. MAE indisponível.</p>}
       <section className="overflow-x-auto rounded-xl border border-zinc-800">
-        <table className="w-full min-w-[650px] text-left text-sm"><caption className="sr-only">Comparação de qualidade e cobertura dos modelos</caption>
+        <table className="w-full min-w-[520px] text-left text-sm"><caption className="sr-only">Comparação de qualidade dos modelos</caption>
           <thead className="border-b border-zinc-800 bg-zinc-900/50"><tr><th className="px-5 py-3 text-xs text-zinc-400"><MetricHelp label="Modelo">Configuração avaliada. O baseline é uma referência estatística sem IA.</MetricHelp></th>
             <th className="px-5 py-3"><MetricHelp label="Erro médio">MAE: distância média entre rating estimado e oficial nos itens válidos em comum. Menor é melhor. Estimar 1400 para 1800 gera erro de 400 pontos.</MetricHelp></th>
             <th className="px-5 py-3"><MetricHelp label="Até ±200">Proporção de previsões com erro de até 200 pontos na mesma interseção válida. Maior é melhor.</MetricHelp></th>
-            <th className="px-5 py-3"><MetricHelp label="Cobertura">Previsões válidas sobre todos os problemas. Falhas e pendências são apresentadas separadamente; não entram como erro zero.</MetricHelp></th>
-            <th className="px-5 py-3"><MetricHelp label="F1 de tags">Qualidade das tags previstas, de 0 a 1; maior é melhor. O F1 micro combina as tags corretas, as extras e as que faltaram, somando os resultados dos problemas válidos em comum. Não representa a porcentagem de problemas totalmente corretos. O baseline não estima tags.</MetricHelp></th></tr></thead>
+            <th className="px-5 py-3"><MetricHelp label="F1 de tags">{`Qualidade das tags previstas, de 0 a 1; maior é melhor. O F1 micro combina as tags corretas, as extras e as que faltaram, somando os resultados ${data.tag_scoring === "full-dataset-v1" ? `de todas as ${data.dataset.total} questões. Tags desconhecidas contam como falsos positivos. Respostas ausentes contam como tags faltantes.` : "dos problemas válidos em comum."} Não representa a porcentagem de problemas totalmente corretos. O baseline não estima tags.`}</MetricHelp></th></tr></thead>
           <tbody>{runs.map(run => <tr key={run.id} className="border-b border-zinc-800/60 last:border-0 hover:bg-zinc-900/30">
             <th scope="row" className="px-4 py-3 font-medium"><span className="block text-zinc-100">{run.label}</span><span className="text-[11px] font-normal text-zinc-400">{run.provider === "baseline" ? "Referência sem IA" : run.provider}</span></th>
             <td className="min-w-36 px-4 py-3"><span className="font-mono text-zinc-100">{number(run.metrics.mae)}</span><span className="ml-1 text-[10px] text-zinc-400">pontos</span>{run.metrics.mae != null && <div role="meter" aria-label={`Erro médio: ${run.label}`} aria-valuemin={0} aria-valuemax={1000} aria-valuenow={Math.min(run.metrics.mae, 1000)} aria-valuetext={`${run.metrics.mae} pontos${run.metrics.mae > 1000 ? "; acima da escala visual de 1000 pontos" : ""}`} className="mt-2 h-1 rounded bg-zinc-800"><div className={`h-1 rounded ${run.provider === "baseline" ? "bg-zinc-500" : "bg-forja/80"}`} style={{ width: `${Math.min(run.metrics.mae / 1000, 1) * 100}%` }} /></div>}{run.metrics.mae != null && run.metrics.mae > 1000 && <span className="mt-1 block text-[10px] text-zinc-400">Acima da escala</span>}</td>
             <td className="px-4 py-3 font-mono">{percent(run.metrics.within_200)}</td>
-            <td className="px-4 py-3"><span>{run.metrics.rating_valid}/{data.dataset.total} ({percent(run.metrics.rating_coverage)})</span>
-              {!!Object.keys(run.metrics.rating_failures).length && <span className="mt-1 block text-xs text-orange-300">{Object.values(run.metrics.rating_failures).reduce((a, b) => a + b, 0)} falha(s) · {percent(run.metrics.rating_failure_rate)}</span>}
-              {!!run.metrics.pending && <span className="mt-1 block text-xs text-zinc-400">{run.metrics.pending} pendente(s)</span>}</td>
-            <td className="px-4 py-3 font-mono">{number(run.metrics.tags_micro_f1, 3)}{run.metrics.tags_valid != null && <span className="mt-1 block font-sans text-[10px] text-zinc-400">Tags válidas: {run.metrics.tags_valid}/{data.dataset.total}</span>}</td>
+            <td className="px-4 py-3 font-mono">{number(run.metrics.tags_micro_f1, 3)}</td>
           </tr>)}</tbody>
         </table>
       </section>

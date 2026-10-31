@@ -1,6 +1,57 @@
 import pytest
 
 
+@pytest.mark.parametrize("returned,tp,fp,fn", [
+    ([" DP ", "dp", "unknown", " UNKNOWN "], 1, 1, 0),
+    (["programação dinâmica"], 0, 1, 1),
+    (["greedy"], 0, 1, 1),
+    (["dp", None], 1, 1, 0),
+    ([], 0, 0, 1),
+    ("dp", 0, 0, 1),
+])
+def test_full_dataset_f1_penalizes_unknown_tags_without_alias_mapping(returned, tp, fp, fn):
+    from api.ai_lab.metrics import compare_runs
+    report = compare_runs({"a": {"rating": 1000, "tags": ["dp"]}}, {"model": {
+        "a": {"rating": 1000, "rating_status": "valid", "tags_status": "invalid_output",
+              "tags": None, "responded": True, "raw": {"tags": returned}},
+    }}, tag_scoring="full-dataset-v1")
+    metrics = report["runs"]["model"]
+    assert metrics["tags_true_positive"] == tp
+    assert metrics["tags_false_positive"] == fp
+    assert metrics["tags_false_negative"] == fn
+    assert metrics["tags_micro_f1"] == pytest.approx(2 * tp / (2 * tp + fp + fn))
+    assert report["tags_intersection"] == ["a"]
+    assert metrics["tags_evaluated"] == 1
+
+
+def test_full_dataset_f1_includes_missing_and_transport_failures_as_false_negatives():
+    from api.ai_lab.metrics import compare_runs
+    refs = {"a": {"rating": 1000, "tags": ["dp"]}, "b": {"rating": 1200, "tags": ["math"]}}
+    predictions = {"a": {"rating_status": "transport_error", "tags_status": "transport_error", "responded": False}}
+    report = compare_runs(refs, {"model": predictions}, tag_scoring="full-dataset-v1")
+    assert report["rating_intersection"] == []
+    assert report["tags_intersection"] == ["a", "b"]
+    assert report["runs"]["model"]["tags_false_negative"] == 2
+    assert report["runs"]["model"]["tags_micro_f1"] == 0
+
+
+def test_full_dataset_micro_aggregates_counts_instead_of_averaging_problem_f1():
+    from api.ai_lab.metrics import compare_runs
+    refs = {"a": {"rating": 1000, "tags": ["dp", "math"]}, "b": {"rating": 1200, "tags": ["greedy"]}}
+    predictions = {"a": {"rating_status": "valid", "rating": 1000, "tags_status": "valid", "tags": ["dp", "math"]}}
+    baseline = {k: {"rating_status": "valid", "rating": 1000, "tags_status": "not_applicable"} for k in refs}
+    report = compare_runs(refs, {"model": predictions, "baseline": baseline}, tag_scoring="full-dataset-v1")
+    assert report["runs"]["model"]["tags_micro_f1"] == pytest.approx(4 / 5)
+    assert report["runs"]["baseline"]["tags_micro_f1"] is None
+    assert report["runs"]["baseline"]["tags_evaluated"] is None
+
+
+def test_unknown_tag_scoring_policy_is_rejected():
+    from api.ai_lab.metrics import compare_runs
+    with pytest.raises(ValueError, match="scoring"):
+        compare_runs({}, {}, tag_scoring="unversioned")
+
+
 def test_rating_bands_use_official_rating_and_paired_intersection():
     from api.ai_lab.metrics import compare_by_band
     refs = {key: {"rating": rating, "tags": ["math"]} for key, rating in

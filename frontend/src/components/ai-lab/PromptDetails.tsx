@@ -6,7 +6,8 @@ export interface PublishedPrompt {
   hash: string;
   label: string;
   description: string;
-  text: string;
+  text?: string;
+  private_examples?: boolean;
 }
 
 export function PromptDetails({ prompts }: { prompts: PublishedPrompt[] }) {
@@ -15,6 +16,7 @@ export function PromptDetails({ prompts }: { prompts: PublishedPrompt[] }) {
   const prompt = prompts.find(item => item.hash === selectedHash) || prompts[0];
   if (!prompt) return null;
   const copy = async () => {
+    if (!prompt.text) return;
     try {
       await navigator.clipboard.writeText(prompt.text);
       setCopyStatus("Prompt copiado.");
@@ -30,11 +32,13 @@ export function PromptDetails({ prompts }: { prompts: PublishedPrompt[] }) {
       </select></label>}
       <h3 className="font-medium text-zinc-100">{prompt.label}</h3>
       <p>{prompt.description}</p>
-      <p className="text-xs leading-relaxed">Instrução de sistema efetivamente usada, com a taxonomia preenchida. Cada enunciado preparado foi enviado separadamente, na mensagem do usuário; os enunciados não são publicados aqui.</p>
+      {prompt.private_examples
+        ? <p className="text-xs leading-relaxed text-orange-300">Exemplos privados: o texto efetivo deste prompt inclui quatro demonstrações e não é publicado. A versão e o hash identificam a instrução usada na execução.</p>
+        : <p className="text-xs leading-relaxed">Instrução de sistema efetivamente usada, com a taxonomia preenchida. Cada enunciado preparado foi enviado separadamente, na mensagem do usuário; os enunciados não são publicados aqui.</p>}
       <p className="break-all font-mono text-[11px] text-zinc-500">Versão {prompt.version} · SHA-256 {prompt.hash}</p>
-      <button type="button" onClick={() => void copy()} className="inline-flex items-center gap-2 rounded-md border border-zinc-700 px-3 py-2 text-xs text-zinc-200 focus-visible:ring-2 focus-visible:ring-primary"><Copy className="size-3.5" />Copiar prompt</button>
+      {prompt.text && !prompt.private_examples && <><button type="button" onClick={() => void copy()} className="inline-flex items-center gap-2 rounded-md border border-zinc-700 px-3 py-2 text-xs text-zinc-200 focus-visible:ring-2 focus-visible:ring-primary"><Copy className="size-3.5" />Copiar prompt</button>
       <p role="status" className="text-xs text-zinc-400">{copyStatus}</p>
-      <pre aria-label="Prompt completo" className="max-h-[32rem] overflow-auto whitespace-pre-wrap break-words rounded-lg border border-zinc-800 bg-zinc-950 p-4 text-xs leading-relaxed text-zinc-300">{prompt.text}</pre>
+      <pre aria-label="Prompt completo" className="max-h-[32rem] overflow-auto whitespace-pre-wrap break-words rounded-lg border border-zinc-800 bg-zinc-950 p-4 text-xs leading-relaxed text-zinc-300">{prompt.text}</pre></>}
     </div>
   </details>;
 }

@@ -1,7 +1,7 @@
 {
   "benchmarks": [
-    "cf60-prompt-a-models-v1",
-    "cf60-prompt-b-models-v1",
-    "cf60-best-model-prompts-ab-v1"
+    "cf60-models-v1",
+    "cf60-gemini-prompts-abc-v1",
+    "cf60-gemini-thinking-v1"
   ]
 }
