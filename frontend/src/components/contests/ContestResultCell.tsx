@@ -36,7 +36,7 @@ export function ContestResultCell({ result, systemStatus, label = '' }: {
     <Tooltip open={open} onOpenChange={setOpen} triggerId={id}>
       <TooltipTrigger id={id} closeOnClick={false} onClick={() => setOpen(true)} aria-label={`${label ? `${label}: ` : ''}${description}${attempts != null ? `, ${attempts} ${attempts === 1 ? 'erro' : 'erros'}` : ''}${accepted ? `, ${time}` : ''}${upsolved ? ', Upsolvada' : ''}`}
         className="flex min-h-11 min-w-14 items-center justify-center gap-1.5 rounded-lg px-1.5 py-1 transition-colors hover:bg-white/[0.04] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forja">
-        <span className="flex flex-col items-center"><span className={`text-[15px] font-bold leading-5 tabular-nums ${accepted ? (attempts != null && attempts > 0 ? 'text-red-400' : 'text-emerald-400') : accepted === false && attempted ? 'text-red-400' : 'text-white/40'}`}>{sign}</span>
+        <span className="flex flex-col items-center"><span className={`text-[15px] font-bold leading-5 tabular-nums ${accepted ? 'text-emerald-400' : accepted === false && attempted ? 'text-red-400' : 'text-white/40'}`}>{sign}</span>
         {accepted && <span className="text-[10px] font-medium leading-4 tabular-nums text-white/55">{time}</span>}</span>
       </TooltipTrigger>
       <TooltipContent role="tooltip" className="block max-w-72 space-y-2 rounded-xl border border-white/10 bg-[#17191f] p-3 text-left text-xs leading-relaxed text-white shadow-xl">

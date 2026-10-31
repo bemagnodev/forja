@@ -26,6 +26,7 @@ it('prioriza a tabela, mantém o placar acessível e remove apenas o prefixo cor
   expect(screen.getByRole('table').compareDocumentPosition(scoreboard) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   expect(screen.getByRole('link', { name: 'Ver placar' })).toHaveAttribute('href', '#placar-da-prova');
   expect(scoreboard).not.toHaveTextContent('UP = Upsolving');
+  expect(scoreboard).not.toHaveTextContent('vermelho se houve erros');
 });
 it('substitui metadados antigos da navegação pela resposta atual', async () => {
   mount({ contest_name: 'Nome antigo', progress: { total: 99 } });

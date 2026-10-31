@@ -97,10 +97,10 @@ export function AILab() {
   return (
     <PageLayout
       topbarTitle="Sistema"
-      title="AI Playground"
+      title="AI Lab"
       description="Explore estimativas de dificuldade e assuntos e compare os resultados dos modelos."
     >
-      <div role="tablist" aria-label="AI Playground" className="mb-6 flex gap-2 border-b border-white/10 pb-3">
+      <div role="tablist" aria-label="AI Lab" className="mb-6 flex gap-2 border-b border-white/10 pb-3">
         {([['explore', 'Explorar'], ['benchmark', 'Benchmark']] as const).map(([value, label]) =>
           <button key={value} id={`ai-lab-tab-${value}`} role="tab" aria-selected={tab === value}
             aria-controls={`ai-lab-panel-${value}`} tabIndex={tab === value ? 0 : -1}

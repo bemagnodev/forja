@@ -72,6 +72,8 @@ it("abre em Explorar e permite acessar o benchmark sem inferência", async () =>
   const user = userEvent.setup();
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(<QueryClientProvider client={client}><AILab /></QueryClientProvider>);
+  expect(screen.getByRole('heading', { name: 'AI Lab' })).toBeVisible();
+  expect(screen.getByRole('tablist', { name: 'AI Lab' })).toBeInTheDocument();
   expect(screen.getByRole("tab", { name: "Explorar" })).toHaveAttribute("aria-selected", "true");
   expect(screen.getAllByRole("tab")[0]).toHaveTextContent("Explorar");
   for (const platform of ["CODEFORCES", "ATCODER", "CSES"]) {

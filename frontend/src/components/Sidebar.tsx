@@ -25,15 +25,15 @@ import {
 // Agrupadas semanticamente: principal e ferramentas
 const mainLinks = [
   { name: "Dashboard",  path: "/dashboard", icon: LayoutDashboard },
-  { name: "Fila",       path: "/",          icon: ListChecks },
   { name: "Contests",   path: "/contests",  icon: Swords     },
+  { name: "Fila",       path: "/",          icon: ListChecks },
   { name: "Equipes",    path: "/teams",     icon: Users      },
   { name: "Caderno",    path: "/notes",     icon: BookMarked },
 ];
 
 
 const toolLinks = [
-  { name: "AI Playground", path: "/ai-lab", icon: FlaskConical },
+  { name: "AI Lab", path: "/ai-lab", icon: FlaskConical },
   { name: "Configurações", path: "/settings", icon: SlidersHorizontal },
 ];
 

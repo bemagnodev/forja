@@ -167,7 +167,7 @@ export function ContestDetail() {
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/[0.07] px-4 py-3 text-[11px]">
           <div><h3 className="text-lg font-semibold text-zinc-100">Placar da prova</h3><p className="mt-1 text-zinc-400">Resultado durante a prova; resoluções posteriores indicadas separadamente.</p></div>
         </div>
-        <p className="px-4 pt-3 text-[11px] text-zinc-400">+ AC (vermelho se houve erros) · − tentativa sem AC · — não tentada · ? dados parciais · Role para ver todas as questões.</p><div className="flex overflow-x-auto">
+        <p className="px-4 pt-3 text-[11px] text-zinc-400">+ AC · − tentativa sem AC · — não tentada · ? dados parciais · Role para ver todas as questões.</p><div className="flex overflow-x-auto">
           {[...problems].sort((a, b) => a.index.localeCompare(b.index, "en", { numeric: true })).map(p => <div key={p.id} className="flex min-w-20 flex-1 flex-col items-center border-r border-white/[0.05] py-2 last:border-0">
             <div className="mb-1 flex min-h-8 items-center justify-center gap-1 px-2">
               <button aria-label={`Ir para questão ${p.index}`} onClick={() => goToProblem(p.id)} className="rounded px-2 py-1 text-xs font-bold text-white/65 hover:bg-zinc-800/60 focus-visible:outline focus-visible:outline-forja">{p.index}</button>

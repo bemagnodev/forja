@@ -44,6 +44,8 @@ describe('Sidebar', () => {
 
     expect(screen.getByText('Sincronizar CF')).toBeInTheDocument();
     expect(screen.getByText('Sincronizar AtCoder')).toBeInTheDocument();
+    expect(screen.getAllByRole('link').slice(0, 3).map(link => link.textContent)).toEqual(['Dashboard', 'Contests', 'Fila']);
+    expect(screen.getByRole('link', { name: 'AI Lab' })).toHaveAttribute('href', '/ai-lab');
   });
 
   test('exibe mensagem transparente de sincronização iniciada e não conclusão imediata ao disparar sync CF', async () => {

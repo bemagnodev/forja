@@ -16,9 +16,9 @@ it('shows a green plus and HH:MM for the first AC, without +0', () => {
   mount(); expect(screen.getByText('+')).toHaveClass('text-emerald-400');
   expect(screen.getByText('00:03')).toBeVisible(); expect(screen.queryByText('+0')).toBeNull();
 });
-it('shows failed judgements before AC and truncates seconds', () => {
+it('keeps AC green after failed judgements and truncates seconds', () => {
   mount({ failed_attempts: 2, first_ac_seconds: 4109 });
-  expect(screen.getByText('+2')).toHaveClass('text-red-400'); expect(screen.getByText('01:08')).toBeVisible();
+  expect(screen.getByText('+2')).toHaveClass('text-emerald-400'); expect(screen.getByText('01:08')).toBeVisible();
 });
 it('keeps the original minus and adds Upsolvada after practice', () => {
   mount({ accepted: false, failed_attempts: 2, first_ac_seconds: null, is_upsolved: true });
