@@ -124,8 +124,8 @@ export function ContestDetail() {
         </div>)}
       </div>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2 text-xs text-zinc-400">
-        <span>{partial ? 'Histórico parcial · Alguns horários e tentativas ainda não puderam ser confirmados' : 'Histórico da prova e estudo posterior preservados'}</span>
-        <a href="#placar-da-prova" className="results-navigation"><ChartNoAxesColumn className="size-3.5" />Ver placar</a>
+        {partial && <span>Histórico parcial · Alguns horários e tentativas ainda não puderam ser confirmados</span>}
+        <a href="#placar-da-prova" className="results-navigation ml-auto"><ChartNoAxesColumn className="size-3.5" />Ver placar</a>
       </div>
       <div className="mb-4 flex flex-col gap-4">
         <div className="flex flex-wrap gap-2">{FILTERS.map(f => <button key={f.key} aria-pressed={filter === f.key} onClick={() => setFilter(f.key)} className={`rounded-lg border px-3 py-2 text-xs font-medium transition-colors ${filter === f.key ? "border-forja/40 bg-forja/10 text-red-300" : "border-white/10 text-white/55 hover:bg-white/5"}`}>
@@ -143,8 +143,8 @@ export function ContestDetail() {
           </TableRow></TableHeader>
           <TableBody>
             {filtered.map(p => <TableRow key={p.id} id={`questao-${p.id}`} className={`group/row border-white/[0.05] transition-colors ${selected?.id === p.id ? "bg-forja/[0.045]" : "hover:bg-zinc-800/60"}`}>
-              <TableCell className="w-[32%] min-w-44 max-w-80 whitespace-normal px-4 py-2.5"><div className="flex items-start gap-3">
-                <span className="pt-0.5 text-xs font-bold text-white/55">{p.index}</span>
+              <TableCell className="w-[32%] min-w-44 max-w-80 whitespace-normal px-4 py-2.5"><div className="flex items-center gap-3">
+                <span className="text-xs font-bold text-white/55">{p.index}</span>
                 {p.url ? <a href={p.url} target="_blank" rel="noopener noreferrer" className="text-[13px] font-medium leading-relaxed text-white/85 hover:text-zinc-100">{displayProblemTitle(p.title, p.index)}</a> : <span className="text-[13px] text-white/85">{displayProblemTitle(p.title, p.index)}</span>}
                 {(p.contest_result?.is_upsolved ?? p.system_status === 'UPSOLVED') && <UpsolveBadge />}
               </div></TableCell>
@@ -167,7 +167,7 @@ export function ContestDetail() {
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/[0.07] px-4 py-3 text-[11px]">
           <div><h3 className="text-lg font-semibold text-zinc-100">Placar da prova</h3><p className="mt-1 text-zinc-400">Resultado durante a prova; resoluções posteriores indicadas separadamente.</p></div>
         </div>
-        <p className="px-4 pt-3 text-[11px] text-zinc-400">+ AC · − tentativa sem AC · — não tentada · ? dados parciais · Role para ver todas as questões.</p><div className="flex overflow-x-auto">
+        <div className="flex overflow-x-auto">
           {[...problems].sort((a, b) => a.index.localeCompare(b.index, "en", { numeric: true })).map(p => <div key={p.id} className="flex min-w-20 flex-1 flex-col items-center border-r border-white/[0.05] py-2 last:border-0">
             <div className="mb-1 flex min-h-8 items-center justify-center gap-1 px-2">
               <button aria-label={`Ir para questão ${p.index}`} onClick={() => goToProblem(p.id)} className="rounded px-2 py-1 text-xs font-bold text-white/65 hover:bg-zinc-800/60 focus-visible:outline focus-visible:outline-forja">{p.index}</button>

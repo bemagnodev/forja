@@ -13,16 +13,16 @@ function mount(changes: Partial<ContestResult> = {}) {
 }
 
 it('shows a green plus and HH:MM for the first AC, without +0', () => {
-  mount(); expect(screen.getByText('+')).toHaveClass('text-emerald-400');
+  mount(); expect(screen.getByText('+')).toHaveClass('text-green-500');
   expect(screen.getByText('00:03')).toBeVisible(); expect(screen.queryByText('+0')).toBeNull();
 });
 it('keeps AC green after failed judgements and truncates seconds', () => {
   mount({ failed_attempts: 2, first_ac_seconds: 4109 });
-  expect(screen.getByText('+2')).toHaveClass('text-emerald-400'); expect(screen.getByText('01:08')).toBeVisible();
+  expect(screen.getByText('+2')).toHaveClass('text-green-500'); expect(screen.getByText('01:08')).toBeVisible();
 });
 it('keeps the original minus and adds Upsolvada after practice', () => {
   mount({ accepted: false, failed_attempts: 2, first_ac_seconds: null, is_upsolved: true });
-  expect(screen.getByText('−2')).toHaveClass('text-red-400'); expect(screen.queryByText('UP')).toBeNull();
+  expect(screen.getByText('−2')).toHaveClass('text-red-500'); expect(screen.queryByText('UP')).toBeNull();
   expect(screen.queryByText('+2')).toBeNull();
 });
 it('shows only a minus for an unattempted problem', () => {
@@ -30,7 +30,7 @@ it('shows only a minus for an unattempted problem', () => {
 });
 it('não chama de não tentada uma questão com somente erros de compilação', async () => {
   mount({ accepted: false, first_ac_seconds: null, compilation_errors: 2 });
-  expect(screen.getByText('−')).toHaveClass('text-red-400');
+  expect(screen.getByText('−')).toHaveClass('text-red-500');
   await userEvent.click(screen.getByRole('button'));
   expect(await screen.findByRole('tooltip')).toHaveTextContent('CE: 2');
 });
@@ -64,4 +64,9 @@ it('does not claim a manual completion or a confirmed post-contest time for a pa
   expect(tooltip).toHaveTextContent('AC importado; relação temporal com a prova não confirmada');
   expect(tooltip).not.toHaveTextContent('Conclusão manual');
   expect(tooltip).not.toHaveTextContent('AC depois da prova');
+});
+
+it('não pinta de vermelho nem inventa tentativa quando o histórico parcial não confirma erros', () => {
+  mount({ accepted: false, failed_attempts: null, first_ac_seconds: null, coverage: 'partial' });
+  expect(screen.getByText('?')).toHaveClass('text-white/40');
 });

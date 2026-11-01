@@ -43,3 +43,23 @@ it('shows dated contest results and preserves absent rankings without a penalty 
   await userEvent.click(screen.getByLabelText('Percentual'));
   expect(screen.getByRole('button', { name: /Treino de equipe: 6 ACs na prova de 12 questões/ })).toBeVisible();
 });
+
+it('conecta rankings consecutivos com tracejado e interrompe em dados ausentes', async () => {
+  const ranks = [1, 20, null, 537, 10];
+  render(<ContestEvolution participations={ranks.map((rank, i) => ({ ...part, id: i + 1, rank, participation_date: `2026-10-${10 + i}T12:00:00Z` }))} />);
+  await userEvent.click(screen.getByRole('tab', { name: 'Ranking' }));
+  const trend = screen.getByRole('img', { name: 'Traçado do ranking' });
+  const lines = trend.querySelectorAll('line');
+  expect(lines).toHaveLength(2);
+  for (const line of lines) expect(line).toHaveAttribute('stroke-dasharray');
+  expect(Number(lines[0].getAttribute('y1'))).toBeLessThan(Number(lines[0].getAttribute('y2')));
+  await userEvent.click(screen.getByRole('button', { name: /posição 1,/ }));
+  expect(screen.getByRole('status')).toHaveTextContent('#1');
+});
+it.each([[[1]], [[5, 5]], [[null, null]]])('mantém coordenadas válidas sem inventar ligação para %j', async (ranks) => {
+  render(<ContestEvolution participations={ranks.map((rank, i) => ({ ...part, id: i + 1, rank }))} />);
+  await userEvent.click(screen.getByRole('tab', { name: 'Ranking' }));
+  const trend = screen.getByRole('img', { name: 'Traçado do ranking' });
+  expect(trend.outerHTML).not.toMatch(/NaN|Infinity/);
+  expect(trend.querySelectorAll('line')).toHaveLength(ranks.length > 1 && ranks.every(rank => rank != null) ? ranks.length - 1 : 0);
+});

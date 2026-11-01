@@ -12,7 +12,6 @@ import { PlatformIcon } from "@/components/queue/PlatformIcon";
 import { AxiosError } from "axios";
 import { BenchmarkResults } from "@/components/ai-lab/BenchmarkResults";
 import { ReferenceComparison } from '@/components/ai-lab/ReferenceComparison';
-import { AIVisualWarning } from "@/components/ai-lab/AIVisualWarning";
 import { ClassificationError } from "@/components/ai-lab/ClassificationError";
 import { visualPreview } from '@/lib/visual-preview';
 
@@ -286,9 +285,8 @@ export function AILab() {
               </Alert>}
             
             <ReferenceComparison realRating={categorizeMutation.data.real_rating ?? null} predictedRating={categorizeMutation.data.rating}
-              ratingStatus={categorizeMutation.data.rating_status} realTags={categorizeMutation.data.real_tags ?? []} />
+              ratingStatus={categorizeMutation.data.rating_status} realTags={categorizeMutation.data.real_tags ?? []} visualStatus={categorizeMutation.data.visual_status} />
 
-            {categorizeMutation.data.visual_status === 'unprocessed' && <AIVisualWarning />}
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div className="bg-[#080808] border border-white/[0.06] rounded-2xl p-5 flex flex-col">
                 <div className="flex items-center gap-2 mb-3">

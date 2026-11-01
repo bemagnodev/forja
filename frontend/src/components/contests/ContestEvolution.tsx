@@ -63,17 +63,20 @@ export function ContestEvolution({ participations }: { participations: ContestPa
       </div>
       {!recent.length ? <p className="py-12 text-center text-sm text-zinc-400">Sem participações para exibir no gráfico.</p> : <>
         <div className="flex gap-3">
-          <div aria-hidden="true" className="flex h-48 w-8 shrink-0 flex-col justify-between text-[11px] tabular-nums text-zinc-400">{axis.map((a, i) => <span key={i}>{a}</span>)}</div>
+          <div aria-hidden="true" className={`relative h-48 w-8 shrink-0 text-[11px] tabular-nums text-zinc-400 ${mode === 'solves' ? 'flex flex-col justify-between' : ''}`}>{axis.map((a, i) => <span key={i} className={mode === 'rank' ? 'absolute -translate-y-1/2' : undefined} style={mode === 'rank' ? { top: `${1 + i * 5}rem` } : undefined}>{a}</span>)}</div>
           <div className="min-w-0 flex-1 overflow-x-auto pb-2"><div className="relative" style={{ minWidth: `${recent.length * (upsolving && mode === 'solves' ? 46 : 36)}px` }}>
-            <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 flex h-48 flex-col justify-between">{[0, 1, 2].map(i => <div key={i} className="border-t border-white/[0.05]" />)}</div>
+            <div aria-hidden="true" className={`pointer-events-none absolute inset-x-0 flex flex-col justify-between ${mode === 'rank' ? 'top-4 h-40' : 'top-0 h-48'}`}>{[0, 1, 2].map(i => <div key={i} className="border-t border-white/[0.05]" />)}</div>
 
-            <div className="relative flex h-56 gap-2">
+            {mode === 'rank' && <svg role="img" aria-label="Traçado do ranking" viewBox="0 0 1000 100" preserveAspectRatio="none" className="pointer-events-none absolute inset-x-0 top-4 h-40 w-full text-forja/70">
+              {recent.map((p, i) => { const previous = recent[i - 1]; return previous && ranked(previous) && ranked(p) ? <line key={p.id} x1={(i - 0.5) / recent.length * 1000} y1={yRank(previous.rank!)} x2={(i + 0.5) / recent.length * 1000} y2={yRank(p.rank!)} stroke="currentColor" strokeWidth="1.5" strokeDasharray="4 5" vectorEffect="non-scaling-stroke" /> : null; })}
+            </svg>}
+            <div className={`relative flex h-56 ${mode === 'solves' ? 'gap-2' : ''}`}>
               {recent.map(p => <button key={p.id} onMouseEnter={() => setSelectedId(p.id)} onFocus={() => setSelectedId(p.id)} onClick={() => setSelectedId(p.id)} aria-label={barLabel(p)} className="group flex h-full min-w-6 flex-1 flex-col items-center rounded-t outline-none focus-visible:ring-1 focus-visible:ring-forja">
                 <div className="relative flex h-48 w-full items-end justify-center gap-1">
                   {mode === 'solves' ? <>
                     <div className="w-full max-w-7 rounded-t-sm bg-emerald-500/80 transition-colors group-hover:bg-emerald-400" style={{ height: `${Math.min(100, scaleSolve(p, p.progress.solved_live) / max * 100)}%` }} />
                     {upsolving && <div className="w-full max-w-7 rounded-t-sm bg-sky-500/70 transition-colors group-hover:bg-sky-400" style={{ height: `${Math.min(100, scaleSolve(p, p.progress.upsolved) / max * 100)}%` }} />}
-                  </> : value(p) == null ? <span className="pb-2 text-zinc-500">—</span> : <span className={`absolute size-2.5 rounded-full border-2 border-forja ${selectedId === p.id ? 'bg-forja' : 'bg-zinc-950'}`} style={{ top: `${yRank(value(p)!)}%`, transform: 'translateY(-50%)' }} />}
+                  </> : value(p) == null ? <span className="pb-2 text-zinc-500">—</span> : <span className="pointer-events-none absolute inset-x-0 bottom-4 top-4"><span className={`absolute left-1/2 size-2.5 rounded-full border-2 border-forja ${selectedId === p.id ? 'bg-forja' : 'bg-zinc-950'}`} style={{ top: `${yRank(value(p)!)}%`, transform: 'translate(-50%, -50%)' }} /></span>}
 
                 </div><span aria-hidden="true" className="mt-2 text-[11px] tabular-nums text-zinc-400">{p.participation_date ? new Date(p.participation_date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : '—'}</span>
               </button>)}

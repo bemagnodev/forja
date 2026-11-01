@@ -89,3 +89,16 @@ it('não mostra UP para questão sem resolução posterior', async () => {
   const scoreboard = screen.getByRole('region', { name: 'Placar da prova' });
   expect(within(scoreboard).queryByText('UP', { exact: true })).toBeNull();
 });
+
+it('remove texto genérico e legenda sem remover aviso de histórico parcial', async () => {
+  mount();
+  await screen.findByText('Problema F');
+  expect(screen.queryByText('Histórico da prova e estudo posterior preservados')).toBeNull();
+  expect(screen.getByText(/Histórico parcial/)).toBeVisible();
+  expect(screen.getByRole('region', { name: 'Placar da prova' })).not.toHaveTextContent('tentativa sem AC');
+});
+it('não mostra a frase genérica com histórico completo', async () => {
+  mocks.get.mockImplementation(async (url: string) => ({ data: url.endsWith('/problems') ? [{ ...problem, contest_result: { accepted: true, failed_attempts: 0, first_ac_seconds: 10, coverage: 'complete' } }] : detail }));
+  mount(); await screen.findByText('Problema F');
+  expect(screen.queryByText('Histórico da prova e estudo posterior preservados')).toBeNull();
+});
