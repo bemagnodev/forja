@@ -6,7 +6,7 @@ import { ContestCard, type ContestParticipation } from "@/components/contests/Co
 import { SelectControl } from '@/components/ui/select-control';
 import { ContestMetrics } from "@/components/contests/ContestMetrics";
 import { ContestEvolution } from "@/components/contests/ContestEvolution";
-import { ChevronLeft, ChevronRight, Search, Swords, ChartNoAxesColumn } from "lucide-react";
+import { ChevronLeft, ChevronRight, Search, Swords } from "lucide-react";
 
 const KEY = "forja-contests-view-v1";
 const defaults = { search: "", platform: "all", mode: "all", period: "all", sort: "recent", page: 1, scroll: 0 };
@@ -89,7 +89,6 @@ export function Contests() {
       </div>
       <ContestMetrics participations={filtered} />
       {!participations.length ? <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-6 py-16 text-center"><Swords className="mx-auto mb-4 size-8 text-white/25" /><p className="font-medium text-white/80">Nenhum contest sincronizado</p><p className="mt-2 text-xs text-white/50">Sincronize sua conta para acompanhar seus treinos.</p></div> : <>
-        <div className="mb-3 text-right text-xs"><a href="#resultados-contests" aria-label="Ver resultados por contest" className="results-navigation"><ChartNoAxesColumn className="size-3.5" />Ver resultados</a></div>
         <section aria-label="Histórico de contests">
           <div className="mb-3 flex items-center justify-between text-xs text-white/50"><span>{filtered.length} contests neste recorte</span></div>
           {visible.length ? <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">{visible.map(p => <ContestCard key={p.id} participation={p} onNavigate={recordScroll} />)}</div> : <div className="rounded-xl border border-dashed border-white/10 py-14 text-center"><p className="text-sm text-white/65">Nenhum contest neste recorte</p><button className="mt-3 text-xs text-sky-300 underline" onClick={() => setView(defaults)}>Limpar filtros</button></div>}

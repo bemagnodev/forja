@@ -28,6 +28,7 @@ it('pagina os cards mas mantém indicadores e evolução de todo o recorte', asy
   const cards = await screen.findByRole('region', { name: 'Histórico de contests' });
   expect(within(cards).getAllByRole('link')).toHaveLength(9);
   expect(screen.getByRole('region', { name: 'Resultados por contest' })).toBeVisible();
+  expect(screen.queryByRole('link', { name: 'Ver resultados por contest' })).toBeNull();
   expect(screen.getByTestId('metric-contests')).toHaveTextContent('12');
   expect(screen.getByRole('button', { name: 'Equipe' })).toBeVisible();
   expect(screen.getByRole('button', { name: 'Individual' })).toBeVisible();

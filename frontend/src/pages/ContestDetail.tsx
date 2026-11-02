@@ -10,7 +10,7 @@ import { ProblemActionsCell } from "@/components/contests/ProblemActionsCell";
 import { CompactProblemTags } from '@/components/contests/CompactProblemTags';
 import { ContestIdentity } from '@/components/contests/ContestIdentity';
 import { ContestResultCell } from "@/components/contests/ContestResultCell";
-import { AlertCircle, ArrowLeft, ExternalLink, Sparkles, Search, CalendarDays, Clock3, ChartNoAxesColumn } from "lucide-react";
+import { AlertCircle, ArrowLeft, ExternalLink, Sparkles, Search, CalendarDays, Clock3 } from "lucide-react";
 import type { ContestProblem } from "@/components/contests/types";
 import type { ContestParticipation } from "@/components/contests/ContestCard";
 import { getRatingColor } from "@/lib/ratings";
@@ -123,10 +123,7 @@ export function ContestDetail() {
           <p className="mb-1 text-[11px] font-medium text-white/55">{m.label}</p><p className={`text-2xl font-bold tabular-nums ${m.color}`}>{m.value}</p>{m.label === "Erros na prova" && <p className="mt-1 text-[11px] text-zinc-400">{Object.entries(verdicts).map(([key, value]) => `${key} ${value}`).join(" · ")}</p>}
         </div>)}
       </div>
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-2 text-xs text-zinc-400">
-        {partial && <span>Histórico parcial · Alguns horários e tentativas ainda não puderam ser confirmados</span>}
-        <a href="#placar-da-prova" className="results-navigation ml-auto"><ChartNoAxesColumn className="size-3.5" />Ver placar</a>
-      </div>
+      {partial && <p className="mb-4 text-xs text-zinc-400">Histórico parcial · Alguns horários e tentativas ainda não puderam ser confirmados</p>}
       <div className="mb-4 flex flex-col gap-4">
         <div className="flex flex-wrap gap-2">{FILTERS.map(f => <button key={f.key} aria-pressed={filter === f.key} onClick={() => setFilter(f.key)} className={`rounded-lg border px-3 py-2 text-xs font-medium transition-colors ${filter === f.key ? "border-forja/40 bg-forja/10 text-red-300" : "border-white/10 text-white/55 hover:bg-white/5"}`}>
           {f.label} <span className="ml-1.5 opacity-60">{problems.filter(p => matches(p, f.key)).length}</span>
