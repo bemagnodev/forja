@@ -1,3 +1,4 @@
+import { MemoryRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
 import { expect, it, vi } from 'vitest';
@@ -8,7 +9,7 @@ vi.mock('@/lib/visual-preview', () => ({ visualPreview: true }));
 vi.mock('@/components/ui/toast-context', () => ({ useToast: () => ({ toast: vi.fn() }) }));
 
 it('não oferece mais a faixa de prioridade na prévia', async () => {
-  render(<QueryClientProvider client={new QueryClient()}><Queue /></QueryClientProvider>);
+  render(<QueryClientProvider client={new QueryClient()}><MemoryRouter><Queue /></MemoryRouter></QueryClientProvider>);
   await screen.findByRole('heading', { name: 'Fila' });
   expect(screen.queryByRole('checkbox', { name: 'Faixa de prioridade' })).toBeNull();
 });

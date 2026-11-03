@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { api } from "@/lib/api";
 import { ListPlus, Sparkles } from "lucide-react";
 import type { ContestProblem } from "./types";
@@ -13,28 +14,32 @@ interface ProblemActionsCellProps {
 
 export function ProblemActionsCell({ problem }: ProblemActionsCellProps) {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const { toast } = useToast();
   const [nativeBlockedFor, setNativeBlockedFor] = useState<number | null>(null);
   const nativeBlocked = nativeBlockedFor === problem.id;
 
   const addToQueueMutation = useMutation({
     mutationFn: () =>
-      api.post("/queue", {
+      api.post<{ id: number }>("/queue", {
         title: problem.title,
         item_type: "PROBLEM",
         priority: "UPSOLVING",
         source_platform: "CODEFORCES",
         linked_problem_id: problem.id,
       }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["queue"] });
-      
+    onSuccess: ({ data }) => {
+      void queryClient.invalidateQueries({ queryKey: ["queue"] });
       toast({
-        title: "Adicionado à fila!",
-        description: `O problema "${problem.title}" está pronto para upsolving.`,
+        title: "Problema adicionado à fila",
         type: "success",
+        action: {
+          label: "Ver na fila",
+          onClick: () => navigate("/", { state: { queueItemId: data.id } }),
+        },
       });
     },
+    onError: () => toast({ title: "Não foi possível adicionar à fila", description: "Tente novamente.", type: "error" }),
   });
 
   const predictMutation = useMutation({

@@ -1,3 +1,4 @@
+import { MemoryRouter } from "react-router-dom";
 import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, expect, it, vi } from 'vitest';
@@ -12,7 +13,7 @@ vi.mock('@/components/queue/SortableRow', () => ({ SortableRow: ({ item, onToggl
 
 function deferred() { let resolve!: (value: unknown) => void; let reject!: (error: Error) => void; const promise = new Promise((a, b) => { resolve = a; reject = b; }); return { promise, resolve, reject }; }
 const items = [{ id: 1, title: 'Primeiro', is_completed: false, priority: 'P1' }, { id: 2, title: 'Segundo', is_completed: false, priority: 'P2' }];
-function mount() { const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } }); render(<QueryClientProvider client={client}><Queue /></QueryClientProvider>); return client; }
+function mount() { const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } }); render(<QueryClientProvider client={client}><MemoryRouter><Queue /></MemoryRouter></QueryClientProvider>); return client; }
 beforeEach(() => { vi.clearAllMocks(); mocks.get.mockResolvedValue({ data: items }); });
 
 it('não remove nem anuncia conclusão enquanto pendente; mantém item no erro', async () => {

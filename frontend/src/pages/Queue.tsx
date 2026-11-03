@@ -1,4 +1,5 @@
-import React, { useCallback, useState, useMemo, useRef } from "react";
+import React, { useCallback, useEffect, useState, useMemo, useRef } from "react";
+import { useLocation } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 
@@ -23,6 +24,8 @@ import { AddItemDialog } from "@/components/queue/AddItemDialog";
 export function Queue() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { key: locationKey, state } = useLocation();
+  const [expiredHighlight, setExpiredHighlight] = useState<string>();
 
   const { data: items = [], isLoading, isError } = useQuery<QueueItem[]>({
     queryKey: ["queue"],
@@ -98,6 +101,22 @@ export function Queue() {
       return true;
     });
   }, [items, priorityFilter]);
+
+  const highlightedId = !isError && expiredHighlight !== locationKey
+    ? filteredItems.find(item => item.id === state?.queueItemId)?.id
+    : undefined;
+
+  useEffect(() => {
+    if (highlightedId === undefined) return;
+    const row = document.getElementById(`queue-item-${highlightedId}`);
+    if (!row) return;
+
+    const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+    row.focus({ preventScroll: true });
+    row.scrollIntoView?.({ behavior: reduceMotion ? "instant" : "smooth", block: "center", inline: "nearest" });
+    const timeout = window.setTimeout(() => setExpiredHighlight(locationKey), 3000);
+    return () => window.clearTimeout(timeout);
+  }, [highlightedId, locationKey]);
 
   const groupedItems = useMemo(() => {
     if (!groupByContest) return null;
@@ -228,6 +247,7 @@ export function Queue() {
                           <SortableRow
                             key={item.id}
                             item={item}
+                            highlighted={item.id === highlightedId}
                             disabled={toggleMutation.isPending || reorderMutation.isPending || patchMutation.isPending}
                             onToggle={handleToggle}
                             onPatchPriority={(id, priority) => patchMutation.mutate({ id, data: { priority } })}
@@ -243,6 +263,7 @@ export function Queue() {
                       <SortableRow
                         key={item.id}
                         item={item}
+                        highlighted={item.id === highlightedId}
                             disabled={toggleMutation.isPending || reorderMutation.isPending || patchMutation.isPending}
                         onToggle={handleToggle}
                         onPatchPriority={(id, priority) => patchMutation.mutate({ id, data: { priority } })}

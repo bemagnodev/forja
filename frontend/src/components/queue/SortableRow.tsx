@@ -67,12 +67,14 @@ function abbreviateContest(name: string): string {
 
 export function SortableRow({
   item,
+  highlighted = false,
   disabled = false,
   onToggle,
   onPatchPriority,
   onPatchDescription,
 }: {
   item: QueueItem;
+  highlighted?: boolean;
   disabled?: boolean;
   onToggle: (id: number, currentStatus: boolean, title: string) => void;
   onPatchPriority: (id: number, priority: string) => void;
@@ -133,7 +135,10 @@ export function SortableRow({
     <TableRow
       ref={setNodeRef}
       style={style}
-      className="border-b border-white/[0.05] transition-colors duration-150 group relative hover:bg-zinc-800/60 bg-transparent"
+      id={`queue-item-${item.id}`}
+      tabIndex={highlighted ? -1 : undefined}
+      data-highlighted={highlighted || undefined}
+      className="border-b border-white/[0.05] transition-colors duration-150 motion-reduce:transition-none group relative hover:bg-zinc-800/60 bg-transparent data-[highlighted=true]:bg-emerald-500/15"
     >
       {/* ── CHECK: grip + checkbox ── */}
       <TableCell className="py-0 pl-4 pr-5 align-middle">

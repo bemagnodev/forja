@@ -1,3 +1,4 @@
+import { MemoryRouter } from "react-router-dom";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { Queue } from "./Queue";
@@ -32,7 +33,7 @@ describe("Queue Page", () => {
 
   it("abre e cancela Novo Item sem criar botões aninhados", async () => {
     const user = userEvent.setup();
-    render(<QueryClientProvider client={queryClient}><Queue /></QueryClientProvider>);
+    render(<QueryClientProvider client={queryClient}><MemoryRouter><Queue /></MemoryRouter></QueryClientProvider>);
     expect(document.querySelector("button button")).toBeNull();
     await user.click(screen.getByRole("button", { name: "Novo Item" }));
     expect(await screen.findByRole("dialog")).toBeVisible();
@@ -43,9 +44,9 @@ describe("Queue Page", () => {
 
   it("renders the queue and filter buttons", async () => {
     render(
-      <QueryClientProvider client={queryClient}>
+      <QueryClientProvider client={queryClient}><MemoryRouter>
         <Queue />
-      </QueryClientProvider>
+      </MemoryRouter></QueryClientProvider>
     );
     expect(screen.getByRole('heading', { name: 'Fila' })).toBeInTheDocument();
     expect(screen.getByText('Organize suas questões e sessões de treinamento')).toBeInTheDocument();
@@ -59,7 +60,7 @@ describe("Queue Page", () => {
 
   it('distingue filtro sem resultados da fila inteira e permite limpar o filtro', async () => {
     vi.mocked(api.get).mockResolvedValue({ data: [{ id: 1, title: 'Estudar grafos', item_type: 'STUDY_SESSION', priority: 'P1', tags: [], is_completed: false }] });
-    render(<QueryClientProvider client={queryClient}><Queue /></QueryClientProvider>);
+    render(<QueryClientProvider client={queryClient}><MemoryRouter><Queue /></MemoryRouter></QueryClientProvider>);
     await screen.findByText('Estudar grafos');
     await userEvent.click(screen.getByRole('button', { name: 'P2' }));
     expect(screen.getByRole('button', { name: 'P2' })).toHaveAttribute('aria-pressed', 'true');
@@ -71,9 +72,9 @@ describe("Queue Page", () => {
 
   it("can toggle group by contest", async () => {
     render(
-      <QueryClientProvider client={queryClient}>
+      <QueryClientProvider client={queryClient}><MemoryRouter>
         <Queue />
-      </QueryClientProvider>
+      </MemoryRouter></QueryClientProvider>
     );
 
     await waitFor(() => {

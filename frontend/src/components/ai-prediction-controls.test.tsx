@@ -1,3 +1,4 @@
+import { MemoryRouter } from "react-router-dom";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -29,10 +30,10 @@ const item: QueueItem & { linked_problem_id: number } = { id: 3, item_type: "PRO
 function mount(kind: string, nativeRating?: number) {
   const client = new QueryClient({ defaultOptions: { mutations: { retry: false }, queries: { retry: false } } });
   const invalidate = vi.spyOn(client, "invalidateQueries");
-  render(<QueryClientProvider client={client}><TooltipProvider>
+  render(<QueryClientProvider client={client}><MemoryRouter><TooltipProvider>
     {kind === "queue" ? <table><tbody><SortableRow item={{ ...item, rating: nativeRating }} onToggle={vi.fn()} onPatchPriority={vi.fn()} onPatchDescription={vi.fn()} /></tbody></table>
       : <ProblemActionsCell problem={{ ...problem, rating: nativeRating ?? null }} />}
-  </TooltipProvider></QueryClientProvider>);
+  </TooltipProvider></MemoryRouter></QueryClientProvider>);
   return invalidate;
 }
 

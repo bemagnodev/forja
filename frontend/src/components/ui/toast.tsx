@@ -87,7 +87,7 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }
       </div>
       
       <div className="flex-1 flex flex-col gap-0.5 overflow-hidden">
-        <h3 className={cn("text-[13px] font-bold tracking-tight leading-none truncate", accentColors[toast.type])}>
+        <h3 className={cn("text-[13px] font-bold tracking-tight leading-snug break-words", accentColors[toast.type])}>
           {toast.title}
         </h3>
         {toast.description && (
